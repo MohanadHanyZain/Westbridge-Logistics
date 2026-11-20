@@ -49,23 +49,36 @@ CREATE TABLE IF NOT EXISTS public.journal_entry_lines (
 );
 
 ALTER TABLE public.journal_entries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.journal_entries FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.journal_entry_lines ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.journal_entry_lines FORCE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS tenant_isolation_journal_entries ON public.journal_entries;
 CREATE POLICY tenant_isolation_journal_entries ON public.journal_entries
-  FOR ALL USING (
+  FOR SELECT USING (
     tenant_id IN (
       SELECT tenant_id FROM public.tenant_memberships
       WHERE user_id = auth.uid() AND is_active = true
     )
   );
 
+DROP POLICY IF EXISTS tenant_isolation_journal_entry_lines ON public.journal_entry_lines;
 CREATE POLICY tenant_isolation_journal_entry_lines ON public.journal_entry_lines
-  FOR ALL USING (
+  FOR SELECT USING (
     tenant_id IN (
       SELECT tenant_id FROM public.tenant_memberships
       WHERE user_id = auth.uid() AND is_active = true
     )
   );
+
+-- ----------------------------------------------------------------------------
+-- 2. Register the Phase 10 permission in the global catalog (idempotent)
+-- ----------------------------------------------------------------------------
+INSERT INTO public.permissions (key, module, label_ar, description_ar, default_scope, is_sensitive)
+SELECT 'accounting.journals.post', 'accounting', 'الحسابات العامة', 'إدارة الدليل والقيود والمحاسبة', 'tenant', false
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.permissions WHERE key = 'accounting.journals.post'
+);
 
 -- ----------------------------------------------------------------------------
 -- 2. Numbering sequence for JENT (Journal Entries)
@@ -104,7 +117,7 @@ DECLARE
   v_debit numeric(14,2);
   v_credit numeric(14,2);
 BEGIN
-  IF NOT public.user_can_access_branch(p_tenant_id, v_branch_id) THEN
+  IF NOT app_private.user_can_access_finance_branch(p_tenant_id, v_branch_id) THEN
     RAISE EXCEPTION 'ليس لديك صلاحية على الفرع المختار لإنشاء القيد.';
   END IF;
 
@@ -192,7 +205,7 @@ BEGIN
 
   -- ADR-018: Four-Eyes policy enforcement
   PERFORM app_private.assert_finance_approval_policy(
-    p_tenant_id, v_entry.created_by, v_entry.total_debit, 'journal_entry', p_entry_id
+    p_tenant_id, v_entry.created_by, v_entry.total_debit, 'accounting.journals.post', v_entry.branch_id
   );
 
   UPDATE public.journal_entries
@@ -232,16 +245,16 @@ BEGIN
     a.name AS account_name,
     a.account_type::text AS account_type,
     a.is_group,
-    coalesce(sum(l.debit), 0)::numeric(14,2) AS total_debit,
-    coalesce(sum(l.credit), 0)::numeric(14,2) AS total_credit,
+    coalesce(sum(l.debit) FILTER (WHERE e.id IS NOT NULL), 0)::numeric(14,2) AS total_debit,
+    coalesce(sum(l.credit) FILTER (WHERE e.id IS NOT NULL), 0)::numeric(14,2) AS total_credit,
     CASE
-      WHEN a.account_type IN ('asset', 'expense') THEN (coalesce(sum(l.debit), 0) - coalesce(sum(l.credit), 0))::numeric(14,2)
-      ELSE (coalesce(sum(l.credit), 0) - coalesce(sum(l.debit), 0))::numeric(14,2)
+      WHEN a.account_type IN ('asset', 'expense') THEN (coalesce(sum(l.debit) FILTER (WHERE e.id IS NOT NULL), 0) - coalesce(sum(l.credit) FILTER (WHERE e.id IS NOT NULL), 0))::numeric(14,2)
+      ELSE (coalesce(sum(l.credit) FILTER (WHERE e.id IS NOT NULL), 0) - coalesce(sum(l.debit) FILTER (WHERE e.id IS NOT NULL), 0))::numeric(14,2)
     END AS net_balance
   FROM public.chart_of_accounts a
   LEFT JOIN public.journal_entry_lines l ON l.account_id = a.id AND l.tenant_id = p_tenant_id
     AND (p_branch_id IS NULL OR l.branch_id = p_branch_id)
-  LEFT JOIN public.journal_entries e ON e.id = l.entry_id AND e.status = 'approved'
+  LEFT JOIN public.journal_entries e ON e.id = l.entry_id AND e.status = 'approved' AND e.tenant_id = p_tenant_id
   WHERE a.tenant_id = p_tenant_id AND a.archived_at IS NULL
   GROUP BY a.id, a.code, a.name, a.account_type, a.is_group, a.sort_order
   ORDER BY a.code;

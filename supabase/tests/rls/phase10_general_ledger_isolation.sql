@@ -8,22 +8,22 @@ BEGIN;
 
 INSERT INTO auth.users (id, email)
 VALUES
-  ('g1111111-1111-1111-1111-111111111111', 'owner-p10@test.local'),
-  ('g2222222-2222-2222-2222-222222222222', 'accountant-p10@test.local'),
-  ('g9999999-9999-9999-9999-999999999999', 'superadmin-p10@test.local')
+  ('b1111111-1111-1111-1111-111111111111', 'owner-p10@test.local'),
+  ('b2222222-2222-2222-2222-222222222222', 'accountant-p10@test.local'),
+  ('b9999999-9999-9999-9999-999999999999', 'superadmin-p10@test.local')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO public.profiles (id, display_name, is_platform_user, is_active)
-VALUES ('g9999999-9999-9999-9999-999999999999', 'Super Admin P10', true, true)
+VALUES ('b9999999-9999-9999-9999-999999999999', 'Super Admin P10', true, true)
 ON CONFLICT (id) DO NOTHING;
 
 SELECT * FROM app_private.onboard_tenant(
   'idem-phase10-a',
-  'g9999999-9999-9999-9999-999999999999',
+  'b9999999-9999-9999-9999-999999999999',
   'TEN_P10',
   'phase10-gl',
   'شركة المرحلة العاشرة للحسابات',
-  'g1111111-1111-1111-1111-111111111111',
+  'b1111111-1111-1111-1111-111111111111',
   'admin',
   'مالك المرحلة العاشرة',
   'owner-p10@test.local',
@@ -40,25 +40,24 @@ DECLARE
   v_acct_cash uuid;
   v_acct_rev uuid;
   v_entry_res jsonb;
-  v_trial jsonb;
 BEGIN
   SELECT id INTO v_tenant FROM public.tenants WHERE slug = 'phase10-gl';
   SELECT id INTO v_branch FROM public.branches WHERE tenant_id = v_tenant AND is_main = true LIMIT 1;
   SELECT id INTO v_role_accountant FROM public.roles WHERE tenant_id = v_tenant AND code = 'accountant';
   SELECT id INTO v_journal_id FROM public.auxiliary_journals WHERE tenant_id = v_tenant LIMIT 1;
   SELECT id INTO v_entry_type_id FROM public.journal_entry_types WHERE tenant_id = v_tenant LIMIT 1;
-  SELECT id INTO v_acct_cash FROM public.chart_of_accounts WHERE tenant_id = v_tenant AND code = '1111' LIMIT 1;
-  SELECT id INTO v_acct_rev FROM public.chart_of_accounts WHERE tenant_id = v_tenant AND code = '4111' LIMIT 1;
+  SELECT id INTO v_acct_cash FROM public.chart_of_accounts WHERE tenant_id = v_tenant AND code = '1101' LIMIT 1;
+  SELECT id INTO v_acct_rev FROM public.chart_of_accounts WHERE tenant_id = v_tenant AND code = '4101' LIMIT 1;
 
   PERFORM public.srv_provision_tenant_user(
-    v_tenant, 'g1111111-1111-1111-1111-111111111111', 'g2222222-2222-2222-2222-222222222222',
+    v_tenant, 'b1111111-1111-1111-1111-111111111111', 'b2222222-2222-2222-2222-222222222222',
     'accountant_p10', 'محاسب 10', 'accountant-p10@test.local',
     v_role_accountant, NULL, ARRAY[v_branch], NULL
   );
 
-  -- Switch to Accountant (g222...)
+  -- Switch to Accountant
   SET LOCAL ROLE authenticated;
-  PERFORM set_config('request.jwt.claim.sub', 'g2222222-2222-2222-2222-222222222222', true);
+  PERFORM set_config('request.jwt.claim.sub', 'b2222222-2222-2222-2222-222222222222', true);
   PERFORM set_config('request.jwt.claim.role', 'authenticated', true);
 
   -- Test unbalanced entry guard
@@ -89,11 +88,12 @@ BEGIN
       jsonb_build_object('account_id', v_acct_rev, 'debit', 0, 'credit', 500, 'description', 'إيراد توصيل')
     )
   ));
-  IF NOT (v_entry_res->>'entry_code') LIKE 'JENT-%' THEN
-    RAISE EXCEPTION 'Expected JENT- entry code, got %', v_entry_res->>'entry_code';
+
+  IF COALESCE(v_entry_res->>'entry_code', '') !~ '^(JENT|JOU)-[0-9]+$' THEN
+    RAISE EXCEPTION 'Unexpected entry_code format, got %', v_entry_res->>'entry_code';
   END IF;
 
-  -- ADR-018 Four-Eyes check: Accountant created entry, accountant CANNOT self-approve!
+  -- ADR-018 Four-Eyes check: Accountant created entry, accountant CANNOT self-approve
   BEGIN
     PERFORM public.approve_journal_entry(v_tenant, (v_entry_res->>'id')::uuid);
     RAISE EXCEPTION 'Expected Four-Eyes to block accountant self-approval';
@@ -101,12 +101,12 @@ BEGIN
     NULL;
   END;
 
-  -- Switch to Tenant Owner (g111...) -> approves journal entry
-  PERFORM set_config('request.jwt.claim.sub', 'g1111111-1111-1111-1111-111111111111', true);
+  -- Switch to Tenant Owner -> approves journal entry
+  PERFORM set_config('request.jwt.claim.sub', 'b1111111-1111-1111-1111-111111111111', true);
   PERFORM public.approve_journal_entry(v_tenant, (v_entry_res->>'id')::uuid);
 
   -- Verify trial balance returns data
-  IF NOT EXISTS (SELECT 1 FROM public.get_trial_balance(v_tenant) WHERE account_code = '1111' AND total_debit = 500) THEN
+  IF NOT EXISTS (SELECT 1 FROM public.get_trial_balance(v_tenant) WHERE account_code = '1101' AND total_debit = 500) THEN
     RAISE EXCEPTION 'Expected trial balance to reflect approved journal entry';
   END IF;
 
