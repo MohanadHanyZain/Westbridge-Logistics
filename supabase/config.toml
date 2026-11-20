@@ -1,0 +1,29 @@
+# Supabase Configuration (Phase 0 Scaffold)
+# Do NOT commit secret keys here. All secrets belong in Supabase Vault / Edge Function Secrets.
+
+project_id = "shipflow"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "reporting"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[studio]
+enabled = true
+port = 54323
+
+[storage]
+enabled = true
+file_size_limit = "10MiB"
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+enable_signup = false

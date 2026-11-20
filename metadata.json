@@ -1,0 +1,8 @@
+{
+  "name": "ShipFlow",
+  "description": "منصة SaaS متعددة الشركات لإدارة شركات الشحن والتوصيل والعمليات اللوجستية والمالية.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

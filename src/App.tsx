@@ -1,0 +1,146 @@
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
+
+import {BrowserRouter, Navigate, Route, Routes} from 'react-router-dom';
+import {
+  PlatformLoginPage,
+  RequirePlatformAdmin,
+  RequireTenantMember,
+  SetPasswordPage,
+  TenantLoginPage,
+} from '@/app/AuthPages';
+import {HomeHubPage} from '@/app/HomeHubPage';
+import {PhaseZeroConsole} from '@/app/PhaseZeroConsole';
+import {AppErrorBoundary} from '@/components/common/AppErrorBoundary';
+import {DirectionProvider} from '@/components/common/DirectionProvider';
+import {BranchesPage} from '@/features/branches/BranchesPage';
+import {ClientDetailPage} from '@/features/clients/ClientDetailPage';
+import {ClientsListPage} from '@/features/clients/ClientsListPage';
+import {ClientSettlementsPage} from '@/features/clients/ClientSettlementsPage';
+import {CommissionListsPage} from '@/features/couriers/CommissionListsPage';
+import {CourierMovementsPage} from '@/features/couriers/CourierMovementsPage';
+import {CourierRoutesPage} from '@/features/couriers/CourierRoutesPage';
+import {CourierSettlementsPage} from '@/features/couriers/CourierSettlementsPage';
+import {CouriersListPage} from '@/features/couriers/CouriersListPage';
+import {TenantOverviewPage} from '@/features/dashboard/TenantOverviewPage';
+import {AccountingRefsPage} from '@/features/definitions/AccountingRefsPage';
+import {CashboxesPage} from '@/features/definitions/CashboxesPage';
+import {ExceptionsPage} from '@/features/definitions/ExceptionsPage';
+import {ServicesPage} from '@/features/definitions/ServicesPage';
+import {GeographyPage} from '@/features/geography/GeographyPage';
+import {CourierPortalPage} from '@/features/delivery/CourierPortalPage';
+import {DeliveryListsPage} from '@/features/delivery/DeliveryListsPage';
+import {ReturnsWorkflowPage} from '@/features/delivery/ReturnsWorkflowPage';
+import {CourierCollectionsPage} from '@/features/finance/CourierCollectionsPage';
+import {FinanceCashboxesPage} from '@/features/finance/FinanceCashboxesPage';
+import {JournalEntriesPage} from '@/features/accounting/JournalEntriesPage';
+import {TrialBalancePage} from '@/features/accounting/TrialBalancePage';
+import {BranchTransfersPage} from '@/features/operations/BranchTransfersPage';
+import {PickupListsPage} from '@/features/operations/PickupListsPage';
+import {WarehouseIntakePage} from '@/features/operations/WarehouseIntakePage';
+import {PriceListDetailPage} from '@/features/pricing/PriceListDetailPage';
+import {PriceListsPage} from '@/features/pricing/PriceListsPage';
+import {PricingCalculatorPage} from '@/features/pricing/PricingCalculatorPage';
+import {RolesPermissionsPage} from '@/features/security/RolesPermissionsPage';
+import {SessionAuditPage} from '@/features/security/SessionAuditPage';
+import {UsersManagementPage} from '@/features/security/UsersManagementPage';
+import {CreateShipmentPage} from '@/features/shipments/CreateShipmentPage';
+import {PublicTrackingPage} from '@/features/shipments/PublicTrackingPage';
+import {ShipmentDetailPage} from '@/features/shipments/ShipmentDetailPage';
+import {ShipmentsListPage} from '@/features/shipments/ShipmentsListPage';
+import {PlatformTenantsPage} from '@/features/tenants/PlatformTenantsPage';
+import {TenantAdminShellPage} from '@/features/tenants/TenantAdminShellPage';
+import {TenantPublicPage} from '@/features/tenants/TenantPublicPage';
+import {AuthProvider} from '@/lib/auth';
+
+export function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/" element={<HomeHubPage />} />
+      <Route path="/architecture" element={<PhaseZeroConsole />} />
+      <Route path="/platform/login" element={<PlatformLoginPage />} />
+      <Route
+        path="/platform"
+        element={
+          <RequirePlatformAdmin>
+            <PlatformTenantsPage />
+          </RequirePlatformAdmin>
+        }
+      />
+      <Route path="/auth/set-password" element={<SetPasswordPage />} />
+      <Route path="/c/:companySlug" element={<TenantPublicPage />} />
+      <Route path="/c/:companySlug/track" element={<PublicTrackingPage />} />
+      <Route path="/c/:companySlug/track/:token" element={<PublicTrackingPage />} />
+      <Route path="/c/:companySlug/login" element={<TenantLoginPage />} />
+      <Route
+        path="/c/:companySlug/app"
+        element={
+          <RequireTenantMember>
+            <TenantAdminShellPage />
+          </RequireTenantMember>
+        }
+      >
+        <Route index element={<TenantOverviewPage />} />
+        <Route path="definitions/branches" element={<BranchesPage />} />
+        <Route path="definitions/geography" element={<GeographyPage />} />
+        <Route path="definitions/services" element={<ServicesPage />} />
+        <Route path="definitions/exceptions" element={<ExceptionsPage />} />
+        <Route path="definitions/cashboxes" element={<CashboxesPage />} />
+        <Route path="definitions/accounting-refs" element={<AccountingRefsPage />} />
+        <Route path="clients" element={<ClientsListPage initialMode="list" />} />
+        <Route path="clients/new" element={<ClientsListPage initialMode="create" />} />
+        <Route path="clients/registrations" element={<ClientsListPage initialMode="registrations" />} />
+        <Route path="clients/settlements" element={<ClientSettlementsPage />} />
+        <Route path="clients/:clientId" element={<ClientDetailPage />} />
+        <Route path="pricing/price-lists" element={<PriceListsPage />} />
+        <Route path="pricing/price-lists/:priceListId" element={<PriceListDetailPage />} />
+        <Route path="pricing/calculator" element={<PricingCalculatorPage />} />
+        <Route path="security/users" element={<UsersManagementPage />} />
+        <Route path="security/roles" element={<RolesPermissionsPage />} />
+        <Route path="security/sessions" element={<SessionAuditPage />} />
+        <Route path="couriers" element={<CouriersListPage initialMode="list" />} />
+        <Route path="couriers/new" element={<CouriersListPage initialMode="create" />} />
+        <Route path="couriers/commissions" element={<CommissionListsPage />} />
+        <Route path="couriers/routes" element={<CourierRoutesPage />} />
+        <Route path="couriers/settlements" element={<CourierSettlementsPage />} />
+        <Route path="couriers/movements" element={<CourierMovementsPage />} />
+        <Route path="shipments" element={<ShipmentsListPage preset="all" />} />
+        <Route path="shipments/new" element={<CreateShipmentPage />} />
+        <Route path="shipments/warehouse" element={<ShipmentsListPage preset="warehouse" />} />
+        <Route path="shipments/out-for-delivery" element={<ShipmentsListPage preset="out-for-delivery" />} />
+        <Route path="shipments/rescheduled" element={<ShipmentsListPage preset="rescheduled" />} />
+        <Route path="shipments/returns" element={<ShipmentsListPage preset="returns" />} />
+        <Route path="shipments/tracking" element={<ShipmentsListPage preset="tracking" />} />
+        <Route path="shipments/:shipmentId" element={<ShipmentDetailPage />} />
+        <Route path="operations/pickup" element={<PickupListsPage />} />
+        <Route path="operations/warehouse" element={<WarehouseIntakePage />} />
+        <Route path="operations/transfers" element={<BranchTransfersPage />} />
+        <Route path="operations/delivery" element={<DeliveryListsPage listType="delivery" />} />
+        <Route path="operations/redelivery" element={<DeliveryListsPage listType="redelivery" />} />
+        <Route path="operations/returns" element={<ReturnsWorkflowPage />} />
+        <Route path="operations/courier-portal" element={<CourierPortalPage />} />
+        <Route path="finance/cashboxes" element={<FinanceCashboxesPage />} />
+        <Route path="finance/collections" element={<CourierCollectionsPage />} />
+        <Route path="accounting/journal-entries" element={<JournalEntriesPage />} />
+        <Route path="accounting/trial-balance" element={<TrialBalancePage />} />
+      </Route>
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
+export default function App() {
+  return (
+    <AppErrorBoundary>
+      <DirectionProvider>
+        <AuthProvider>
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
+        </AuthProvider>
+      </DirectionProvider>
+    </AppErrorBoundary>
+  );
+}
