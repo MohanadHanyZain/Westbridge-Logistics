@@ -24,7 +24,11 @@ export interface PublicTenantInfo {
   readonly default_currency: string;
   readonly default_locale: string;
   readonly allow_client_self_registration: boolean;
+  readonly auto_approve_clients?: boolean;
   readonly brand_logo_path: string | null;
+  readonly public_tagline?: string | null;
+  readonly public_support_phone?: string | null;
+  readonly public_support_email?: string | null;
 }
 
 export interface TenantSettingsRecord {
@@ -32,7 +36,70 @@ export interface TenantSettingsRecord {
   readonly allow_client_self_registration: boolean;
   readonly auto_approve_clients: boolean;
   readonly brand_logo_path: string | null;
+  readonly public_tagline?: string | null;
+  readonly public_support_phone?: string | null;
+  readonly public_support_email?: string | null;
   readonly updated_at: TimestampUtc;
+}
+
+export interface TenantRegistrationSettings {
+  readonly tenant_id: string;
+  readonly allow_client_self_registration: boolean;
+  readonly auto_approve_clients: boolean;
+  readonly public_tagline: string | null;
+  readonly public_support_phone: string | null;
+  readonly public_support_email: string | null;
+}
+
+export interface PublicStorefrontService {
+  readonly id: string;
+  readonly code: string;
+  readonly name: string;
+  readonly estimated_days_min: number;
+  readonly estimated_days_max: number;
+}
+
+export interface PublicStorefrontGov {
+  readonly id: string;
+  readonly code: string;
+  readonly name: string;
+}
+
+export interface PublicStorefrontRegion {
+  readonly id: string;
+  readonly governorate_id: string;
+  readonly code: string;
+  readonly name: string;
+}
+
+export interface PublicStorefrontPayload {
+  readonly tenant: PublicTenantInfo;
+  readonly services: readonly PublicStorefrontService[];
+  readonly governorates: readonly PublicStorefrontGov[];
+  readonly regions: readonly PublicStorefrontRegion[];
+}
+
+export interface SubmitClientRegistrationInput {
+  readonly company_name: string;
+  readonly contact_name?: string;
+  readonly email: string;
+  readonly phone: string;
+  readonly mobile?: string;
+  readonly governorate_id: string;
+  readonly region_id: string;
+  readonly address_line: string;
+  readonly payout_method: 'cash' | 'bank_transfer' | 'vodafone_cash';
+  readonly bank_name?: string;
+  readonly bank_account_number?: string;
+  readonly wallet_phone?: string;
+}
+
+export interface SubmitClientRegistrationResult {
+  readonly request_id: string;
+  readonly status: 'pending' | 'approved';
+  readonly auto_approved: boolean;
+  readonly client_id: string | null;
+  readonly client_code: string | null;
 }
 
 export interface ProfileRecord {

@@ -81,8 +81,8 @@ export const ROADMAP_PHASES: readonly RoadmapPhase[] = [
   {
     phaseNumber: 11,
     title: 'بوابة العميل وموقع الشركة العام',
-    summary: 'موقع الشركة، التسجيل الذاتي والاعتماد، لوحة العميل، الاستيراد، وكشف الحساب.',
-    status: PhaseStatus.PENDING,
+    summary: 'موقع الشركة العام، التسجيل الذاتي والاعتماد التلقائي، لوحة التاجر، طلبات الالتقاط والعناوين، وكشف الحساب.',
+    status: PhaseStatus.READY_FOR_OWNER_REVIEW,
     hasOpenDecisions: false,
   },
   {

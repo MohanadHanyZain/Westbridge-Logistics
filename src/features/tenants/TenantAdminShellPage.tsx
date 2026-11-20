@@ -5,6 +5,7 @@ import {getMyTenantPermissions} from '@/features/security/securityService';
 import {TenantWorkspaceProvider} from '@/features/tenants/TenantWorkspaceContext';
 import {useAuth} from '@/lib/auth';
 import {hasEffectivePermission} from '@/lib/permissions';
+import {AccountSubjectType} from '@/types/common';
 import type {MyTenantPermissionsBundle} from '@/types/security';
 import {
   Activity,
@@ -135,6 +136,19 @@ export function TenantAdminShellPage() {
     {to: `${basePath}/clients/registrations`, label: 'الحسابات المسجلة', icon: UserCheck, end: true},
     {to: `${basePath}/pricing/price-lists`, label: 'قوائم أسعار الشحن', icon: ReceiptText, end: false},
     {to: `${basePath}/clients/settlements`, label: 'قيد التسوية مع العملاء', icon: FileSpreadsheet, end: true},
+    {to: `${basePath}/portal/dashboard`, label: 'معاينة بوابة التاجر', icon: LayoutDashboard, end: true},
+  ];
+
+  const isClientAccount = activeMembership.account_subject_type === AccountSubjectType.CLIENT;
+
+  const clientPortalLinks = [
+    {to: basePath, label: 'لوحة التاجر', icon: LayoutDashboard, end: true},
+    {to: `${basePath}/shipments`, label: 'شحناتي', icon: Package, end: true},
+    ...(can('shipments.create')
+      ? [{to: `${basePath}/shipments/new`, label: 'إنشاء شحنة جديدة', icon: PackagePlus, end: true}]
+      : []),
+    {to: `${basePath}/portal/pickups`, label: 'طلبات الالتقاط والعناوين', icon: Truck, end: true},
+    {to: `${basePath}/portal/finance`, label: 'قيد التسوية وكشف الحساب', icon: FileSpreadsheet, end: true},
   ];
 
   const shipmentLinks = [
@@ -196,20 +210,44 @@ export function TenantAdminShellPage() {
           </p>
         </div>
 
-        <nav aria-label="القائمة الجانبية للشركة" className="space-y-1 p-3">
-          <NavLink
-            to={basePath}
-            end
-            onClick={() => setSidebarOpen(false)}
-            className={({isActive}) =>
-              `flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                isActive ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100'
-              }`
-            }
-          >
-            <LayoutDashboard className="h-4 w-4 shrink-0" />
-            <span>لوحة التحكم</span>
-          </NavLink>
+        <nav aria-label={isClientAccount ? 'القائمة الجانبية لبوابة العميل' : 'القائمة الجانبية للشركة'} className="space-y-1 p-3">
+          {isClientAccount ? (
+            <div className="space-y-1">
+              {clientPortalLinks.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.end}
+                    onClick={() => setSidebarOpen(false)}
+                    className={({isActive}) =>
+                      `flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                        isActive ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100'
+                      }`
+                    }
+                  >
+                    <Icon className="h-4 w-4 shrink-0" />
+                    <span>{item.label}</span>
+                  </NavLink>
+                );
+              })}
+            </div>
+          ) : (
+            <>
+              <NavLink
+                to={basePath}
+                end
+                onClick={() => setSidebarOpen(false)}
+                className={({isActive}) =>
+                  `flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                    isActive ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100'
+                  }`
+                }
+              >
+                <LayoutDashboard className="h-4 w-4 shrink-0" />
+                <span>لوحة التحكم</span>
+              </NavLink>
 
           <div className="pt-2">
             <button
@@ -520,6 +558,8 @@ export function TenantAdminShellPage() {
               </div>
             )}
           </div>
+            </>
+          )}
         </nav>
       </div>
 
@@ -536,13 +576,13 @@ export function TenantAdminShellPage() {
     <TenantWorkspaceProvider value={workspaceValue}>
       <div className="flex min-h-screen bg-slate-50 text-slate-900">
         {/* Desktop Sidebar */}
-        <aside className="hidden w-64 shrink-0 border-l border-slate-200 bg-white lg:block">
+        <aside className="hidden w-64 shrink-0 border-l border-slate-200 bg-white lg:block print:hidden">
           {renderSidebarContent()}
         </aside>
 
         {/* Mobile Drawer */}
         {sidebarOpen && (
-          <div className="fixed inset-0 z-40 flex lg:hidden">
+          <div className="fixed inset-0 z-40 flex lg:hidden print:hidden">
             <div className="w-64 bg-white shadow-xl">{renderSidebarContent()}</div>
             <button
               type="button"
@@ -555,7 +595,7 @@ export function TenantAdminShellPage() {
 
         <div className="flex min-w-0 flex-1 flex-col">
           {/* Top Bar Contract: Single row, 3 zones */}
-          <header className="border-b border-slate-200 bg-white">
+          <header className="border-b border-slate-200 bg-white print:hidden">
             <div className="flex items-center justify-between gap-4 px-6 py-3.5">
               <div className="flex items-center gap-3">
                 <button
@@ -567,7 +607,7 @@ export function TenantAdminShellPage() {
                   {sidebarOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
                 </button>
                 <span className="text-sm font-semibold text-slate-900 whitespace-nowrap">
-                  بوابة إدارة {tenant.name}
+                  {isClientAccount ? `بوابة التاجر · ${tenant.name}` : `بوابة إدارة ${tenant.name}`}
                 </span>
               </div>
 

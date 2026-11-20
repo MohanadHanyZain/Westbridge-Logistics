@@ -19,6 +19,7 @@ import {
 import {useTenantWorkspace} from '@/features/tenants/TenantWorkspaceContext';
 import {useAuth} from '@/lib/auth';
 import {formatDateTime} from '@/lib/formatters';
+import {AccountSubjectType} from '@/types/common';
 import type {CourierRecord} from '@/types/couriers';
 import type {
   BranchRecord,
@@ -78,9 +79,10 @@ const REPRICE_LOCKED_STATUSES: readonly ShipmentOperationalStatus[] = [
 
 export function ShipmentDetailPage() {
   const {shipmentId = ''} = useParams();
-  const {tenant, can} = useTenantWorkspace();
+  const {tenant, membership, can} = useTenantWorkspace();
   const {profile} = useAuth();
   const basePath = `${buildTenantBasePath(tenant.slug)}/app`;
+  const isClientUser = membership.account_subject_type === AccountSubjectType.CLIENT;
 
   const [detail, setDetail] = useState<ShipmentFullDetail | null>(null);
   const [branches, setBranches] = useState<readonly BranchRecord[]>([]);
@@ -117,7 +119,7 @@ export function ShipmentDetailPage() {
   const [submittingReprice, setSubmittingReprice] = useState(false);
 
   // Notes Form
-  const [noteType, setNoteType] = useState<ShipmentNoteType>('internal');
+  const [noteType, setNoteType] = useState<ShipmentNoteType>(isClientUser ? 'client_visible' : 'internal');
   const [noteBody, setNoteBody] = useState('');
   const [savingNote, setSavingNote] = useState(false);
 
@@ -347,8 +349,59 @@ export function ShipmentDetailPage() {
 
   return (
     <div className="space-y-6">
+      {/* Printable Waybill Sheet (visible during print) */}
+      <section className="hidden print:block rounded-xl border-2 border-slate-900 bg-white p-6 text-right text-xs">
+        <div className="flex items-start justify-between border-b-2 border-slate-900 pb-4">
+          <div>
+            <p className="text-base font-bold text-slate-900">{tenant.name}</p>
+            <p className="mt-0.5 text-[11px] text-slate-600">بوليصة شحن وتوصيل · {SHIPMENT_TYPE_LABELS[shp.shipment_type_code]}</p>
+          </div>
+          <div className="text-left">
+            <p className="font-mono-tabular text-lg font-bold text-slate-900">{shp.shipment_number}</p>
+            <p className="font-mono-tabular text-xs text-slate-700">{shp.barcode_token}</p>
+          </div>
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-6">
+          <div className="space-y-1">
+            <p className="font-bold text-slate-900">الراسل (التاجر)</p>
+            <p>{sender?.name ?? clientNameMap.get(shp.client_id) ?? '—'}</p>
+            <p>{govNameMap.get(shp.sender_governorate_id) ?? ''} · {regNameMap.get(shp.sender_region_id) ?? ''}</p>
+            <p className="font-mono-tabular">{sender?.mobile ?? '—'}</p>
+            <p>{sender?.address_line ?? '—'}</p>
+          </div>
+          <div className="space-y-1">
+            <p className="font-bold text-slate-900">المرسل إليه (المستلم)</p>
+            <p>{recipient?.name ?? '—'}</p>
+            <p>{govNameMap.get(shp.recipient_governorate_id) ?? ''} · {regNameMap.get(shp.recipient_region_id) ?? ''}</p>
+            <p className="font-mono-tabular">{recipient?.mobile ?? '—'}</p>
+            <p>{recipient?.address_line ?? '—'}</p>
+          </div>
+        </div>
+        <div className="mt-4 grid grid-cols-4 gap-3 border-t border-slate-300 pt-3">
+          <div>
+            <p className="text-slate-500">الخدمة</p>
+            <p className="font-semibold">{serviceNameMap.get(shp.service_id) ?? '—'}</p>
+          </div>
+          <div>
+            <p className="text-slate-500">الوزن / القطع</p>
+            <p className="font-mono-tabular font-semibold">{shp.chargeable_weight_kg} كجم · {shp.pieces_count} قطع</p>
+          </div>
+          <div>
+            <p className="text-slate-500">نوع الدفع</p>
+            <p className="font-semibold">{PAYMENT_TERM_LABELS[shp.payment_term_code]}</p>
+          </div>
+          <div>
+            <p className="text-slate-500">المطلوب تحصيله</p>
+            <p className="font-mono-tabular text-sm font-bold">{Number(shp.recipient_collect_amount).toFixed(2)} {tenant.default_currency}</p>
+          </div>
+        </div>
+        {shp.package_description && (
+          <p className="mt-3 border-t border-slate-200 pt-2">وصف الطرد: {shp.package_description}</p>
+        )}
+      </section>
+
       {/* Header & Barcode / Public Tracking Bar */}
-      <div className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-slate-200 bg-white p-6">
+      <div className="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-slate-200 bg-white p-6 print:hidden">
         <div>
           <Link
             to={`${basePath}/shipments`}
@@ -1028,13 +1081,14 @@ export function ShipmentDetailPage() {
             <h2 className="text-sm font-semibold text-slate-900">إضافة ملاحظة جديدة</h2>
             <div className="mt-3 flex flex-wrap gap-3">
               <select
-                value={noteType}
+                value={isClientUser ? 'client_visible' : noteType}
                 onChange={(e) => setNoteType(e.target.value as ShipmentNoteType)}
-                className="rounded-lg border border-slate-200 px-3 py-2 text-xs"
+                disabled={isClientUser}
+                className="rounded-lg border border-slate-200 px-3 py-2 text-xs disabled:bg-slate-50"
               >
-                <option value="internal">ملاحظة داخلية للفريق</option>
+                {!isClientUser && <option value="internal">ملاحظة داخلية للفريق</option>}
                 <option value="client_visible">ملاحظة ظاهرة للعميل</option>
-                <option value="courier_note">توجيه للمندوب</option>
+                {!isClientUser && <option value="courier_note">توجيه للمندوب</option>}
               </select>
               <input
                 type="text"

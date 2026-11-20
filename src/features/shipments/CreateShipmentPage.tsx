@@ -1,7 +1,7 @@
 import {useCallback, useEffect, useMemo, useState, type FormEvent} from 'react';
 import {Link, useNavigate} from 'react-router-dom';
 import {buildTenantBasePath} from '@/config/brand';
-import {listClients} from '@/features/clients/clientsService';
+import * as clientsService from '@/features/clients/clientsService';
 import {
   listBranches,
   listGovernorates,
@@ -23,7 +23,7 @@ import type {
   ShipmentTypeRecord,
   ShippingServiceRecord,
 } from '@/types/definitions';
-import type {ClientRecord, PriceCalculationBreakdown, PriceMode} from '@/types/pricing';
+import type {ClientAddressRecord, ClientRecord, PriceCalculationBreakdown, PriceMode} from '@/types/pricing';
 import {PAYMENT_TERM_LABELS, type PaymentTermCode} from '@/types/shipments';
 import {ArrowRight, Calculator, PackageCheck, Save} from 'lucide-react';
 
@@ -76,6 +76,8 @@ export function CreateShipmentPage() {
 
   // Section 2: Sender
   const [clientId, setClientId] = useState(boundClientId ?? '');
+  const [savedAddresses, setSavedAddresses] = useState<readonly ClientAddressRecord[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState('');
   const [senderName, setSenderName] = useState('');
   const [senderGovId, setSenderGovId] = useState('');
   const [senderRegionId, setSenderRegionId] = useState('');
@@ -121,7 +123,7 @@ export function CreateShipmentPage() {
     let active = true;
     setLoadingRefs(true);
     Promise.all([
-      listClients(tenant.id),
+      clientsService.listClients(tenant.id),
       listBranches(tenant.id),
       listGovernorates(tenant.id),
       listRegions(tenant.id),
@@ -190,6 +192,29 @@ export function CreateShipmentPage() {
       active = false;
     };
   }, [tenant.id, boundClientId, applyClientDefaults]);
+
+  useEffect(() => {
+    if (!clientId || typeof clientsService.listClientAddresses !== 'function') {
+      setSavedAddresses([]);
+      setSelectedAddressId('');
+      return;
+    }
+    let active = true;
+    clientsService
+      .listClientAddresses(tenant.id, clientId)
+      .then((rows) => {
+        if (active) {
+          setSavedAddresses(rows);
+          setSelectedAddressId('');
+        }
+      })
+      .catch(() => {
+        if (active) setSavedAddresses([]);
+      });
+    return () => {
+      active = false;
+    };
+  }, [tenant.id, clientId]);
 
   const selectedPaymentTerm = useMemo(
     () => paymentTerms.find((t) => t.id === paymentTermId),
@@ -782,6 +807,37 @@ export function CreateShipmentPage() {
                   ))}
                 </select>
               </div>
+
+              {savedAddresses.length > 0 && (
+                <div className="sm:col-span-2">
+                  <label htmlFor="shp-saved-address" className="block text-xs font-medium text-slate-700">
+                    اختيار من عناوين الالتقاط المحفوظة
+                  </label>
+                  <select
+                    id="shp-saved-address"
+                    value={selectedAddressId}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSelectedAddressId(val);
+                      const found = savedAddresses.find((a) => a.id === val);
+                      if (found) {
+                        setSenderGovId(found.governorate_id);
+                        if (found.region_id) setSenderRegionId(found.region_id);
+                        setSenderAddress(found.address_line);
+                        if (found.phone) setSenderMobile(found.phone);
+                      }
+                    }}
+                    className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
+                  >
+                    <option value="">العنوان الرئيسي المسجل بالملف</option>
+                    {savedAddresses.map((addr) => (
+                      <option key={addr.id} value={addr.id}>
+                        {addr.label} — {addr.address_line}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div>
                 <label htmlFor="shp-sender-name" className="block text-xs font-medium text-slate-700">

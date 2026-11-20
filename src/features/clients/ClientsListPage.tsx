@@ -25,6 +25,7 @@ import {
   listShipmentTypes,
 } from '@/features/definitions/definitionsService';
 import {listClientPriceLists, listTaxProfiles} from '@/features/pricing/pricingService';
+import * as tenantService from '@/features/tenants/tenantService';
 import {useTenantWorkspace} from '@/features/tenants/TenantWorkspaceContext';
 import type {
   BranchRecord,
@@ -99,6 +100,14 @@ export function ClientsListPage({initialMode = 'list'}: ClientsListPageProps) {
   const [rejectTarget, setRejectTarget] = useState<ClientRegistrationRequestRecord | null>(null);
   const [rejectReason, setRejectReason] = useState('');
 
+  // Phase 11: Public Storefront & Self-Registration Admin Settings
+  const [allowSelfReg, setAllowSelfReg] = useState(false);
+  const [autoApproveClients, setAutoApproveClients] = useState(false);
+  const [publicTagline, setPublicTagline] = useState('');
+  const [publicSupportPhone, setPublicSupportPhone] = useState('');
+  const [publicSupportEmail, setPublicSupportEmail] = useState('');
+  const [savingRegSettings, setSavingRegSettings] = useState(false);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -139,6 +148,22 @@ export function ClientsListPage({initialMode = 'list'}: ClientsListPageProps) {
       setTaxProfiles(tpRows);
       setPaymentTerms(opsRefs.paymentTerms);
       setShipmentTypes(stRows);
+
+      if (
+        Object.keys(tenantService).includes('getTenantRegistrationSettings') &&
+        typeof tenantService.getTenantRegistrationSettings === 'function'
+      ) {
+        try {
+          const regSettings = await tenantService.getTenantRegistrationSettings(tenant.id);
+          setAllowSelfReg(regSettings.allow_client_self_registration);
+          setAutoApproveClients(regSettings.auto_approve_clients);
+          setPublicTagline(regSettings.public_tagline ?? '');
+          setPublicSupportPhone(regSettings.public_support_phone ?? '');
+          setPublicSupportEmail(regSettings.public_support_email ?? '');
+        } catch {
+          // Non-blocking for non-admin staff roles
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'تعذر تحميل بيانات العملاء.');
     } finally {
@@ -149,6 +174,33 @@ export function ClientsListPage({initialMode = 'list'}: ClientsListPageProps) {
   useEffect(() => {
     void loadData();
   }, [loadData]);
+
+  const handleSaveRegSettings = async (e: FormEvent) => {
+    e.preventDefault();
+    if (
+      !Object.keys(tenantService).includes('updateTenantRegistrationSettings') ||
+      typeof tenantService.updateTenantRegistrationSettings !== 'function'
+    ) {
+      return;
+    }
+    setSavingRegSettings(true);
+    setError(null);
+    setFeedback(null);
+    try {
+      await tenantService.updateTenantRegistrationSettings(tenant.id, {
+        allow_client_self_registration: allowSelfReg,
+        auto_approve_clients: autoApproveClients,
+        public_tagline: publicTagline || null,
+        public_support_phone: publicSupportPhone || null,
+        public_support_email: publicSupportEmail || null,
+      });
+      setFeedback('تم حفظ إعدادات الموقع العام والتسجيل الذاتي للتجار بنجاح.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'تعذر حفظ إعدادات التسجيل الذاتي.');
+    } finally {
+      setSavingRegSettings(false);
+    }
+  };
 
   const govNameMap = useMemo(() => new Map(governorates.map((g) => [g.id, g.name])), [governorates]);
   const regionNameMap = useMemo(() => new Map(regions.map((r) => [r.id, r.name])), [regions]);
@@ -1043,13 +1095,127 @@ export function ClientsListPage({initialMode = 'list'}: ClientsListPageProps) {
           />
         </>
       ) : (
-        <DataTable
-          columns={requestColumns}
-          rows={requests}
-          rowKey={(r) => r.id}
-          loading={loading}
-          emptyMessage="لا توجد طلبات تسجيل إلكترونية في قائمة الانتظار."
-        />
+        <div className="space-y-6">
+          {isAdmin && (
+            <form
+              onSubmit={handleSaveRegSettings}
+              className="rounded-xl border border-slate-200 bg-white p-5 space-y-4"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                <div>
+                  <h2 className="text-sm font-semibold text-slate-900">
+                    إعدادات الموقع العام والتسجيل الذاتي للتجار
+                  </h2>
+                  <p className="mt-0.5 text-xs text-slate-500">
+                    تحكم في إتاحة نموذج تسجيل المتاجر عبر صفحة الشركة العامة وسياسة الاعتماد التلقائي.
+                  </p>
+                </div>
+                <Link
+                  to={buildTenantBasePath(tenant.slug)}
+                  className="text-xs font-medium text-slate-700 underline underline-offset-4 hover:text-slate-900"
+                >
+                  معاينة الموقع العام للشركة
+                </Link>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <label className="flex items-start gap-2.5 rounded-lg border border-slate-200 p-3 text-xs cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={allowSelfReg}
+                    onChange={(e) => setAllowSelfReg(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-slate-300"
+                  />
+                  <span>
+                    <span className="block font-semibold text-slate-900">
+                      تفعيل التسجيل الذاتي للتجار عبر الموقع العام
+                    </span>
+                    <span className="mt-0.5 block text-slate-500">
+                      يظهر نموذج تسجيل المتاجر في صفحة الشركة العامة /c/{tenant.slug}
+                    </span>
+                  </span>
+                </label>
+
+                <label className="flex items-start gap-2.5 rounded-lg border border-slate-200 p-3 text-xs cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={autoApproveClients}
+                    onChange={(e) => setAutoApproveClients(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-slate-300"
+                  />
+                  <span>
+                    <span className="block font-semibold text-slate-900">
+                      الاعتماد التلقائي الفوري للتجار الجدد
+                    </span>
+                    <span className="mt-0.5 block text-slate-500">
+                      إنشاء ملف العميل تلقائيًا بالقائمة الافتراضية دون انتظار مراجعة يدوية.
+                    </span>
+                  </span>
+                </label>
+
+                <div className="md:col-span-2">
+                  <label htmlFor="pub-tagline" className="block text-xs font-medium text-slate-700">
+                    الوصف التعريفي بالموقع العام للشركة
+                  </label>
+                  <input
+                    id="pub-tagline"
+                    type="text"
+                    value={publicTagline}
+                    onChange={(e) => setPublicTagline(e.target.value)}
+                    placeholder="مثال: حلول شحن وتوصيل سريعة لجميع محافظات الجمهورية مع تحصيل فوري."
+                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="pub-phone" className="block text-xs font-medium text-slate-700">
+                    هاتف الدعم العام
+                  </label>
+                  <input
+                    id="pub-phone"
+                    type="text"
+                    dir="ltr"
+                    value={publicSupportPhone}
+                    onChange={(e) => setPublicSupportPhone(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 font-mono-tabular text-xs"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="pub-email" className="block text-xs font-medium text-slate-700">
+                    بريد الدعم العام
+                  </label>
+                  <input
+                    id="pub-email"
+                    type="email"
+                    dir="ltr"
+                    value={publicSupportEmail}
+                    onChange={(e) => setPublicSupportEmail(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <button
+                  type="submit"
+                  disabled={savingRegSettings}
+                  className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-medium text-white hover:bg-slate-800 disabled:opacity-60"
+                >
+                  {savingRegSettings ? 'جاري الحفظ...' : 'حفظ إعدادات الموقع العام'}
+                </button>
+              </div>
+            </form>
+          )}
+
+          <DataTable
+            columns={requestColumns}
+            rows={requests}
+            rowKey={(r) => r.id}
+            loading={loading}
+            emptyMessage="لا توجد طلبات تسجيل إلكترونية في قائمة الانتظار."
+          />
+        </div>
       )}
 
       <ConfirmDialog

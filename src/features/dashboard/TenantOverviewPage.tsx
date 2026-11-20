@@ -1,11 +1,13 @@
 import {useEffect, useState, type FormEvent} from 'react';
 import {Link} from 'react-router-dom';
 import {buildTenantBasePath} from '@/config/brand';
+import {ClientPortalDashboardPage} from '@/features/clients/ClientPortalDashboardPage';
 import {fetchPhase2SummaryCounts} from '@/features/definitions/definitionsService';
 import {fetchShipmentDashboardCounts} from '@/features/shipments/shipmentsService';
 import {useTenantWorkspace} from '@/features/tenants/TenantWorkspaceContext';
 import {updateMyCredentials, useAuth} from '@/lib/auth';
 import {isValidUsername} from '@/lib/formatters';
+import {AccountSubjectType} from '@/types/common';
 import type {Phase2SummaryCounts} from '@/types/definitions';
 import type {ShipmentDashboardCounts} from '@/types/shipments';
 import {
@@ -20,6 +22,16 @@ import {
 } from 'lucide-react';
 
 export function TenantOverviewPage() {
+  const {membership} = useTenantWorkspace();
+
+  if (membership.account_subject_type === AccountSubjectType.CLIENT) {
+    return <ClientPortalDashboardPage />;
+  }
+
+  return <StaffTenantOverviewInner />;
+}
+
+function StaffTenantOverviewInner() {
   const {tenant, membership} = useTenantWorkspace();
   const {profile, refreshContext} = useAuth();
   const basePath = `${buildTenantBasePath(tenant.slug)}/app`;

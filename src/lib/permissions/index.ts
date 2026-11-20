@@ -23,7 +23,10 @@ export function hasEffectivePermission(
     return false;
   }
 
-  if (!targetBranchId || matched.some((g) => g.scope === PermissionScope.TENANT)) {
+  if (
+    !targetBranchId ||
+    matched.some((g) => g.scope === PermissionScope.TENANT || g.scope === PermissionScope.OWN)
+  ) {
     return true;
   }
 

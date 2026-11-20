@@ -77,7 +77,7 @@ function getStatusAccentClass(status: ShipmentOperationalStatus): string {
 }
 
 export function ShipmentsListPage({preset = 'all'}: ShipmentsListPageProps) {
-  const {tenant, can} = useTenantWorkspace();
+  const {tenant, boundClientId, can} = useTenantWorkspace();
   const navigate = useNavigate();
   const basePath = `${buildTenantBasePath(tenant.slug)}/app`;
 
@@ -321,19 +321,21 @@ export function ShipmentsListPage({preset = 'all'}: ShipmentsListPageProps) {
             ))}
           </select>
 
-          <select
-            aria-label="العميل"
-            value={clientId}
-            onChange={(e) => setClientId(e.target.value)}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs focus:border-slate-400 focus:outline-none"
-          >
-            <option value="">كل العملاء</option>
-            {clients.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+          {!boundClientId && (
+            <select
+              aria-label="العميل"
+              value={clientId}
+              onChange={(e) => setClientId(e.target.value)}
+              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs focus:border-slate-400 focus:outline-none"
+            >
+              <option value="">كل العملاء</option>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          )}
 
           <button
             type="button"

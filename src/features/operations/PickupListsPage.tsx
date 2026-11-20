@@ -1,6 +1,7 @@
 import {useCallback, useEffect, useMemo, useState, type FormEvent} from 'react';
 import {Link} from 'react-router-dom';
 import {buildTenantBasePath} from '@/config/brand';
+import * as clientPortalService from '@/features/clients/clientPortalService';
 import {listClients} from '@/features/clients/clientsService';
 import {listCourierRoutes, listCouriers} from '@/features/couriers/couriersService';
 import {
@@ -24,6 +25,7 @@ import {
 } from '@/features/operations/operationsService';
 import {useTenantWorkspace} from '@/features/tenants/TenantWorkspaceContext';
 import {formatDateTime} from '@/lib/formatters';
+import type {ClientPickupRequestRecord} from '@/types/clientPortal';
 import type {CourierRecord, CourierRouteRecord} from '@/types/couriers';
 import type {
   BranchRecord,
@@ -74,6 +76,7 @@ export function PickupListsPage() {
   // View state
   const [mode, setMode] = useState<'list' | 'workbench'>('list');
   const [pickupLists, setPickupLists] = useState<readonly PickupListRecord[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<readonly ClientPickupRequestRecord[]>([]);
   const [activeDetail, setActiveDetail] = useState<PickupListDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -163,6 +166,15 @@ export function PickupListsPage() {
         destRegionId: filterDestRegionId,
       });
       setPickupLists(data);
+
+      if (typeof clientPortalService.listClientPickupRequests === 'function') {
+        try {
+          const reqs = await clientPortalService.listClientPickupRequests(tenant.id, {status: 'pending'});
+          setPendingRequests(reqs);
+        } catch {
+          setPendingRequests([]);
+        }
+      }
     } catch (err) {
       setFeedback({
         type: 'error',
@@ -822,6 +834,51 @@ export function PickupListsPage() {
           </button>
         )}
       </div>
+
+      {pendingRequests.length > 0 && (
+        <section className="rounded-xl border border-amber-200 bg-amber-50/40 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-bold text-slate-900">
+              طلبات التقاط واردة من بوابة التجار ({pendingRequests.length})
+            </h2>
+          </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {pendingRequests.slice(0, 6).map((req) => (
+              <div
+                key={req.id}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white p-3 text-xs"
+              >
+                <div>
+                  <p className="font-mono-tabular font-semibold text-slate-900">
+                    {req.request_code} · {req.preferred_date} ({req.preferred_time_slot})
+                  </p>
+                  <p className="mt-0.5 text-slate-600">
+                    {req.pickup_address} · {req.estimated_shipments_count} شحنة
+                  </p>
+                </div>
+                {can('operations.pickup.approve') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormClientId(req.client_id);
+                      setFormDate(req.preferred_date);
+                      setFormNotes(`طلب تاجر ${req.request_code} (${req.preferred_time_slot})`);
+                      setActiveDetail(null);
+                      setMode('workbench');
+                      if (typeof clientPortalService.updatePickupRequestStatus === 'function') {
+                        void clientPortalService.updatePickupRequestStatus(tenant.id, req.id, 'scheduled').then(() => loadLists());
+                      }
+                    }}
+                    className="rounded-lg bg-slate-900 px-3 py-1.5 text-[11px] font-medium text-white hover:bg-slate-800 whitespace-nowrap"
+                  >
+                    جدولة بقائمة التقاط
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Filters (MASTER_SPEC lines 1052-1062) */}
       <form

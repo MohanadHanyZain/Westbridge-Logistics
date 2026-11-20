@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import {BrowserRouter, Navigate, Route, Routes} from 'react-router-dom';
+import {BrowserRouter, Navigate, Route, Routes, useParams} from 'react-router-dom';
 import {
   PlatformLoginPage,
   RequirePlatformAdmin,
@@ -17,6 +17,9 @@ import {AppErrorBoundary} from '@/components/common/AppErrorBoundary';
 import {DirectionProvider} from '@/components/common/DirectionProvider';
 import {BranchesPage} from '@/features/branches/BranchesPage';
 import {ClientDetailPage} from '@/features/clients/ClientDetailPage';
+import {ClientPortalDashboardPage} from '@/features/clients/ClientPortalDashboardPage';
+import {ClientPortalFinancePage} from '@/features/clients/ClientPortalFinancePage';
+import {ClientPortalPickupPage} from '@/features/clients/ClientPortalPickupPage';
 import {ClientsListPage} from '@/features/clients/ClientsListPage';
 import {ClientSettlementsPage} from '@/features/clients/ClientSettlementsPage';
 import {CommissionListsPage} from '@/features/couriers/CommissionListsPage';
@@ -55,6 +58,11 @@ import {TenantAdminShellPage} from '@/features/tenants/TenantAdminShellPage';
 import {TenantPublicPage} from '@/features/tenants/TenantPublicPage';
 import {AuthProvider} from '@/lib/auth';
 
+function ClientPortalEntryRedirect() {
+  const {companySlug = ''} = useParams();
+  return <Navigate to={`/c/${companySlug}/app`} replace />;
+}
+
 export function AppRoutes() {
   return (
     <Routes>
@@ -71,6 +79,7 @@ export function AppRoutes() {
       />
       <Route path="/auth/set-password" element={<SetPasswordPage />} />
       <Route path="/c/:companySlug" element={<TenantPublicPage />} />
+      <Route path="/c/:companySlug/portal" element={<ClientPortalEntryRedirect />} />
       <Route path="/c/:companySlug/track" element={<PublicTrackingPage />} />
       <Route path="/c/:companySlug/track/:token" element={<PublicTrackingPage />} />
       <Route path="/c/:companySlug/login" element={<TenantLoginPage />} />
@@ -125,6 +134,9 @@ export function AppRoutes() {
         <Route path="finance/collections" element={<CourierCollectionsPage />} />
         <Route path="accounting/journal-entries" element={<JournalEntriesPage />} />
         <Route path="accounting/trial-balance" element={<TrialBalancePage />} />
+        <Route path="portal/dashboard" element={<ClientPortalDashboardPage />} />
+        <Route path="portal/pickups" element={<ClientPortalPickupPage />} />
+        <Route path="portal/finance" element={<ClientPortalFinancePage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
