@@ -3,6 +3,7 @@ import {Link} from 'react-router-dom';
 import {buildTenantBasePath} from '@/config/brand';
 import {ClientPortalDashboardPage} from '@/features/clients/ClientPortalDashboardPage';
 import {fetchPhase2SummaryCounts} from '@/features/definitions/definitionsService';
+import {getExecutiveOperationsReport} from '@/features/reports/reportsService';
 import {fetchShipmentDashboardCounts} from '@/features/shipments/shipmentsService';
 import {useTenantWorkspace} from '@/features/tenants/TenantWorkspaceContext';
 import {updateMyCredentials, useAuth} from '@/lib/auth';
@@ -38,6 +39,7 @@ function StaffTenantOverviewInner() {
 
   const [counts, setCounts] = useState<Phase2SummaryCounts | null>(null);
   const [shipmentCounts, setShipmentCounts] = useState<ShipmentDashboardCounts | null>(null);
+  const [period, setPeriod] = useState<'all' | '7d' | '30d'>('all');
   const [newUsername, setNewUsername] = useState(membership.username);
   const [newPassword, setNewPassword] = useState('');
   const [saving, setSaving] = useState(false);
@@ -52,17 +54,46 @@ function StaffTenantOverviewInner() {
       .catch(() => {
         if (active) setCounts(null);
       });
-    fetchShipmentDashboardCounts(tenant.id)
-      .then((res) => {
-        if (active) setShipmentCounts(res);
-      })
-      .catch(() => {
-        if (active) setShipmentCounts(null);
-      });
     return () => {
       active = false;
     };
   }, [tenant.id]);
+
+  useEffect(() => {
+    let active = true;
+    if (period === 'all') {
+      fetchShipmentDashboardCounts(tenant.id)
+        .then((res) => {
+          if (active) setShipmentCounts(res);
+        })
+        .catch(() => {
+          if (active) setShipmentCounts(null);
+        });
+    } else {
+      const days = period === '7d' ? 7 : 30;
+      const fromDt = new Date();
+      fromDt.setDate(fromDt.getDate() - days);
+      const dateFrom = fromDt.toISOString().slice(0, 10);
+      const dateTo = new Date().toISOString().slice(0, 10);
+      getExecutiveOperationsReport({tenantId: tenant.id, dateFrom, dateTo})
+        .then((rep) => {
+          if (!active) return;
+          setShipmentCounts({
+            totalCount: rep.kpis.total_shipments,
+            inWarehouseCount: rep.kpis.in_warehouse_count,
+            outForDeliveryCount: rep.kpis.out_for_delivery_count,
+            deliveredCount: rep.kpis.delivered_count + rep.kpis.partially_delivered_count,
+            returnsCount: rep.kpis.returned_count + rep.kpis.delivery_failed_count,
+          });
+        })
+        .catch(() => {
+          if (active) setShipmentCounts(null);
+        });
+    }
+    return () => {
+      active = false;
+    };
+  }, [tenant.id, period]);
 
   const handleCredentialsSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -161,14 +192,44 @@ function StaffTenantOverviewInner() {
       </section>
 
       <section aria-label="ملخص الشحنات والتشغيل">
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-sm font-semibold text-slate-900">مؤشرات حركة الشحنات</h2>
-          <Link
-            to={`${basePath}/shipments/new`}
-            className="text-xs font-medium text-slate-700 underline underline-offset-4 hover:text-slate-900"
-          >
-            + إنشاء شحنة جديدة
-          </Link>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5" role="group" aria-label="نطاق المؤشرات الزمني">
+              {(
+                [
+                  {id: 'all', label: 'الكل'},
+                  {id: '7d', label: 'آخر 7 أيام'},
+                  {id: '30d', label: 'آخر 30 يومًا'},
+                ] as const
+              ).map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => setPeriod(p.id)}
+                  className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors whitespace-nowrap ${
+                    period === p.id
+                      ? 'bg-slate-900 text-white'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            <Link
+              to={`${basePath}/reports`}
+              className="text-xs font-medium text-slate-700 underline underline-offset-4 hover:text-slate-900"
+            >
+              التقارير التنفيذية
+            </Link>
+            <Link
+              to={`${basePath}/shipments/new`}
+              className="text-xs font-medium text-slate-700 underline underline-offset-4 hover:text-slate-900"
+            >
+              + إنشاء شحنة جديدة
+            </Link>
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
           {[

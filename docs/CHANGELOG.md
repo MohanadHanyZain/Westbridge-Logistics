@@ -1,4 +1,12 @@
 سجل التغييرات (CHANGELOG)
+[المرحلة 13] - 2026-11-21
+المضاف
+اعتماد القرار ADR-021 (قوالب الاستيراد ذات الإصدار SHIPMENTS_V1 مع فحص dry_run خادمي، تعقيم التصدير ضد حقن الصيغ CSV Formula Injection، و6 نماذج طباعة للبوالص والملصقات).
+إنشاء Migration supabase/migrations/0014_phase13_import_export_reports_print.sql:
+جداول import_templates, import_jobs, import_job_rows, وexport_jobs المحمية بـ FORCE ROW LEVEL SECURITY ومفاتيح أجنبية مركبة ومنع تكرار الدفعات عبر batch_idempotency_key.
+دوال خادمية ذرية: get_shipment_import_templates, run_shipment_import_batch (فحص واعتماد ذري via create_shipment), list_import_jobs, get_import_job_detail, record_export_job, وget_executive_operations_report.
+إنشاء ملف القالب المرجعي supabase/templates/import/shipments_import_template_v1.csv واختبار العزل supabase/tests/rls/phase13_import_export_reports_isolation.sql.
+إضافة شاشات ومكونات المرحلة الثالثة عشرة: استيراد الشحنات من Excel/CSV (ShipmentsImportPage), مركز التقارير التنفيذية والتحليلات (ExecutiveReportsPage), نافذة طباعة البوالص والملصقات متعددة النماذج (WaybillPrintModal)، وأدوات التصدير الآمن (exportUtils.ts)، مع الدمج في ShipmentsListPage وTenantOverviewPage وTenantAdminShellPage واختبارات src/tests/phase13.test.tsx.
 [المرحلة 12] - 2026-11-21
 المضاف
 اعتماد القرار ADR-020 (حاويات التخزين الخاصة والروابط الموقعة قصيرة العمر 300s، حد المرفقات الافتراضي 5MB للأنواع الآمنة، احتفاظ 365 يومًا، وإشعارات فورية مع طابور تسليم).

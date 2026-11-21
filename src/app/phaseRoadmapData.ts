@@ -89,14 +89,14 @@ export const ROADMAP_PHASES: readonly RoadmapPhase[] = [
     phaseNumber: 12,
     title: 'الرسائل والملفات والإشعارات',
     summary: 'محادثات مرتبطة بالشحنات، مرفقات Supabase Storage الخاصة، والإشعارات الفورية وإعدادات الاحتفاظ.',
-    status: PhaseStatus.READY_FOR_OWNER_REVIEW,
+    status: PhaseStatus.APPROVED,
     hasOpenDecisions: false,
   },
   {
     phaseNumber: 13,
-    title: 'Excel والتصدير والطباعة',
-    summary: 'قوالب استيراد بإصدار وdry-run، ونماذج طباعة البوالص والملصقات.',
-    status: PhaseStatus.PENDING,
+    title: 'Excel والتصدير والطباعة والتقارير',
+    summary: 'قوالب استيراد بإصدار وdry-run، تصدير CSV/Excel آمن، طباعة البوالص والملصقات، والتقارير التنفيذية.',
+    status: PhaseStatus.READY_FOR_OWNER_REVIEW,
     hasOpenDecisions: false,
   },
   {
@@ -220,6 +220,16 @@ export const APPROVED_DECISIONS: readonly ApprovedDecisionSummary[] = [
     code: 'ADR-019',
     title: 'الأساس المحاسبي المعتمد وتوقيت الاعتراف بالإيراد',
     decision: 'اعتماد الأساس النقدي (Cash Basis) للاعتراف بالإيرادات والمصروفات عند التحصيل والسداد الفعلي بالخزائن، مع إقفال دوري للفترات.',
+  },
+  {
+    code: 'ADR-020',
+    title: 'تخزين المرفقات والرسائل في حاويات خاصة',
+    decision: 'حاويات Supabase Storage خاصة لكل شركة (shipments/messages/delivery-proof) بروابط موقعة قصيرة الأجل، وحجب الرسائل الداخلية عن التاجر والمندوب.',
+  },
+  {
+    code: 'ADR-021',
+    title: 'الاستيراد المجمع المرقّم وحماية CSV والطباعة متعددة القوالب',
+    decision: 'قالب SHIPMENTS_V1 بفحص Dry-Run خادمي واعتماد ذري Idempotent، وتحييد CSV Formula Injection في كل التصدير، و6 قوالب طباعة بوالص/ملصقات غير مغيّرة للحالة.',
   },
 ];
 

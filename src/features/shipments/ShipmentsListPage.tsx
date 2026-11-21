@@ -33,7 +33,22 @@ import {
   type ShipmentListPreset,
   type ShipmentOperationalStatus,
 } from '@/types/shipments';
-import {Barcode, Check, Copy, Filter, PackagePlus, Search, X} from 'lucide-react';
+import {downloadCsvFile} from '@/features/reports/exportUtils';
+import {recordExportJob} from '@/features/reports/reportsService';
+import {WaybillPrintModal} from '@/features/reports/WaybillPrintModal';
+import type {PrintableWaybillItem} from '@/types/reports';
+import {
+  Barcode,
+  Check,
+  Copy,
+  Download,
+  Filter,
+  PackagePlus,
+  Printer,
+  Search,
+  Upload,
+  X,
+} from 'lucide-react';
 
 interface ShipmentsListPageProps {
   readonly preset?: ShipmentListPreset;
@@ -101,6 +116,7 @@ export function ShipmentsListPage({preset = 'all'}: ShipmentsListPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<readonly string[]>([]);
+  const [printOpen, setPrintOpen] = useState(false);
 
   // Filter states
   const [search, setSearch] = useState('');
@@ -242,6 +258,102 @@ export function ShipmentsListPage({preset = 'all'}: ShipmentsListPageProps) {
     void loadShipments();
   };
 
+  const targetShipments = useMemo(() => {
+    if (selectedIds.length === 0) return items;
+    const picked = new Set(selectedIds);
+    return items.filter((item) => picked.has(item.id));
+  }, [items, selectedIds]);
+
+  const printableItems = useMemo<readonly PrintableWaybillItem[]>(
+    () =>
+      targetShipments.map((shp) => ({
+        id: shp.id,
+        shipment_number: shp.shipment_number,
+        barcode_token: shp.barcode_token,
+        pickup_date: shp.pickup_date,
+        sender_name: shp.sender_name ?? '—',
+        client_name: clientNameMap.get(shp.client_id) ?? 'عميل مسجل',
+        recipient_name: shp.recipient_name ?? '—',
+        recipient_mobile: shp.recipient_mobile ?? '—',
+        recipient_address: shp.recipient_address ?? '—',
+        destination_gov_name: govNameMap.get(shp.recipient_governorate_id) ?? '—',
+        destination_reg_name: regNameMap.get(shp.recipient_region_id) ?? '—',
+        service_name: serviceNameMap.get(shp.service_id) ?? '—',
+        shipment_type_code: shp.shipment_type_code,
+        payment_term_code: shp.payment_term_code,
+        chargeable_weight_kg: Number(shp.chargeable_weight_kg),
+        pieces_count: shp.pieces_count,
+        recipient_collect_amount: Number(shp.recipient_collect_amount),
+        total_shipping_fee: Number(shp.total_shipping_fee),
+        allow_package_opening: shp.allow_package_opening,
+        package_description: shp.package_description,
+        external_reference: shp.external_reference,
+      })),
+    [targetShipments, clientNameMap, govNameMap, regNameMap, serviceNameMap],
+  );
+
+  const handleExportCsv = async () => {
+    if (targetShipments.length === 0) return;
+    const headers = [
+      'رقم_الشحنة',
+      'الباركود',
+      'تاريخ_الالتقاط',
+      'العميل',
+      'الراسل',
+      'المستلم',
+      'موبايل_المستلم',
+      'المحافظة',
+      'المنطقة',
+      'العنوان',
+      'الخدمة',
+      'نوع_الطلب',
+      'نوع_الدفع',
+      'الوزن_كجم',
+      'عدد_القطع',
+      'رسوم_الشحن',
+      'مبلغ_التحصيل',
+      'صافي_التاجر',
+      'الحالة',
+      'المرجع_الخارجي',
+    ];
+    const rows = targetShipments.map((shp) => [
+      shp.shipment_number,
+      shp.barcode_token,
+      shp.pickup_date,
+      clientNameMap.get(shp.client_id) ?? '',
+      shp.sender_name ?? '',
+      shp.recipient_name ?? '',
+      shp.recipient_mobile ?? '',
+      govNameMap.get(shp.recipient_governorate_id) ?? '',
+      regNameMap.get(shp.recipient_region_id) ?? '',
+      shp.recipient_address ?? '',
+      serviceNameMap.get(shp.service_id) ?? '',
+      shp.shipment_type_code,
+      PAYMENT_TERM_LABELS[shp.payment_term_code] ?? shp.payment_term_code,
+      shp.chargeable_weight_kg,
+      shp.pieces_count,
+      Number(shp.total_shipping_fee).toFixed(2),
+      Number(shp.recipient_collect_amount).toFixed(2),
+      Number(shp.client_net_payout).toFixed(2),
+      SHIPMENT_STATUS_LABELS[shp.operational_status],
+      shp.external_reference ?? '',
+    ]);
+
+    downloadCsvFile(
+      `shipments_${tenant.code}_${new Date().toISOString().slice(0, 10)}.csv`,
+      headers,
+      rows,
+    );
+
+    await recordExportJob({
+      tenantId: tenant.id,
+      exportType: 'shipments_csv',
+      format: 'csv',
+      filters: {preset, statusFilter, search, selectedCount: selectedIds.length},
+      rowCount: targetShipments.length,
+    }).catch(() => undefined);
+  };
+
   const meta = PRESET_TITLES[preset];
 
   return (
@@ -252,7 +364,37 @@ export function ShipmentsListPage({preset = 'all'}: ShipmentsListPageProps) {
           <p className="mt-1 text-sm text-slate-600">{meta.subtitle}</p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            disabled={targetShipments.length === 0}
+            onClick={() => void handleExportCsv()}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 whitespace-nowrap shrink-0"
+          >
+            <Download className="h-3.5 w-3.5" />
+            تصدير CSV/Excel
+          </button>
+
+          <button
+            type="button"
+            disabled={printableItems.length === 0}
+            onClick={() => setPrintOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 whitespace-nowrap shrink-0"
+          >
+            <Printer className="h-3.5 w-3.5" />
+            طباعة البوالص والملصقات
+          </button>
+
+          {(can('shipments.import') || can('shipments.create')) && (
+            <Link
+              to={`${basePath}/shipments/import`}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 whitespace-nowrap shrink-0"
+            >
+              <Upload className="h-3.5 w-3.5" />
+              استيراد من Excel
+            </Link>
+          )}
+
           {can('shipments.create') && (
             <Link
               to={`${basePath}/shipments/new`}
@@ -488,17 +630,35 @@ export function ShipmentsListPage({preset = 'all'}: ShipmentsListPageProps) {
       </form>
 
       {selectedIds.length > 0 && (
-        <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs text-slate-700">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs text-slate-700">
           <span className="font-mono-tabular font-medium">
             تم تحديد {selectedIds.length} شحنة للعمليات المجمعة (جاهزة لربط قوائم الالتقاط والتوصيل في المراحل 7–8).
           </span>
-          <button
-            type="button"
-            onClick={() => setSelectedIds([])}
-            className="text-slate-500 underline underline-offset-4 hover:text-slate-900"
-          >
-            إلغاء التحديد
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setPrintOpen(true)}
+              className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800 whitespace-nowrap"
+            >
+              <Printer className="h-3.5 w-3.5" />
+              طباعة المحدد ({selectedIds.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleExportCsv()}
+              className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 whitespace-nowrap"
+            >
+              <Download className="h-3.5 w-3.5" />
+              تصدير المحدد
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedIds([])}
+              className="text-slate-500 underline underline-offset-4 hover:text-slate-900 whitespace-nowrap"
+            >
+              إلغاء التحديد
+            </button>
+          </div>
         </div>
       )}
 
@@ -706,6 +866,15 @@ export function ShipmentsListPage({preset = 'all'}: ShipmentsListPageProps) {
         onExecuted={async () => {
           await loadShipments();
         }}
+      />
+
+      <WaybillPrintModal
+        open={printOpen}
+        tenantId={tenant.id}
+        tenantName={tenant.name}
+        tenantCode={tenant.code}
+        items={printableItems}
+        onClose={() => setPrintOpen(false)}
       />
     </div>
   );

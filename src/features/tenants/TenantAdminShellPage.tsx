@@ -13,6 +13,7 @@ import {
   AlertTriangle,
   ArrowLeftRight,
   Banknote,
+  BarChart3,
   Barcode,
   Bell,
   BookOpen,
@@ -40,6 +41,7 @@ import {
   Settings,
   Shield,
   Truck,
+  Upload,
   UserCheck,
   UserCog,
   UserPlus,
@@ -167,8 +169,12 @@ export function TenantAdminShellPage() {
     ...(can('shipments.create')
       ? [{to: `${basePath}/shipments/new`, label: 'إنشاء شحنة جديدة', icon: PackagePlus, end: true}]
       : []),
+    ...(can('shipments.import') || can('shipments.create')
+      ? [{to: `${basePath}/shipments/import`, label: 'استيراد شحنات Excel', icon: Upload, end: true}]
+      : []),
     {to: `${basePath}/portal/pickups`, label: 'طلبات الالتقاط والعناوين', icon: Truck, end: true},
     {to: `${basePath}/portal/finance`, label: 'قيد التسوية وكشف الحساب', icon: FileSpreadsheet, end: true},
+    {to: `${basePath}/reports`, label: 'التقارير التنفيذية', icon: BarChart3, end: true},
     {to: `${basePath}/messaging`, label: 'الرسائل والمحادثات', icon: MessageSquare, end: true},
     {
       to: `${basePath}/notifications`,
@@ -181,6 +187,7 @@ export function TenantAdminShellPage() {
   const shipmentLinks = [
     {to: `${basePath}/shipments`, label: 'قائمة الشحنات', icon: Package, end: true},
     {to: `${basePath}/shipments/new`, label: 'إنشاء شحنة', icon: PackagePlus, end: true},
+    {to: `${basePath}/shipments/import`, label: 'استيراد Excel', icon: Upload, end: true},
     {to: `${basePath}/shipments/warehouse`, label: 'شحنات في المخزون', icon: PackageCheck, end: true},
     {to: `${basePath}/shipments/out-for-delivery`, label: 'الشحنات قيد التوصيل', icon: Truck, end: true},
     {to: `${basePath}/shipments/rescheduled`, label: 'انتظار إعادة التوصيل', icon: Clock, end: true},
@@ -221,6 +228,7 @@ export function TenantAdminShellPage() {
   ];
 
   const accountingLinks = [
+    {to: `${basePath}/reports`, label: 'التقارير التنفيذية', icon: BarChart3, end: true},
     {to: `${basePath}/accounting/journal-entries`, label: 'قيود اليومية العامة', icon: BookOpen, end: true},
     {to: `${basePath}/accounting/trial-balance`, label: 'ميزان المراجعة والأستاذ', icon: Scale, end: true},
   ];
@@ -528,7 +536,7 @@ export function TenantAdminShellPage() {
 
           <div className="pt-2">
             <div className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-400">
-              <span>الحسابات العامة والتقارير (مرحلة 10)</span>
+              <span>الحسابات العامة والتقارير</span>
             </div>
             <div className="mt-1 space-y-0.5 pr-1">
               {accountingLinks.map((item) => {
