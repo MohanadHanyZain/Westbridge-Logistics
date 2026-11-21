@@ -1,4 +1,14 @@
 سجل التغييرات (CHANGELOG)
+[المرحلة 12] - 2026-11-21
+المضاف
+اعتماد القرار ADR-020 (حاويات التخزين الخاصة والروابط الموقعة قصيرة العمر 300s، حد المرفقات الافتراضي 5MB للأنواع الآمنة، احتفاظ 365 يومًا، وإشعارات فورية مع طابور تسليم).
+إنشاء Migration supabase/migrations/0013_phase12_messaging_attachments_notifications.sql:
+جداول conversations, conversation_participants, messages (غير قابلة للتعديل مع منع التكرار عبر idempotency_key), storage_objects_metadata, message_attachments, shipment_attachments, notifications, وnotification_deliveries المحمية بـ FORCE ROW LEVEL SECURITY.
+إعداد حاويات Supabase Storage الخاصة (shipment-attachments, message-attachments, delivery-proof) مع سياسات عزل صارمة حسب tenant_id.
+دوال خادمية ذرية: open_or_get_conversation, send_conversation_message, mark_conversation_read, register_shipment_attachment, delete_shipment_attachment, mark_notifications_read, get_tenant_messaging_settings, وupdate_tenant_messaging_settings.
+مشغّل إشعارات تلقائي عند تغير حالة الشحنة (trg_shipment_status_event_notify) لإخطار التاجر والمندوب فورًا.
+إنشاء اختبار العزل والتحقق supabase/tests/rls/phase12_messaging_attachments_isolation.sql.
+إضافة شاشات ومكونات المرحلة الثانية عشرة: مركز الرسائل والإشعارات (MessagingCenterPage), لوحة محادثة الشحنة (ConversationThreadPanel), رافع المرفقات الخاصة (AttachmentUploader), إعدادات الرسائل والاحتفاظ والتنبيهات (TenantSettingsPage)، مع دمج تبويبي المستندات والرسائل في ShipmentDetailPage والتواصل وإرفاق الصور في CourierPortalPage وجرس الإشعارات الحي في TenantAdminShellPage، واختبارات src/tests/phase12.test.tsx.
 [المرحلة 11] - 2026-11-20
 المضاف
 إنشاء Migration supabase/migrations/0012_phase11_client_portal_public_storefront.sql:

@@ -38,6 +38,21 @@ import {
   type ShipmentNoteType,
   type ShipmentOperationalStatus,
 } from '@/types/shipments';
+import {AttachmentPreviewList, AttachmentUploader} from '@/components/ui/AttachmentUploader';
+import {ConversationThreadPanel} from '@/features/messaging/ConversationThreadPanel';
+import {
+  deleteShipmentAttachment,
+  getTenantMessagingSettings,
+  listShipmentAttachments,
+  registerShipmentAttachment,
+} from '@/features/messaging/messagingService';
+import {
+  SHIPMENT_ATTACHMENT_CATEGORY_LABELS,
+  type AttachmentDraftPayload,
+  type MessageVisibility,
+  type ShipmentAttachmentCategory,
+  type ShipmentAttachmentRecord,
+} from '@/types/messaging';
 import {
   ArrowRight,
   Barcode,
@@ -51,7 +66,7 @@ import {
   Scale,
 } from 'lucide-react';
 
-type DetailTab = 'description' | 'movements' | 'finance' | 'notes' | 'tracking';
+type DetailTab = 'description' | 'movements' | 'finance' | 'notes' | 'tracking' | 'attachments' | 'messages';
 
 const WORKFLOW_OPTIONS: Record<ShipmentOperationalStatus, readonly ShipmentOperationalStatus[]> = {
   created: ['pickup_scheduled', 'picked_up', 'in_warehouse', 'cancelled'],
@@ -123,12 +138,19 @@ export function ShipmentDetailPage() {
   const [noteBody, setNoteBody] = useState('');
   const [savingNote, setSavingNote] = useState(false);
 
+  // Attachments State (Phase 12)
+  const [attachments, setAttachments] = useState<readonly ShipmentAttachmentRecord[]>([]);
+  const [maxAttachmentMb, setMaxAttachmentMb] = useState(5);
+  const [attachmentCategory, setAttachmentCategory] = useState<ShipmentAttachmentCategory>('general');
+  const [attachmentVisibility, setAttachmentVisibility] = useState<MessageVisibility>('external');
+  const [attachmentNotes, setAttachmentNotes] = useState('');
+
   const loadData = useCallback(async () => {
     if (!shipmentId) return;
     setLoading(true);
     setError(null);
     try {
-      const [full, br, cl, srv, gov, reg, cr, rsn] = await Promise.all([
+      const [full, br, cl, srv, gov, reg, cr, rsn, atts, msgSettings] = await Promise.all([
         getShipmentDetail(tenant.id, shipmentId),
         listBranches(tenant.id),
         listClients(tenant.id),
@@ -137,6 +159,8 @@ export function ShipmentDetailPage() {
         listRegions(tenant.id),
         listCouriers(tenant.id),
         listExceptionReasons(tenant.id),
+        listShipmentAttachments(tenant.id, shipmentId).catch(() => []),
+        getTenantMessagingSettings(tenant.id).catch(() => ({attachment_max_size_mb: 5})),
       ]);
 
       setDetail(full);
@@ -147,6 +171,8 @@ export function ShipmentDetailPage() {
       setRegions(reg);
       setCouriers(cr);
       setExceptionReasons(rsn);
+      setAttachments(atts);
+      setMaxAttachmentMb(msgSettings.attachment_max_size_mb);
 
       if (full) {
         const s = full.shipment;
@@ -280,6 +306,44 @@ export function ShipmentDetailPage() {
       });
     } finally {
       setSavingNote(false);
+    }
+  };
+
+  const handleShipmentAttachmentUploaded = async (draft: AttachmentDraftPayload) => {
+    if (!detail) return;
+    setActionMessage(null);
+    try {
+      await registerShipmentAttachment(tenant.id, detail.shipment.id, {
+        ...draft,
+        category: attachmentCategory,
+        visibility: isClientUser ? 'external' : attachmentVisibility,
+        notes: attachmentNotes,
+      });
+      setAttachmentNotes('');
+      const fresh = await listShipmentAttachments(tenant.id, detail.shipment.id);
+      setAttachments(fresh);
+      setActionMessage({type: 'success', text: 'تم إرفاق المستند وحفظه في التخزين الخاص للشحنة.'});
+    } catch (err) {
+      setActionMessage({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'تعذر تسجيل مرفق الشحنة.',
+      });
+    }
+  };
+
+  const handleDeleteAttachment = async (attachmentId: string) => {
+    if (!detail) return;
+    setActionMessage(null);
+    try {
+      await deleteShipmentAttachment(tenant.id, attachmentId);
+      const fresh = await listShipmentAttachments(tenant.id, detail.shipment.id);
+      setAttachments(fresh);
+      setActionMessage({type: 'success', text: 'تم حذف المرفق بنجاح.'});
+    } catch (err) {
+      setActionMessage({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'تعذر حذف المرفق.',
+      });
     }
   };
 
@@ -811,6 +875,8 @@ export function ShipmentDetailPage() {
             {key: 'movements', label: `الحركات وسجل الحالات (${detail.events.length})`},
             {key: 'finance', label: `الأثر المالي ولقطات السعر (${detail.snapshots.length})`},
             {key: 'notes', label: `الملاحظات (${detail.notes.length})`},
+            {key: 'attachments', label: `المستندات والمرفقات (${attachments.length})`},
+            {key: 'messages', label: 'الرسائل والمحادثة'},
             {key: 'tracking', label: 'الباركود والعلاقات'},
           ] as const
         ).map((tab) => (
@@ -1164,6 +1230,107 @@ export function ShipmentDetailPage() {
             )}
           </section>
         </div>
+      )}
+
+      {/* Tab 6: Private Storage Attachments */}
+      {activeTab === 'attachments' && (
+        <div className="space-y-4">
+          <section className="rounded-xl border border-slate-200 bg-white p-5">
+            <h2 className="text-sm font-semibold text-slate-900">رفع مستند أو صورة للشحنة (تخزين خاص مؤمن)</h2>
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div>
+                <label htmlFor="att-cat" className="block text-xs font-medium text-slate-700">
+                  تصنيف المرفق
+                </label>
+                <select
+                  id="att-cat"
+                  value={attachmentCategory}
+                  onChange={(e) => setAttachmentCategory(e.target.value as ShipmentAttachmentCategory)}
+                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs"
+                >
+                  {Object.entries(SHIPMENT_ATTACHMENT_CATEGORY_LABELS).map(([key, label]) => (
+                    <option key={key} value={key}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {!isClientUser && (
+                <div>
+                  <label htmlFor="att-vis" className="block text-xs font-medium text-slate-700">
+                    نطاق الرؤية
+                  </label>
+                  <select
+                    id="att-vis"
+                    value={attachmentVisibility}
+                    onChange={(e) => setAttachmentVisibility(e.target.value as MessageVisibility)}
+                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs"
+                  >
+                    <option value="external">مرئي للتاجر والفريق</option>
+                    <option value="internal">داخلي للفريق فقط</option>
+                  </select>
+                </div>
+              )}
+
+              <div>
+                <label htmlFor="att-notes" className="block text-xs font-medium text-slate-700">
+                  وصف مختصر (اختياري)
+                </label>
+                <input
+                  id="att-notes"
+                  type="text"
+                  value={attachmentNotes}
+                  onChange={(e) => setAttachmentNotes(e.target.value)}
+                  placeholder="مثال: صورة الفاتورة أو إثبات التسليم"
+                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <AttachmentUploader
+                tenantId={tenant.id}
+                bucketId={attachmentCategory === 'delivery_proof' ? 'delivery-proof' : 'shipment-attachments'}
+                entityType={attachmentCategory === 'delivery_proof' ? 'delivery_proof' : 'shipment'}
+                entityId={shp.id}
+                maxSizeMb={maxAttachmentMb}
+                label="اختيار ورفع ملف للشحنة"
+                onUploaded={handleShipmentAttachmentUploaded}
+              />
+            </div>
+          </section>
+
+          <section className="rounded-xl border border-slate-200 bg-white p-5">
+            <h2 className="text-sm font-semibold text-slate-900">المرفقات المسجلة ({attachments.length})</h2>
+            <div className="mt-3">
+              {attachments.length === 0 ? (
+                <p className="text-xs text-slate-500">لا توجد مرفقات مسجلة لهذه الشحنة حتى الآن.</p>
+              ) : (
+                <AttachmentPreviewList
+                  items={attachments.map((att) => ({
+                    id: att.id,
+                    storageObject: att.storage_object,
+                    subtitle: `${SHIPMENT_ATTACHMENT_CATEGORY_LABELS[att.category]}${att.notes ? ` · ${att.notes}` : ''}`,
+                    canDelete: !isClientUser || att.created_by === profile?.id,
+                  }))}
+                  onDelete={handleDeleteAttachment}
+                />
+              )}
+            </div>
+          </section>
+        </div>
+      )}
+
+      {/* Tab 7: Shipment Conversation Thread */}
+      {activeTab === 'messages' && (
+        <ConversationThreadPanel
+          tenantId={tenant.id}
+          entityType="shipment"
+          entityId={shp.id}
+          defaultSubject={`محادثة الشحنة ${shp.shipment_number}`}
+          maxAttachmentSizeMb={maxAttachmentMb}
+        />
       )}
     </div>
   );

@@ -7,12 +7,14 @@ import {useAuth} from '@/lib/auth';
 import {hasEffectivePermission} from '@/lib/permissions';
 import {AccountSubjectType} from '@/types/common';
 import type {MyTenantPermissionsBundle} from '@/types/security';
+import {getUnreadNotificationsCount, subscribeToMessagingUpdates} from '@/features/messaging/messagingService';
 import {
   Activity,
   AlertTriangle,
   ArrowLeftRight,
   Banknote,
   Barcode,
+  Bell,
   BookOpen,
   Building2,
   Scale,
@@ -28,12 +30,14 @@ import {
   MapPin,
   MapPinned,
   Menu,
+  MessageSquare,
   Package,
   PackageCheck,
   PackagePlus,
   ReceiptText,
   RotateCcw,
   Route,
+  Settings,
   Shield,
   Truck,
   UserCheck,
@@ -60,6 +64,7 @@ export function TenantAdminShellPage() {
     branch_ids: [],
     permissions: [],
   });
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
 
   const activeMembership = memberships.find(
     (m) => m.tenants?.slug === companySlug.trim().toLowerCase() && m.is_active,
@@ -79,10 +84,25 @@ export function TenantAdminShellPage() {
         // Fallback smoothly when client/mock is unconfigured (e.g. unit tests)
       }
     })();
+
+    const refreshUnread = () => {
+      void getUnreadNotificationsCount(tenantId)
+        .then((count) => {
+          if (!cancelled) setUnreadNotifCount(count);
+        })
+        .catch(() => undefined);
+    };
+
+    refreshUnread();
+    const unsubscribe = subscribeToMessagingUpdates(tenantId, activeMembership?.user_id, {
+      onNotificationChanged: refreshUnread,
+    });
+
     return () => {
       cancelled = true;
+      unsubscribe();
     };
-  }, [tenantId]);
+  }, [tenantId, activeMembership?.user_id]);
 
   const roleKey = activeMembership?.role_key ?? '';
   const isAdmin = roleKey === 'company_owner' || roleKey === 'company_admin';
@@ -149,6 +169,13 @@ export function TenantAdminShellPage() {
       : []),
     {to: `${basePath}/portal/pickups`, label: 'طلبات الالتقاط والعناوين', icon: Truck, end: true},
     {to: `${basePath}/portal/finance`, label: 'قيد التسوية وكشف الحساب', icon: FileSpreadsheet, end: true},
+    {to: `${basePath}/messaging`, label: 'الرسائل والمحادثات', icon: MessageSquare, end: true},
+    {
+      to: `${basePath}/notifications`,
+      label: unreadNotifCount > 0 ? `الإشعارات · ${unreadNotifCount}` : 'الإشعارات',
+      icon: Bell,
+      end: true,
+    },
   ];
 
   const shipmentLinks = [
@@ -196,6 +223,17 @@ export function TenantAdminShellPage() {
   const accountingLinks = [
     {to: `${basePath}/accounting/journal-entries`, label: 'قيود اليومية العامة', icon: BookOpen, end: true},
     {to: `${basePath}/accounting/trial-balance`, label: 'ميزان المراجعة والأستاذ', icon: Scale, end: true},
+  ];
+
+  const messagingSettingsLinks = [
+    {to: `${basePath}/messaging`, label: 'الرسائل والمحادثات', icon: MessageSquare, end: true},
+    {
+      to: `${basePath}/notifications`,
+      label: unreadNotifCount > 0 ? `الإشعارات · ${unreadNotifCount}` : 'الإشعارات',
+      icon: Bell,
+      end: true,
+    },
+    {to: `${basePath}/settings`, label: 'إعدادات الشركة والملفات', icon: Settings, end: true},
   ];
 
   const renderSidebarContent = () => (
@@ -558,6 +596,35 @@ export function TenantAdminShellPage() {
               </div>
             )}
           </div>
+
+          <div className="pt-2">
+            <div className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-400">
+              <span>الرسائل والإعدادات</span>
+            </div>
+            <div className="mt-1 space-y-0.5 pr-1">
+              {messagingSettingsLinks.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.end}
+                    onClick={() => setSidebarOpen(false)}
+                    className={({isActive}) =>
+                      `flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
+                        isActive
+                          ? 'bg-slate-900 text-white'
+                          : 'text-slate-700 hover:bg-slate-100'
+                      }`
+                    }
+                  >
+                    <Icon className="h-3.5 w-3.5 shrink-0" />
+                    <span>{item.label}</span>
+                  </NavLink>
+                );
+              })}
+            </div>
+          </div>
             </>
           )}
         </nav>
@@ -611,8 +678,18 @@ export function TenantAdminShellPage() {
                 </span>
               </div>
 
-              <div className="hidden text-xs text-slate-500 sm:block">
-                <Link to={buildTenantBasePath(tenant.slug)} className="hover:text-slate-900">
+              <div className="hidden items-center gap-4 text-xs text-slate-500 sm:flex">
+                <Link
+                  to={`${basePath}/notifications`}
+                  className="inline-flex items-center gap-1.5 font-medium text-slate-700 hover:text-slate-900 whitespace-nowrap"
+                >
+                  <Bell className="h-3.5 w-3.5" />
+                  <span className="font-mono-tabular">
+                    {unreadNotifCount > 0 ? `الإشعارات · ${unreadNotifCount}` : 'الإشعارات'}
+                  </span>
+                </Link>
+                <span aria-hidden="true">·</span>
+                <Link to={buildTenantBasePath(tenant.slug)} className="hover:text-slate-900 whitespace-nowrap">
                   الموقع العام للشركة
                 </Link>
               </div>

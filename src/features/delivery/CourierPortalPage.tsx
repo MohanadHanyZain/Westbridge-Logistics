@@ -16,8 +16,9 @@ import {
   type CourierPortalTasksFeed,
   type TenantDeliveryPolicyRecord,
 } from '@/types/delivery';
+import {ConversationThreadPanel} from '@/features/messaging/ConversationThreadPanel';
 import {SHIPMENT_STATUS_LABELS, type ShipmentListItem} from '@/types/shipments';
-import {Barcode, CheckCircle2, MapPin, Phone, Truck} from 'lucide-react';
+import {Barcode, CheckCircle2, MapPin, MessageSquare, Phone, Truck} from 'lucide-react';
 
 export function CourierPortalPage() {
   const {tenant, membership} = useTenantWorkspace();
@@ -36,7 +37,8 @@ export function CourierPortalPage() {
   });
 
   const [feed, setFeed] = useState<CourierPortalTasksFeed | null>(null);
-  const [activeTab, setActiveTab] = useState<'shipments' | 'delivery_lists' | 'pickup_lists'>('shipments');
+  const [activeTab, setActiveTab] = useState<'shipments' | 'delivery_lists' | 'pickup_lists' | 'messaging'>('shipments');
+  const [selectedChatShipmentId, setSelectedChatShipmentId] = useState('');
   const [barcodeQuery, setBarcodeQuery] = useState('');
   const [execShipment, setExecShipment] = useState<ShipmentListItem | null>(null);
   const [loading, setLoading] = useState(true);
@@ -254,6 +256,21 @@ export function CourierPortalPage() {
         >
           قوائم الالتقاط ({feed?.pickup_lists.length ?? 0})
         </button>
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab('messaging');
+            if (!selectedChatShipmentId && feed?.shipments[0]) {
+              setSelectedChatShipmentId(feed.shipments[0].id);
+            }
+          }}
+          className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-medium transition-colors whitespace-nowrap ${
+            activeTab === 'messaging' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <MessageSquare className="h-3.5 w-3.5" />
+          <span>الرسائل والتواصل</span>
+        </button>
       </div>
 
       {/* Shipments Cards Grid (Touch-Friendly) */}
@@ -422,6 +439,45 @@ export function CourierPortalPage() {
               )}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Messaging Tab */}
+      {activeTab === 'messaging' && (
+        <div className="space-y-4">
+          {!feed || feed.shipments.length === 0 ? (
+            <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-xs text-slate-500">
+              لا توجد شحنات مسندة لبدء محادثة ميدانية حولها.
+            </div>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-4">
+                <label htmlFor="courier-chat-shipment" className="text-xs font-medium text-slate-700">
+                  الشحنة محل التواصل:
+                </label>
+                <select
+                  id="courier-chat-shipment"
+                  value={selectedChatShipmentId || feed.shipments[0].id}
+                  onChange={(e) => setSelectedChatShipmentId(e.target.value)}
+                  className="min-w-[260px] rounded-lg border border-slate-200 px-3 py-2 text-xs"
+                >
+                  {feed.shipments.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.shipment_number} · {s.recipient_name ?? 'مستلم'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <ConversationThreadPanel
+                key={selectedChatShipmentId || feed.shipments[0].id}
+                tenantId={tenant.id}
+                entityType="shipment"
+                entityId={selectedChatShipmentId || feed.shipments[0].id}
+                defaultSubject={`تواصل ميداني · ${(feed.shipments.find((s) => s.id === (selectedChatShipmentId || feed.shipments[0].id)) ?? feed.shipments[0]).shipment_number}`}
+              />
+            </>
+          )}
         </div>
       )}
 

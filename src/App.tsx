@@ -53,6 +53,8 @@ import {CreateShipmentPage} from '@/features/shipments/CreateShipmentPage';
 import {PublicTrackingPage} from '@/features/shipments/PublicTrackingPage';
 import {ShipmentDetailPage} from '@/features/shipments/ShipmentDetailPage';
 import {ShipmentsListPage} from '@/features/shipments/ShipmentsListPage';
+import {MessagingCenterPage} from '@/features/messaging/MessagingCenterPage';
+import {TenantSettingsPage} from '@/features/settings/TenantSettingsPage';
 import {PlatformTenantsPage} from '@/features/tenants/PlatformTenantsPage';
 import {TenantAdminShellPage} from '@/features/tenants/TenantAdminShellPage';
 import {TenantPublicPage} from '@/features/tenants/TenantPublicPage';
@@ -137,6 +139,9 @@ export function AppRoutes() {
         <Route path="portal/dashboard" element={<ClientPortalDashboardPage />} />
         <Route path="portal/pickups" element={<ClientPortalPickupPage />} />
         <Route path="portal/finance" element={<ClientPortalFinancePage />} />
+        <Route path="messaging" element={<MessagingCenterPage initialTab="messages" />} />
+        <Route path="notifications" element={<MessagingCenterPage initialTab="notifications" />} />
+        <Route path="settings" element={<TenantSettingsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
