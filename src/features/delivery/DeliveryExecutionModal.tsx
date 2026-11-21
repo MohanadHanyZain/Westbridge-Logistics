@@ -1,5 +1,7 @@
 import {useEffect, useRef, useState, type FormEvent, type PointerEvent} from 'react';
+import {recordCourierLocationEvent} from '@/features/couriers/couriersService';
 import {recordDeliveryExecution} from '@/features/delivery/deliveryService';
+import {getBrowserDeviceFingerprint} from '@/lib/maps';
 import {
   DELIVERY_OUTCOME_LABELS,
   RETURN_TYPE_LABELS,
@@ -10,14 +12,16 @@ import {
 } from '@/types/delivery';
 import type {DeliveryExceptionReasonRecord} from '@/types/definitions';
 import type {ShipmentListItem} from '@/types/shipments';
-import {CheckCircle2, Eraser, PenTool, ShieldCheck, X} from 'lucide-react';
+import {CheckCircle2, Eraser, LocateFixed, PenTool, ShieldCheck, X} from 'lucide-react';
 
 interface DeliveryExecutionModalProps {
   readonly open: boolean;
   readonly tenantId: string;
   readonly shipment: ShipmentListItem | null;
   readonly deliveryListId?: string | null;
+  readonly courierId?: string | null;
   readonly requirePod?: boolean;
+  readonly requireGps?: boolean;
   readonly maxAttempts?: number;
   readonly exceptionReasons: readonly DeliveryExceptionReasonRecord[];
   readonly onClose: () => void;
@@ -29,7 +33,9 @@ export function DeliveryExecutionModal({
   tenantId,
   shipment,
   deliveryListId = null,
+  courierId = null,
   requirePod = false,
+  requireGps = false,
   maxAttempts = 3,
   exceptionReasons,
   onClose,
@@ -49,6 +55,8 @@ export function DeliveryExecutionModal({
   const [podOtpVerified, setPodOtpVerified] = useState(false);
   const [hasSignatureStroke, setHasSignatureStroke] = useState(false);
   const [notes, setNotes] = useState('');
+  const [capturedGps, setCapturedGps] = useState<{lat: number; lng: number; accuracy?: number} | null>(null);
+  const [capturingGps, setCapturingGps] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -72,6 +80,7 @@ export function DeliveryExecutionModal({
     setPodOtpVerified(false);
     setHasSignatureStroke(false);
     setNotes('');
+    setCapturedGps(null);
     setError(null);
 
     const canvas = canvasRef.current;
@@ -161,6 +170,33 @@ export function DeliveryExecutionModal({
     }
   };
 
+  const handleCaptureGps = async () => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setError('المتصفح الحالي لا يدعم خدمة تحديد الموقع التلقائي.');
+      return;
+    }
+    setCapturingGps(true);
+    setError(null);
+    try {
+      const coords = await new Promise<GeolocationCoordinates>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => resolve(pos.coords),
+          (err) => reject(err),
+          {enableHighAccuracy: true, timeout: 10000, maximumAge: 15000},
+        );
+      });
+      setCapturedGps({
+        lat: Number(coords.latitude.toFixed(6)),
+        lng: Number(coords.longitude.toFixed(6)),
+        accuracy: Number.isFinite(coords.accuracy) ? Number(coords.accuracy.toFixed(1)) : undefined,
+      });
+    } catch {
+      setError('تعذر الحصول على إحداثيات GPS من المتصفح.');
+    } finally {
+      setCapturingGps(false);
+    }
+  };
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -174,6 +210,11 @@ export function DeliveryExecutionModal({
         setError('سياسة الشركة تتطلب إدخال اسم المستلم أو التوقيع الإلكتروني أو تأكيد OTP قبل التسليم.');
         return;
       }
+    }
+
+    if (requireGps && !capturedGps) {
+      setError('سياسة الشركة تتطلب توثيق إحداثيات الموقع الميداني (GPS) قبل حفظ نتيجة التوصيل.');
+      return;
     }
 
     if (outcome === 'return_to_sender' && returnTypeCode === 'recipient_paid_fee') {
@@ -209,6 +250,25 @@ export function DeliveryExecutionModal({
         pod_otp_verified: isDeliverySuccess && podMethod === 'otp' ? podOtpVerified : false,
         notes: notes.trim() || null,
       });
+
+      if (capturedGps) {
+        try {
+          await recordCourierLocationEvent(tenantId, {
+            courier_id: courierId ?? shipment.assigned_courier_id ?? undefined,
+            shipment_id: shipment.id,
+            delivery_list_id: deliveryListId,
+            event_type: 'delivery_attempt',
+            lat: capturedGps.lat,
+            lng: capturedGps.lng,
+            accuracy_meters: capturedGps.accuracy ?? null,
+            source: 'delivery_pod',
+            device_fingerprint: getBrowserDeviceFingerprint(),
+            notes: `نتيجة التنفيذ: ${DELIVERY_OUTCOME_LABELS[outcome]}`,
+          });
+        } catch {
+          // Non-blocking if location RPC fails after delivery execution
+        }
+      }
 
       await onExecuted(res);
       onClose();
@@ -521,6 +581,30 @@ export function DeliveryExecutionModal({
               )}
             </div>
           )}
+
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs">
+            <div>
+              <p className="font-medium text-slate-800">
+                توثيق إحداثيات الموقع (GPS) {requireGps ? '*' : '(اختياري)'}
+              </p>
+              <p className="mt-0.5 font-mono-tabular text-[11px] text-slate-500" dir="ltr">
+                {capturedGps
+                  ? `${capturedGps.lat.toFixed(5)}, ${capturedGps.lng.toFixed(5)}${
+                      capturedGps.accuracy ? ` (±${Math.round(capturedGps.accuracy)}m)` : ''
+                    }`
+                  : 'لم يتم التقاط موقع بعد'}
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={capturingGps}
+              onClick={() => void handleCaptureGps()}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-800 hover:bg-slate-100 disabled:opacity-60"
+            >
+              <LocateFixed className="h-3.5 w-3.5" />
+              <span>{capturingGps ? 'جاري الالتقاط...' : capturedGps ? 'تحديث الموقع' : 'التقاط الموقع الآن'}</span>
+            </button>
+          </div>
 
           <div>
             <label htmlFor="exec-notes" className="block text-xs font-medium text-slate-700">

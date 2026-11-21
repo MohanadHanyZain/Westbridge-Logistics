@@ -1,7 +1,13 @@
 import {useCallback, useEffect, useMemo, useState, type FormEvent} from 'react';
 import {Link} from 'react-router-dom';
 import {buildTenantBasePath} from '@/config/brand';
-import {listCouriers} from '@/features/couriers/couriersService';
+import {CourierMapCanvas, type CourierMapMarkerItem} from '@/features/couriers/CourierMapCanvas';
+import {
+  getTenantMapsSettings,
+  listCourierMovementsTimeline,
+  listCouriers,
+  recordCourierLocationEvent,
+} from '@/features/couriers/couriersService';
 import {listExceptionReasons} from '@/features/definitions/definitionsService';
 import {DeliveryExecutionModal} from '@/features/delivery/DeliveryExecutionModal';
 import {
@@ -9,7 +15,15 @@ import {
   listCourierMyTasks,
 } from '@/features/delivery/deliveryService';
 import {useTenantWorkspace} from '@/features/tenants/TenantWorkspaceContext';
-import type {CourierRecord} from '@/types/couriers';
+import {getBrowserDeviceFingerprint} from '@/lib/maps';
+import {
+  LOCATION_EVENT_TYPE_LABELS,
+  LOCATION_SOURCE_LABELS,
+  type CourierLocationEventRecord,
+  type CourierRecord,
+  type LocationEventType,
+  type TenantMapsSettingsRecord,
+} from '@/types/couriers';
 import type {DeliveryExceptionReasonRecord} from '@/types/definitions';
 import {
   DELIVERY_LIST_STATUS_LABELS,
@@ -18,7 +32,7 @@ import {
 } from '@/types/delivery';
 import {ConversationThreadPanel} from '@/features/messaging/ConversationThreadPanel';
 import {SHIPMENT_STATUS_LABELS, type ShipmentListItem} from '@/types/shipments';
-import {Barcode, CheckCircle2, MapPin, MessageSquare, Phone, Truck} from 'lucide-react';
+import {Barcode, CheckCircle2, LocateFixed, MapPin, MapPinned, MessageSquare, Phone, Truck} from 'lucide-react';
 
 export function CourierPortalPage() {
   const {tenant, membership} = useTenantWorkspace();
@@ -35,23 +49,38 @@ export function CourierPortalPage() {
     retry_extra_fee: 0,
     require_pod_on_delivery: false,
   });
+  const [mapsPolicy, setMapsPolicy] = useState<TenantMapsSettingsRecord>({
+    tenant_id: tenant.id,
+    location_retention_days: 90,
+    gps_ping_interval_seconds: 60,
+    require_gps_on_delivery: false,
+  });
 
   const [feed, setFeed] = useState<CourierPortalTasksFeed | null>(null);
-  const [activeTab, setActiveTab] = useState<'shipments' | 'delivery_lists' | 'pickup_lists' | 'messaging'>('shipments');
+  const [routeEvents, setRouteEvents] = useState<readonly CourierLocationEventRecord[]>([]);
+  const [activeTab, setActiveTab] = useState<'shipments' | 'delivery_lists' | 'pickup_lists' | 'route_map' | 'messaging'>('shipments');
   const [selectedChatShipmentId, setSelectedChatShipmentId] = useState('');
   const [barcodeQuery, setBarcodeQuery] = useState('');
   const [execShipment, setExecShipment] = useState<ShipmentListItem | null>(null);
+  const [sharingGps, setSharingGps] = useState(false);
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState<{type: 'error' | 'success'; text: string} | null>(null);
 
   const loadRefsAndInit = useCallback(async () => {
     try {
-      const [reasons, pol] = await Promise.all([
+      const [reasons, pol, mPol] = await Promise.all([
         listExceptionReasons(tenant.id),
         getTenantDeliveryPolicy(tenant.id),
+        getTenantMapsSettings(tenant.id).catch(() => ({
+          tenant_id: tenant.id,
+          location_retention_days: 90,
+          gps_ping_interval_seconds: 60,
+          require_gps_on_delivery: false,
+        })),
       ]);
       setExceptionReasons(reasons.filter((r) => r.is_active));
       setPolicy(pol);
+      setMapsPolicy(mPol);
 
       if (!isBoundCourierAccount) {
         const crr = await listCouriers(tenant.id);
@@ -74,6 +103,16 @@ export function CourierPortalPage() {
         isBoundCourierAccount ? null : selectedCourierId || null,
       );
       setFeed(data);
+      const targetCourierId = data?.courier?.id ?? (isBoundCourierAccount ? null : selectedCourierId || null);
+      if (targetCourierId) {
+        const today = new Date().toISOString().slice(0, 10);
+        try {
+          const tl = await listCourierMovementsTimeline(tenant.id, targetCourierId, today, today);
+          setRouteEvents(tl.events ?? []);
+        } catch {
+          setRouteEvents([]);
+        }
+      }
     } catch (err) {
       setFeedback({type: 'error', text: err instanceof Error ? err.message : 'تعذر تحميل مهام المندوب.'});
     } finally {
@@ -132,6 +171,75 @@ export function CourierPortalPage() {
     setBarcodeQuery('');
   };
 
+  const handleFieldLocationCheckin = async (eventType: LocationEventType) => {
+    const targetCourierId = feed?.courier?.id ?? (selectedCourierId || null);
+    if (!targetCourierId && !isBoundCourierAccount) {
+      setFeedback({type: 'error', text: 'يرجى تحديد المندوب أولاً.'});
+      return;
+    }
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      setFeedback({type: 'error', text: 'المتصفح الحالي لا يدعم خدمة تحديد الموقع GPS.'});
+      return;
+    }
+
+    setSharingGps(true);
+    setFeedback(null);
+    try {
+      const coords = await new Promise<GeolocationCoordinates>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => resolve(pos.coords),
+          (err) => reject(err),
+          {enableHighAccuracy: true, timeout: 10000, maximumAge: 15000},
+        );
+      });
+
+      const saved = await recordCourierLocationEvent(tenant.id, {
+        courier_id: targetCourierId,
+        event_type: eventType,
+        lat: Number(coords.latitude.toFixed(6)),
+        lng: Number(coords.longitude.toFixed(6)),
+        accuracy_meters: Number.isFinite(coords.accuracy) ? Number(coords.accuracy.toFixed(1)) : null,
+        source: 'gps_browser',
+        device_fingerprint: getBrowserDeviceFingerprint(),
+        device_label: 'بوابة المندوب الميدانية',
+      });
+
+      setRouteEvents((prev) => [...prev, saved]);
+      setFeedback({
+        type: 'success',
+        text: `تم تسجيل نقطة الموقع (${LOCATION_EVENT_TYPE_LABELS[eventType]}) بدقة GPS.`,
+      });
+    } catch {
+      setFeedback({type: 'error', text: 'تعذر الحصول على إحداثيات الموقع من الجهاز.'});
+    } finally {
+      setSharingGps(false);
+    }
+  };
+
+  const portalMapMarkers: readonly CourierMapMarkerItem[] = useMemo(
+    () =>
+      routeEvents.map((ev, idx) => ({
+        id: ev.id,
+        lat: ev.lat,
+        lng: ev.lng,
+        title: LOCATION_EVENT_TYPE_LABELS[ev.event_type] ?? ev.event_type,
+        subtitle: ev.notes || LOCATION_SOURCE_LABELS[ev.source],
+        accuracyMeters: ev.accuracy_meters,
+        recordedAt: ev.recorded_at,
+        shipmentNumber: ev.shipment_number ?? null,
+        tone:
+          ev.event_type === 'shift_start'
+            ? 'start'
+            : ev.event_type === 'delivery_attempt'
+              ? 'delivery'
+              : ev.event_type === 'shift_end'
+                ? 'end'
+                : 'ping',
+        orderNumber: idx + 1,
+      })),
+    [routeEvents],
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -189,30 +297,50 @@ export function CourierPortalPage() {
         </div>
       </div>
 
-      {/* Quick Barcode Scanner for Instant Field Action */}
-      <form
-        onSubmit={handleBarcodeLookup}
-        className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-4"
-      >
-        <div className="relative min-w-[240px] flex-1">
-          <Barcode className="pointer-events-none absolute top-2.5 right-3 h-4 w-4 text-slate-400" />
-          <input
-            type="text"
-            value={barcodeQuery}
-            onChange={(e) => setBarcodeQuery(e.target.value)}
-            placeholder="امسح باركود الشحنة أو أدخل رقمها لتسجيل التسليم / التعذر فورًا..."
-            aria-label="مسح باركود الشحنة"
-            className="w-full rounded-lg border border-slate-200 py-2 pr-9 pl-3 font-mono-tabular text-xs"
-          />
+      {/* Quick Barcode Scanner & GPS Shift Controls */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white p-4">
+        <form onSubmit={handleBarcodeLookup} className="flex flex-1 flex-wrap items-center gap-3">
+          <div className="relative min-w-[240px] flex-1">
+            <Barcode className="pointer-events-none absolute top-2.5 right-3 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              value={barcodeQuery}
+              onChange={(e) => setBarcodeQuery(e.target.value)}
+              placeholder="امسح باركود الشحنة أو أدخل رقمها لتسجيل التسليم / التعذر فورًا..."
+              aria-label="مسح باركود الشحنة"
+              className="w-full rounded-lg border border-slate-200 py-2 pr-9 pl-3 font-mono-tabular text-xs"
+            />
+          </div>
+          <button
+            type="submit"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-xs font-medium text-white hover:bg-slate-800 whitespace-nowrap"
+          >
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            فتح تنفيذ الشحنة
+          </button>
+        </form>
+
+        <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-2 sm:border-t-0 sm:pt-0">
+          <button
+            type="button"
+            disabled={sharingGps}
+            onClick={() => void handleFieldLocationCheckin('shift_start')}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800 hover:bg-emerald-100 disabled:opacity-60 whitespace-nowrap"
+          >
+            <LocateFixed className="h-3.5 w-3.5" />
+            <span>بدء الوردية (GPS)</span>
+          </button>
+          <button
+            type="button"
+            disabled={sharingGps}
+            onClick={() => void handleFieldLocationCheckin('ping')}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60 whitespace-nowrap"
+          >
+            <LocateFixed className="h-3.5 w-3.5" />
+            <span>مشاركة موقعي الآن</span>
+          </button>
         </div>
-        <button
-          type="submit"
-          className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-xs font-medium text-white hover:bg-slate-800 whitespace-nowrap"
-        >
-          <CheckCircle2 className="h-3.5 w-3.5" />
-          فتح تنفيذ الشحنة
-        </button>
-      </form>
+      </div>
 
       {feedback && (
         <div
@@ -255,6 +383,16 @@ export function CourierPortalPage() {
           }`}
         >
           قوائم الالتقاط ({feed?.pickup_lists.length ?? 0})
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab('route_map')}
+          className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-xs font-medium transition-colors whitespace-nowrap ${
+            activeTab === 'route_map' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'
+          }`}
+        >
+          <MapPinned className="h-3.5 w-3.5" />
+          <span>خريطة مساري ({routeEvents.length})</span>
         </button>
         <button
           type="button"
@@ -442,6 +580,18 @@ export function CourierPortalPage() {
         </div>
       )}
 
+      {/* Route Map Tab */}
+      {activeTab === 'route_map' && (
+        <div className="space-y-4">
+          <CourierMapCanvas
+            markers={portalMapMarkers}
+            drawRouteLine={true}
+            emptyTitle="لم تسجل أي نقاط موقع خلال وردية اليوم"
+            emptyDescription="اضغط «بدء الوردية (GPS)» أو «مشاركة موقعي الآن» أو وثّق الموقع عند تسجيل التسليم لتتبع خط السير هنا."
+          />
+        </div>
+      )}
+
       {/* Messaging Tab */}
       {activeTab === 'messaging' && (
         <div className="space-y-4">
@@ -485,7 +635,9 @@ export function CourierPortalPage() {
         open={execShipment !== null}
         tenantId={tenant.id}
         shipment={execShipment}
+        courierId={feed?.courier?.id ?? (selectedCourierId || null)}
         requirePod={policy.require_pod_on_delivery}
+        requireGps={mapsPolicy.require_gps_on_delivery}
         maxAttempts={policy.max_delivery_attempts}
         exceptionReasons={exceptionReasons}
         onClose={() => setExecShipment(null)}

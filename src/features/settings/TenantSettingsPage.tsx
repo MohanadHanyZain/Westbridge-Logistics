@@ -2,11 +2,16 @@ import {useCallback, useEffect, useState, type FormEvent} from 'react';
 import {Link} from 'react-router-dom';
 import {buildTenantBasePath} from '@/config/brand';
 import {
+  getTenantMapsSettings,
+  purgeExpiredCourierLocations,
+  updateTenantMapsSettings,
+} from '@/features/couriers/couriersService';
+import {
   getTenantMessagingSettings,
   updateTenantMessagingSettings,
 } from '@/features/messaging/messagingService';
 import {useTenantWorkspace} from '@/features/tenants/TenantWorkspaceContext';
-import {Bell, HardDrive, Save, Settings2, ShieldAlert} from 'lucide-react';
+import {Bell, HardDrive, MapPinned, Save, Settings2, ShieldAlert, Trash2} from 'lucide-react';
 
 export function TenantSettingsPage() {
   const {tenant, isAdmin} = useTenantWorkspace();
@@ -18,19 +23,37 @@ export function TenantSettingsPage() {
   const [notifyNewMessage, setNotifyNewMessage] = useState(true);
   const [notifySettlement, setNotifySettlement] = useState(true);
 
+  const [locationRetentionDays, setLocationRetentionDays] = useState(90);
+  const [gpsPingInterval, setGpsPingInterval] = useState(60);
+  const [requireGpsOnDelivery, setRequireGpsOnDelivery] = useState(false);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingMaps, setSavingMaps] = useState(false);
+  const [purging, setPurging] = useState(false);
   const [feedback, setFeedback] = useState<{type: 'error' | 'success'; text: string} | null>(null);
 
   const loadSettings = useCallback(async () => {
     setLoading(true);
     try {
-      const s = await getTenantMessagingSettings(tenant.id);
+      const [s, m] = await Promise.all([
+        getTenantMessagingSettings(tenant.id),
+        getTenantMapsSettings(tenant.id).catch(() => ({
+          tenant_id: tenant.id,
+          location_retention_days: 90,
+          gps_ping_interval_seconds: 60,
+          require_gps_on_delivery: false,
+        })),
+      ]);
       setRetentionDays(s.message_retention_days);
       setMaxSizeMb(s.attachment_max_size_mb);
       setNotifyShipmentStatus(s.notify_on_shipment_status);
       setNotifyNewMessage(s.notify_on_new_message);
       setNotifySettlement(s.notify_on_settlement);
+
+      setLocationRetentionDays(m.location_retention_days);
+      setGpsPingInterval(m.gps_ping_interval_seconds);
+      setRequireGpsOnDelivery(m.require_gps_on_delivery);
     } catch (err) {
       setFeedback({type: 'error', text: err instanceof Error ? err.message : 'تعذر تحميل الإعدادات.'});
     } finally {
@@ -65,6 +88,45 @@ export function TenantSettingsPage() {
       setFeedback({type: 'error', text: err instanceof Error ? err.message : 'تعذر حفظ الإعدادات.'});
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleSaveMaps = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!isAdmin) return;
+    setFeedback(null);
+    setSavingMaps(true);
+    try {
+      const updated = await updateTenantMapsSettings(tenant.id, {
+        location_retention_days: locationRetentionDays,
+        gps_ping_interval_seconds: gpsPingInterval,
+        require_gps_on_delivery: requireGpsOnDelivery,
+      });
+      setLocationRetentionDays(updated.location_retention_days);
+      setGpsPingInterval(updated.gps_ping_interval_seconds);
+      setRequireGpsOnDelivery(updated.require_gps_on_delivery);
+      setFeedback({type: 'success', text: 'تم حفظ سياسة الخرائط وتحديد المواقع (ADR-022) بنجاح.'});
+    } catch (err) {
+      setFeedback({type: 'error', text: err instanceof Error ? err.message : 'تعذر حفظ إعدادات الخرائط.'});
+    } finally {
+      setSavingMaps(false);
+    }
+  };
+
+  const handlePurgeExpiredLocations = async () => {
+    if (!isAdmin) return;
+    setFeedback(null);
+    setPurging(true);
+    try {
+      const deletedCount = await purgeExpiredCourierLocations(tenant.id);
+      setFeedback({
+        type: 'success',
+        text: `تم تنظيف سجلات المواقع المنتهية الصلاحية (${deletedCount} سجل محذوف).`,
+      });
+    } catch (err) {
+      setFeedback({type: 'error', text: err instanceof Error ? err.message : 'تعذر تنظيف السجلات.'});
+    } finally {
+      setPurging(false);
     }
   };
 
@@ -219,8 +281,102 @@ export function TenantSettingsPage() {
               </button>
             </div>
           )}
-        </form>
-      )}
+            </form>
+          )}
+
+          {/* Phase 14 Maps & GPS Location Retention Policy */}
+          {!loading && (
+            <form onSubmit={handleSaveMaps} className="rounded-xl border border-slate-200 bg-white p-5 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <MapPinned className="h-4 w-4 text-slate-700" />
+                  <h2 className="text-sm font-semibold text-slate-900">
+                    سياسة الخرائط وتتبع مواقع المندوبين (ADR-022)
+                  </h2>
+                </div>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    disabled={purging}
+                    onClick={() => void handlePurgeExpiredLocations()}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                    <span>{purging ? 'جاري التنظيف...' : 'تنظيف السجلات المنتهية'}</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="set-loc-retention" className="block text-xs font-medium text-slate-700">
+                    مدة الاحتفاظ بسجل مواقع المندوبين (بالأيام)
+                  </label>
+                  <input
+                    id="set-loc-retention"
+                    type="number"
+                    min={7}
+                    max={365}
+                    disabled={!isAdmin}
+                    value={locationRetentionDays}
+                    onChange={(e) => setLocationRetentionDays(Number(e.target.value))}
+                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 font-mono-tabular text-xs disabled:bg-slate-50"
+                  />
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    النطاق المسموح: من 7 أيام حتى 365 يومًا (الافتراضي: 90 يومًا).
+                  </p>
+                </div>
+
+                <div>
+                  <label htmlFor="set-gps-interval" className="block text-xs font-medium text-slate-700">
+                    فاصل تحديث الموقع الميداني (بالثواني)
+                  </label>
+                  <input
+                    id="set-gps-interval"
+                    type="number"
+                    min={15}
+                    max={600}
+                    disabled={!isAdmin}
+                    value={gpsPingInterval}
+                    onChange={(e) => setGpsPingInterval(Number(e.target.value))}
+                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 font-mono-tabular text-xs disabled:bg-slate-50"
+                  />
+                  <p className="mt-1 text-[11px] text-slate-500">
+                    النطاق المسموح: من 15 إلى 600 ثانية أثناء الوردية النشطة.
+                  </p>
+                </div>
+              </div>
+
+              <label className="flex items-start gap-2.5 rounded-lg border border-slate-200 p-3 text-xs">
+                <input
+                  type="checkbox"
+                  disabled={!isAdmin}
+                  checked={requireGpsOnDelivery}
+                  onChange={(e) => setRequireGpsOnDelivery(e.target.checked)}
+                  className="mt-0.5 rounded border-slate-300"
+                />
+                <div>
+                  <p className="font-semibold text-slate-900">إلزام توثيق إحداثيات GPS عند تسجيل التسليم أو التعذر</p>
+                  <p className="mt-0.5 text-slate-500">
+                    عند تفعيل هذا الخيار يُطلب من المندوب التقاط الموقع في نافذة تنفيذ التوصيل قبل الحفظ.
+                  </p>
+                </div>
+              </label>
+
+              {isAdmin && (
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={savingMaps}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-5 py-2.5 text-xs font-medium text-white hover:bg-slate-800 disabled:opacity-60 whitespace-nowrap"
+                  >
+                    <Save className="h-3.5 w-3.5" />
+                    <span>{savingMaps ? 'جاري الحفظ...' : 'حفظ سياسة المواقع'}</span>
+                  </button>
+                </div>
+              )}
+            </form>
+          )}
 
       {/* Quick Links to Domain Policies */}
       <section className="rounded-xl border border-slate-200 bg-white p-5">

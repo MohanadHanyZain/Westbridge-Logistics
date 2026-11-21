@@ -1,4 +1,13 @@
 سجل التغييرات (CHANGELOG)
+[المرحلة 14] - 2026-11-21
+المضاف
+اعتماد القرار ADR-022 (تتبع مواقع المندوبين الميداني أثناء المهام النشطة فقط بموافقة المندوب مع حفظ الدقة والمصدر، احتفاظ افتراضي 90 يومًا، وتكامل mapbox-gl بترتيب الإحداثيات [lng, lat] عبر VITE_MAPBOX_ACCESS_TOKEN).
+إنشاء Migration supabase/migrations/0015_phase14_maps_courier_locations.sql:
+إضافة صلاحيتي couriers.locations_read وcouriers.locations_record وتوسيع tenant_settings بحقول location_retention_days, gps_ping_interval_seconds, وrequire_gps_on_delivery مع حقول الإحداثيات الاختيارية على الفروع والشحنات.
+إنشاء جدولي courier_devices وcourier_location_events المحميين بـ FORCE ROW LEVEL SECURITY ومفاتيح أجنبية مركبة وعزل تام للمندوب ومنع التجار من الاطلاع على المسارات.
+دوال خادمية ذرية: record_courier_location_event, get_live_couriers_positions, list_courier_movements_timeline, get_tenant_maps_settings, وupdate_tenant_maps_settings.
+إنشاء اختبار العزل والتحقق supabase/tests/rls/phase14_maps_locations_isolation.sql.
+تطوير لوحة خريطة تحركات المندوبين والمراقبة الحية (CourierMovementsPage + CourierMapCanvas)، إضافة التتبع الميداني ورفع الموقع الفوري (GPS) وإرفاق الإحداثيات الاختياري في بوابة المندوب (CourierPortalPage) وDeliveryExecutionModal، وإضافة إعدادات سياسة المواقع في TenantSettingsPage مع اختبارات src/tests/phase14.test.tsx.
 [المرحلة 13] - 2026-11-21
 المضاف
 اعتماد القرار ADR-021 (قوالب الاستيراد ذات الإصدار SHIPMENTS_V1 مع فحص dry_run خادمي، تعقيم التصدير ضد حقن الصيغ CSV Formula Injection، و6 نماذج طباعة للبوالص والملصقات).

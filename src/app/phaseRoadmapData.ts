@@ -96,15 +96,15 @@ export const ROADMAP_PHASES: readonly RoadmapPhase[] = [
     phaseNumber: 13,
     title: 'Excel والتصدير والطباعة والتقارير',
     summary: 'قوالب استيراد بإصدار وdry-run، تصدير CSV/Excel آمن، طباعة البوالص والملصقات، والتقارير التنفيذية.',
-    status: PhaseStatus.READY_FOR_OWNER_REVIEW,
+    status: PhaseStatus.APPROVED,
     hasOpenDecisions: false,
   },
   {
     phaseNumber: 14,
     title: 'الخرائط وتحركات المندوبين',
     summary: 'Google Maps Platform، تتبع مسارات المندوبين خلال المهام، وسجل المواقع.',
-    status: PhaseStatus.BLOCKED_BY_OPEN_QUESTION,
-    hasOpenDecisions: true,
+    status: PhaseStatus.READY_FOR_OWNER_REVIEW,
+    hasOpenDecisions: false,
   },
   {
     phaseNumber: 15,
@@ -230,6 +230,11 @@ export const APPROVED_DECISIONS: readonly ApprovedDecisionSummary[] = [
     code: 'ADR-021',
     title: 'الاستيراد المجمع المرقّم وحماية CSV والطباعة متعددة القوالب',
     decision: 'قالب SHIPMENTS_V1 بفحص Dry-Run خادمي واعتماد ذري Idempotent، وتحييد CSV Formula Injection في كل التصدير، و6 قوالب طباعة بوالص/ملصقات غير مغيّرة للحالة.',
+  },
+  {
+    code: 'ADR-022',
+    title: 'الخرائط وتتبع مواقع المندوبين الميداني (GPS)',
+    decision: 'تسجيل إحداثيات المندوب أثناء المهام النشطة فقط بموافقته مع الدقة والمصدر، واحتفاظ افتراضي 90 يومًا (7–365) عبر مكتبة Mapbox GL JS (mapbox-gl) بترتيب [lng, lat] ورمز عام VITE_MAPBOX_ACCESS_TOKEN.',
   },
 ];
 

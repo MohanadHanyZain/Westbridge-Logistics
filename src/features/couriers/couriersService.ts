@@ -4,10 +4,16 @@ import type {
   CourierCommissionCalculationResult,
   CourierCommissionListRecord,
   CourierCommissionRuleRecord,
+  CourierLivePosition,
+  CourierLocationEventRecord,
+  CourierMovementsTimelineResult,
   CourierRecord,
   CourierRouteRecord,
   CourierRouteStopRecord,
   DriverRecord,
+  LocationCaptureSource,
+  LocationEventType,
+  TenantMapsSettingsRecord,
   VehicleRecord,
   VehicleType,
 } from '@/types/couriers';
@@ -426,4 +432,141 @@ export async function calculateCourierCommission(input: {
     throw new Error(error?.message ?? 'تعذر احتساب عمولة المندوب من الخادم.');
   }
   return data as CourierCommissionCalculationResult;
+}
+
+// ----------------------------------------------------------------------------
+// Phase 14: Live Courier Positions, GPS Events & Maps Retention Settings
+// ----------------------------------------------------------------------------
+export async function recordCourierLocationEvent(
+  tenantId: string,
+  input: {
+    readonly courier_id?: string | null;
+    readonly event_type: LocationEventType;
+    readonly lat: number;
+    readonly lng: number;
+    readonly accuracy_meters?: number | null;
+    readonly speed_mps?: number | null;
+    readonly heading_deg?: number | null;
+    readonly source?: LocationCaptureSource;
+    readonly shipment_id?: string | null;
+    readonly delivery_list_id?: string | null;
+    readonly device_fingerprint?: string | null;
+    readonly device_label?: string | null;
+    readonly notes?: string | null;
+  },
+): Promise<CourierLocationEventRecord> {
+  const client = requireClient();
+  const {data, error} = await client.rpc('record_courier_location_event', {
+    p_tenant_id: tenantId,
+    p_payload: input,
+  });
+  if (error || !data) {
+    throw new Error(error?.message ?? 'تعذر تسجيل نقطة موقع المندوب.');
+  }
+  return data as CourierLocationEventRecord;
+}
+
+export async function getLiveCouriersPositions(
+  tenantId: string,
+  branchId?: string | null,
+): Promise<readonly CourierLivePosition[]> {
+  const client = requireClient();
+  const {data, error} = await client.rpc('get_live_couriers_positions', {
+    p_tenant_id: tenantId,
+    p_branch_id: branchId ?? null,
+  });
+  if (error) {
+    throw new Error(error.message || 'تعذر تحميل المواقع الحية للمندوبين.');
+  }
+  return ((data ?? []) as CourierLivePosition[]).map((row) => ({
+    ...row,
+    lat: row.lat !== null && row.lat !== undefined ? Number(row.lat) : null,
+    lng: row.lng !== null && row.lng !== undefined ? Number(row.lng) : null,
+    accuracy_meters:
+      row.accuracy_meters !== null && row.accuracy_meters !== undefined
+        ? Number(row.accuracy_meters)
+        : null,
+    active_shipments_count: Number(row.active_shipments_count ?? 0),
+    today_events_count: Number(row.today_events_count ?? 0),
+  }));
+}
+
+export async function listCourierMovementsTimeline(
+  tenantId: string,
+  courierId: string,
+  dateFrom?: string,
+  dateTo?: string,
+): Promise<CourierMovementsTimelineResult> {
+  const client = requireClient();
+  const {data, error} = await client.rpc('list_courier_movements_timeline', {
+    p_tenant_id: tenantId,
+    p_courier_id: courierId,
+    p_date_from: dateFrom || null,
+    p_date_to: dateTo || null,
+  });
+  if (error || !data) {
+    throw new Error(error?.message ?? 'تعذر تحميل خط سير وتحركات المندوب.');
+  }
+  const raw = data as CourierMovementsTimelineResult;
+  return {
+    ...raw,
+    events: (raw.events ?? []).map((ev) => ({
+      ...ev,
+      lat: Number(ev.lat),
+      lng: Number(ev.lng),
+      accuracy_meters: ev.accuracy_meters !== null && ev.accuracy_meters !== undefined ? Number(ev.accuracy_meters) : null,
+    })),
+  };
+}
+
+export async function getTenantMapsSettings(tenantId: string): Promise<TenantMapsSettingsRecord> {
+  const client = requireClient();
+  const {data, error} = await client.rpc('get_tenant_maps_settings', {
+    p_tenant_id: tenantId,
+  });
+  if (error || !data) {
+    return {
+      tenant_id: tenantId,
+      location_retention_days: 90,
+      gps_ping_interval_seconds: 60,
+      require_gps_on_delivery: false,
+    };
+  }
+  const row = data as TenantMapsSettingsRecord;
+  return {
+    tenant_id: tenantId,
+    location_retention_days: Number(row.location_retention_days ?? 90),
+    gps_ping_interval_seconds: Number(row.gps_ping_interval_seconds ?? 60),
+    require_gps_on_delivery: Boolean(row.require_gps_on_delivery),
+  };
+}
+
+export async function updateTenantMapsSettings(
+  tenantId: string,
+  input: {
+    readonly location_retention_days: number;
+    readonly gps_ping_interval_seconds: number;
+    readonly require_gps_on_delivery: boolean;
+  },
+): Promise<TenantMapsSettingsRecord> {
+  const client = requireClient();
+  const {data, error} = await client.rpc('update_tenant_maps_settings', {
+    p_tenant_id: tenantId,
+    p_payload: input,
+  });
+  if (error || !data) {
+    throw new Error(error?.message ?? 'تعذر حفظ إعدادات الخرائط وتحديد المواقع.');
+  }
+  return data as TenantMapsSettingsRecord;
+}
+
+export async function purgeExpiredCourierLocations(tenantId: string): Promise<number> {
+  const client = requireClient();
+  const {data, error} = await client.rpc('purge_expired_courier_locations', {
+    p_tenant_id: tenantId,
+  });
+  if (error) {
+    throw new Error(error.message || 'تعذر تنظيف سجلات المواقع المنتهية الصلاحية.');
+  }
+  return Number(data ?? 0);
 }

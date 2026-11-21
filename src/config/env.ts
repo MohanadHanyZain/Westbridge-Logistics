@@ -8,6 +8,7 @@ export interface PublicEnvConfig {
   readonly supabaseAnonKey: string | null;
   readonly googleMapsApiKey: string | null;
   readonly isSupabaseConfigured: boolean;
+  readonly mapboxAccessToken: string | null;
   readonly isMapsConfigured: boolean;
 }
 
@@ -35,13 +36,15 @@ export function getPublicEnvConfig(): PublicEnvConfig {
   const supabaseUrl = readPublicEnv('VITE_SUPABASE_URL');
   const supabaseAnonKey = readPublicEnv('VITE_SUPABASE_ANON_KEY');
   const googleMapsApiKey = readPublicEnv('VITE_GOOGLE_MAPS_API_KEY');
+  const mapboxAccessToken = readPublicEnv('VITE_MAPBOX_ACCESS_TOKEN');
 
   return {
     supabaseUrl,
     supabaseAnonKey,
     googleMapsApiKey,
+    mapboxAccessToken,
     isSupabaseConfigured: Boolean(supabaseUrl && supabaseAnonKey),
-    isMapsConfigured: Boolean(googleMapsApiKey),
+    isMapsConfigured: Boolean(googleMapsApiKey || mapboxAccessToken),
   };
 }
 
