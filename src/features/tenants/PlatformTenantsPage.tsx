@@ -17,10 +17,12 @@ import type {
   TenantRecord,
   TenantStatus,
 } from '@/types/tenant';
+import {LaunchReadinessPanel} from '@/features/launch/LaunchReadinessPanel';
 import {
   Activity,
   Building2,
   CheckCircle2,
+  DatabaseBackup,
   ExternalLink,
   Globe,
   Layers,
@@ -34,7 +36,7 @@ import {
   XCircle,
 } from 'lucide-react';
 
-type PlatformTab = 'companies' | 'plans' | 'domains' | 'support';
+type PlatformTab = 'companies' | 'plans' | 'domains' | 'support' | 'launch';
 
 function getTenantStatusLabel(status: TenantStatus): {label: string; className: string} {
   switch (status) {
@@ -642,6 +644,7 @@ export function PlatformTenantsPage() {
               {id: 'plans', label: 'الباقات والحدود', icon: Layers},
               {id: 'domains', label: 'النطاقات المخصصة والفرعية', icon: Globe},
               {id: 'support', label: 'دخول الدعم المسبب', icon: ShieldCheck},
+              {id: 'launch', label: 'النسخ الاحتياطي والإطلاق', icon: DatabaseBackup},
             ] as const
           ).map((tab) => {
             const Icon = tab.icon;
@@ -1783,6 +1786,8 @@ export function PlatformTenantsPage() {
             </div>
           </div>
         )}
+
+        {activeTab === 'launch' && <LaunchReadinessPanel isSuperAdmin={isSuperAdmin} />}
       </main>
     </div>
   );

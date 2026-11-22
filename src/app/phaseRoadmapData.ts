@@ -117,15 +117,15 @@ export const ROADMAP_PHASES: readonly RoadmapPhase[] = [
     phaseNumber: 16,
     title: 'API Tokens والتكاملات وWebhooks',
     summary: 'رموز API مجزأة بصلاحيات ونطاقات، Webhooks موقعة بـ HMAC-SHA256، بوابة REST خارجية، وسجل التسليم والطلبات.',
-    status: PhaseStatus.READY_FOR_OWNER_REVIEW,
+    status: PhaseStatus.APPROVED,
     hasOpenDecisions: false,
   },
   {
     phaseNumber: 17,
     title: 'النسخ الاحتياطي والاستعادة والأداء والمراجعة الأمنية والإطلاق',
-    summary: 'اختبارات العزل النهائية، خطط RPO/RTO، المراجعة الأمنية، وجاهزية الإنتاج.',
-    status: PhaseStatus.BLOCKED_BY_OPEN_QUESTION,
-    hasOpenDecisions: true,
+    summary: 'اختبارات العزل النهائية، خطط RPO/RTO، فهارس الأداء، المراجعة الأمنية الآلية، وجاهزية الإنتاج.',
+    status: PhaseStatus.READY_FOR_OWNER_REVIEW,
+    hasOpenDecisions: false,
   },
 ];
 
@@ -245,6 +245,11 @@ export const APPROVED_DECISIONS: readonly ApprovedDecisionSummary[] = [
     code: 'ADR-024',
     title: 'رموز API والتكاملات الخارجية وWebhooks الموقعة',
     decision: 'حفظ تجزئة SHA-256 لرموز sf_live_* وعرض السر مرة واحدة، تقييدها بـ allow_api_access ونطاق التاجر/الشركة، وتوقيع Webhooks بـ HMAC-SHA256 مع التحقق من عناوين HTTPS العامة ومنع العناوين الداخلية.',
+  },
+  {
+    code: 'ADR-025',
+    title: 'النسخ الاحتياطي والاستعادة والأداء والمراجعة الأمنية والإطلاق',
+    decision: 'تفعيل PITR بمستهدف RPO <= 15 دقيقة واحتفاظ 30 يومًا، وRTO <= 60 دقيقة لقاعدة البيانات و<= 120 دقيقة لحاويات Storage، مع اختبارات Restore دورية، فهارس أداء مركبة، ومراجعة كتالوج PostgreSQL آليًا للتأكد من FORCE RLS بنسبة 100%.',
   },
 ];
 

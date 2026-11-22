@@ -1,6 +1,14 @@
-
-phase16_api_tokens_webhooks_isolation.sql
 سجل التغييرات (CHANGELOG)
+[المرحلة 17] - 2026-11-22
+المضاف
+اعتماد القرار ADR-025 (سياسة النسخ الاحتياطي والاستعادة RPO <= 15m / RTO <= 60m DB و<= 120m Storage، اختبارات الاستعادة الدورية في بيئة معزولة، فهارس الأداء المركبة، وبوابة التحقق الأمني قبل الإطلاق).
+إنشاء Migration supabase/migrations/0018_phase17_backup_performance_security_launch.sql:
+إضافة فهارس أداء مركبة على جداول shipments, shipment_status_events, journal_entries, notifications, وaudit.audit_logs.
+إنشاء جدولي public.backup_policies وpublic.backup_restore_drills المحميين بـ FORCE ROW LEVEL SECURITY ومقيدين بمسؤولي المنصة المركزية مع سجل تدقيق في audit.audit_logs.
+دوال خادمية ذرية: get_launch_readiness_overview (تُجري تدقيقًا حيًا على كتالوج PostgreSQL للتحقق من تغطية FORCE RLS وحجب token_hash وغياب أعمدة كلمات المرور وعدد الفهارس)، update_backup_policy, وrecord_backup_restore_drill.
+إنشاء اختبار العزل والتدقيق الأمني النهائي supabase/tests/rls/phase17_final_security_rls_audit.sql.
+إضافة وثائق المرجع النهائية docs/architecture/SECURITY_MODEL.md وdocs/architecture/BACKUP_RESTORE_LAUNCH_RUNBOOK.md وتحديث SYSTEM_OVERVIEW.md.
+إضافة وحدة وتبويب النسخ الاحتياطي والأمان والإطلاق (LaunchReadinessPanel + launchService.ts) داخل لوحة المنصة المركزية (PlatformTenantsPage) مع اختبارات src/tests/phase17.test.tsx.
 [المرحلة 16] - 2026-11-22
 المضاف
 اعتماد القرار ADR-024 (رموز API المجزأة بـ SHA-256 مع عرض السر مرة واحدة وتقييد الباقة والنطاق، ونقاط Webhooks العامة بتوقيع HMAC-SHA256 وحماية العناوين الداخلية، وبوابة REST الخارجية public-api-v1).
