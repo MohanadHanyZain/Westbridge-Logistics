@@ -557,12 +557,6 @@ export function PlatformTenantsPage() {
             >
               الشركات
             </Link>
-            <Link
-              to="/architecture"
-              className="border-b-2 border-transparent pb-1 text-sm font-medium text-slate-600 hover:text-slate-900 whitespace-nowrap shrink-0"
-            >
-              خارطة المراحل
-            </Link>
           </nav>
 
           <div className="flex items-center gap-3 shrink-0">
@@ -585,7 +579,7 @@ export function PlatformTenantsPage() {
         <div className="flex flex-col gap-4 border-b border-slate-200 pb-5 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="text-xs font-medium text-slate-500">
-              المنصة المركزية · الاشتراكات والنطاقات والدعم المراقب (ADR-023)
+              إدارة الشركات والاشتراكات والدعم
             </p>
             <h1 className="mt-1 text-2xl font-bold text-slate-900">شركات الشحن المسجلة</h1>
           </div>
@@ -637,7 +631,7 @@ export function PlatformTenantsPage() {
         </section>
 
         {/* Sub-navigation tabs */}
-        <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3" role="tablist" aria-label="أقسام المنصة المركزية">
+        <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3" role="tablist" aria-label="أقسام الإدارة">
           {(
             [
               {id: 'companies', label: 'الشركات والاشتراكات', icon: Building2},

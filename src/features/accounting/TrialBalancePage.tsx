@@ -63,7 +63,7 @@ export function TrialBalancePage() {
         <div>
           <h1 className="text-xl font-bold text-slate-900">ميزان المراجعة (Trial Balance)</h1>
           <p className="mt-1 text-xs text-slate-500">
-            مراجعة أرصدة الحسابات والأستاذ العام وفق الأساس النقدي (ADR-019) والتحقق من تساوي المجاميع والأرصدة.
+            مراجعة أرصدة الحسابات والأستاذ العام والتحقق من تساوي المجاميع والأرصدة.
           </p>
         </div>
         <div className="flex items-center gap-3 text-xs">

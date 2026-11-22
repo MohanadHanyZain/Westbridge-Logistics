@@ -604,21 +604,19 @@ describe('Phase 6: Shipments, Barcode, Lifecycle (ADR-013 & ADR-014) & Public Tr
     expect(exchangeInput).toBeInTheDocument();
     fireEvent.change(exchangeInput, {target: {value: 'استبدال حذاء مقاس 42'}});
 
-    // Wait for debounced server price preview
-    await waitFor(() => {
-      expect(mockCalculateShipmentPrice).toHaveBeenCalled();
-    });
-    await waitFor(() => {
-      expect(screen.getByText('70.00 ج.م')).toBeInTheDocument();
-    });
-
-    // Fill recipient fields and submit
+    // Pricing preview waits until the recipient details are available.
     fireEvent.change(screen.getByLabelText('اسم المرسل إليه'), {target: {value: 'عماد محمود'}});
     fireEvent.change(screen.getByLabelText('موبايل المرسل إليه'), {target: {value: '01299887766'}});
     fireEvent.change(screen.getByLabelText('عنوان المرسل إليه بالتفصيل'), {
       target: {value: 'سموحة - شارع فوزي معاذ'},
     });
 
+    await waitFor(() => {
+      expect(mockCalculateShipmentPrice).toHaveBeenCalled();
+      expect(screen.getByText('70.00 ج.م')).toBeInTheDocument();
+    });
+
+    // Submit the completed shipment.
     fireEvent.click(screen.getByRole('button', {name: 'إنشاء وحفظ الشحنة'}));
 
     await waitFor(() => {

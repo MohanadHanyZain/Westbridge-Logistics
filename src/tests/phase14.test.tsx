@@ -738,7 +738,7 @@ describe('Phase 14 - Mapbox GL JS, Live Courier Movements & GPS Retention', () =
     );
 
     await waitFor(() => {
-      expect(screen.getByText('سياسة الخرائط وتتبع مواقع المندوبين (ADR-022)')).toBeInTheDocument();
+      expect(screen.getByText('سياسة الخرائط وتتبع مواقع المندوبين')).toBeInTheDocument();
     });
 
     fireEvent.change(screen.getByLabelText('مدة الاحتفاظ بسجل مواقع المندوبين (بالأيام)'), {

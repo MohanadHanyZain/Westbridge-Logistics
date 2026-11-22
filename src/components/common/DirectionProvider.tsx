@@ -19,11 +19,25 @@ export function DirectionProvider({children}: DirectionProviderProps) {
     const syncLocale = () => {
       setLocale(localStorage.getItem('shipflow_locale') === 'en' ? 'en' : 'ar');
     };
+    const syncTheme = () => {
+      document.documentElement.dataset.theme = localStorage.getItem('shipflow_theme') === 'dark' ? 'dark' : 'light';
+    };
+    syncTheme();
     window.addEventListener('shipflow-language-change', syncLocale);
-    return () => window.removeEventListener('shipflow-language-change', syncLocale);
+    window.addEventListener('shipflow-theme-change', syncTheme);
+    return () => {
+      window.removeEventListener('shipflow-language-change', syncLocale);
+      window.removeEventListener('shipflow-theme-change', syncTheme);
+    };
   }, []);
 
   const dir = locale === 'ar' ? 'rtl' : 'ltr';
+
+  useEffect(() => {
+    document.documentElement.dir = dir;
+    document.documentElement.lang = locale;
+  }, [dir, locale]);
+
   return (
     <div dir={dir} lang={locale} className="min-h-screen">
       {children}

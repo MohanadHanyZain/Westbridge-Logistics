@@ -44,12 +44,12 @@ export function PlatformLoginPage() {
           <Link to="/" className="text-base font-bold text-slate-900">
             {BRAND_CONFIG.appName}
           </Link>
-          <span className="text-xs text-slate-500">دخول المنصة المركزية</span>
+          <span className="text-xs text-slate-500">دخول إدارة النظام</span>
         </div>
 
         <h1 className="mt-5 text-lg font-bold text-slate-900">تسجيل دخول إدارة المنصة</h1>
         <p className="mt-1 text-xs text-slate-600">
-          استخدم اسم المستخدم وكلمة المرور الخاصة بحساب المنصة المركزية.
+          استخدم اسم المستخدم وكلمة المرور الخاصة بحسابك.
         </p>
 
         {!isConfigured && (

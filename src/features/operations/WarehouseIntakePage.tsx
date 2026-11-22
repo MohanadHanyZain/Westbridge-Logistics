@@ -685,7 +685,7 @@ export function WarehouseIntakePage() {
                     {branchNameMap.get(manifest.branch_id) ?? 'هذا الفرع'}
                   </p>
                   <p className="mt-0.5 text-sky-700">
-                    يمكنك استيرادها دفعة واحدة لإتمام مصافحة الاستلام (ADR-015) أو مسحها بالباركود.
+                    يمكنك استيرادها دفعة واحدة لإتمام الاستلام أو مسحها بالباركود.
                   </p>
                 </div>
                 <button
@@ -710,7 +710,7 @@ export function WarehouseIntakePage() {
                     <span className="font-mono-tabular text-slate-600">({items.length})</span>
                   </h2>
                   <p className="mt-0.5 text-xs text-slate-500">
-                    راجع الأوزان (ADR-010) وأضف الشحنات بالباركود أو الاختيار المجمع قبل الاعتماد.
+                    راجع الأوزان وأضف الشحنات بالباركود أو الاختيار المجمع قبل الاعتماد.
                   </p>
                 </div>
 
@@ -886,7 +886,7 @@ export function WarehouseIntakePage() {
             >
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <h3 className="text-sm font-bold text-slate-900">
-                  مراجعة وزن الشحنة {repriceTarget.shipment_number} (ADR-010)
+                  مراجعة وزن الشحنة {repriceTarget.shipment_number}
                 </h3>
                 <button
                   type="button"

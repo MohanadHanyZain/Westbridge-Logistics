@@ -330,7 +330,7 @@ export function BranchTransfersPage() {
       await loadManifests();
       setFeedback({
         type: 'success',
-        text: `تم اعتماد قائمة النقل الصادر ${res.manifest_code}. تحولت ${res.shipments_count} شحنة إلى «قيد النقل بين الفروع» وتنتظر اعتماد الاستلام في فرع الوجهة (ADR-015).`,
+        text: `تم اعتماد قائمة النقل الصادر ${res.manifest_code}. تحولت ${res.shipments_count} شحنة إلى «قيد النقل بين الفروع» وتنتظر اعتماد الاستلام في فرع الوجهة.`,
       });
     } catch (err) {
       setFeedback({
@@ -399,7 +399,7 @@ export function BranchTransfersPage() {
               {manifest ? `قائمة نقل بين الفروع ${manifest.manifest_code}` : 'إنشاء قائمة نقل بين الفروع'}
             </h1>
             <p className="mt-0.5 text-xs text-slate-600">
-              تعتمد على مصافحة خطوتين (ADR-015): إرسال صادر من فرع المنشأ، ثم لا تنتقل العهدة لفرع الوجهة إلا عند اعتماده للاستلام بالمخزن.
+              تعتمد على خطوتين: إرسال الشحنات من فرع المنشأ، ثم اعتماد استلامها في مخزن فرع الوجهة.
             </p>
           </div>
 
@@ -830,7 +830,7 @@ export function BranchTransfersPage() {
         <div>
           <h1 className="text-xl font-bold text-slate-900">النقل بين الفروع</h1>
           <p className="mt-1 text-sm text-slate-600">
-            إصدار قوائم النقل الصادر ومتابعة استلامها في فروع الوجهة وفق مصافحة الخطوتين (ADR-015).
+            إصدار قوائم النقل الصادر ومتابعة اعتماد استلامها في فروع الوجهة.
           </p>
         </div>
 

@@ -1,5 +1,5 @@
 import {useCallback, useEffect, useState, type FormEvent} from 'react';
-import {Link} from 'react-router-dom';
+import {Link, useNavigate} from 'react-router-dom';
 import {buildTenantBasePath} from '@/config/brand';
 import {
   getTenantMapsSettings,
@@ -13,6 +13,9 @@ import {
 import * as tenantService from '@/features/tenants/tenantService';
 import {useTenantWorkspace} from '@/features/tenants/TenantWorkspaceContext';
 import {formatDateTime} from '@/lib/formatters';
+import {useAuth} from '@/lib/auth';
+import {translateUi, useLocale} from '@/lib/i18n';
+import {AccountSubjectType} from '@/types/common';
 import type {TenantSubscriptionOverview} from '@/types/tenant';
 import {
   Bell,
@@ -20,6 +23,9 @@ import {
   Globe,
   HardDrive,
   MapPinned,
+  Moon,
+  Sun,
+  LogOut,
   Save,
   Settings2,
   ShieldAlert,
@@ -28,8 +34,31 @@ import {
 } from 'lucide-react';
 
 export function TenantSettingsPage() {
-  const {tenant, isAdmin} = useTenantWorkspace();
+  const {tenant, isAdmin, membership} = useTenantWorkspace();
+  const {signOut} = useAuth();
+  const navigate = useNavigate();
+  const locale = useLocale();
+  const t = (text: string) => translateUi(text, locale);
+  const isClientAccount = membership.account_subject_type === AccountSubjectType.CLIENT;
+  const isCourierAccount = membership.account_subject_type === AccountSubjectType.COURIER;
+  const [theme, setTheme] = useState<'light' | 'dark'>(
+    () => (typeof localStorage !== 'undefined' && localStorage.getItem('shipflow_theme') === 'dark' ? 'dark' : 'light'),
+  );
   const basePath = `${buildTenantBasePath(tenant.slug)}/app`;
+
+  const changeLocale = (nextLocale: 'ar' | 'en') => {
+    localStorage.setItem('shipflow_locale', nextLocale);
+    document.documentElement.dir = nextLocale === 'ar' ? 'rtl' : 'ltr';
+    document.documentElement.lang = nextLocale;
+    window.dispatchEvent(new Event('shipflow-language-change'));
+  };
+
+  const changeTheme = (nextTheme: 'light' | 'dark') => {
+    setTheme(nextTheme);
+    localStorage.setItem('shipflow_theme', nextTheme);
+    document.documentElement.dataset.theme = nextTheme;
+    window.dispatchEvent(new Event('shipflow-theme-change'));
+  };
 
   const [retentionDays, setRetentionDays] = useState(365);
   const [maxSizeMb, setMaxSizeMb] = useState(5);
@@ -85,8 +114,10 @@ export function TenantSettingsPage() {
   }, [tenant.id]);
 
   useEffect(() => {
-    void loadSettings();
-  }, [loadSettings]);
+    if (!isClientAccount && !isCourierAccount) {
+      void loadSettings();
+    }
+  }, [loadSettings, isClientAccount, isCourierAccount]);
 
   const handleSave = async (e: FormEvent) => {
     e.preventDefault();
@@ -128,7 +159,7 @@ export function TenantSettingsPage() {
       setLocationRetentionDays(updated.location_retention_days);
       setGpsPingInterval(updated.gps_ping_interval_seconds);
       setRequireGpsOnDelivery(updated.require_gps_on_delivery);
-      setFeedback({type: 'success', text: 'تم حفظ سياسة الخرائط وتحديد المواقع (ADR-022) بنجاح.'});
+      setFeedback({type: 'success', text: 'تم حفظ سياسة الخرائط وتحديد المواقع بنجاح.'});
     } catch (err) {
       setFeedback({type: 'error', text: err instanceof Error ? err.message : 'تعذر حفظ إعدادات الخرائط.'});
     } finally {
@@ -153,15 +184,98 @@ export function TenantSettingsPage() {
     }
   };
 
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      navigate(`${buildTenantBasePath(tenant.slug)}/login`, {replace: true});
+    } catch (err) {
+      setFeedback({type: 'error', text: err instanceof Error ? err.message : 'تعذر تسجيل الخروج.'});
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-slate-900">إعدادات الشركة والرسائل والمرفقات</h1>
+        <h1 className="text-xl font-bold text-slate-900">
+          {t(isClientAccount || isCourierAccount ? 'إعدادات الحساب' : 'إعدادات الشركة والملفات')}
+        </h1>
         <p className="mt-1 text-sm text-slate-600">
-          تخصيص مدة الاحتفاظ بالرسائل، الحد الأقصى لحجم الملفات المرفقة، وتنبيهات النظام التلقائية (ADR-020).
+          {t(isClientAccount || isCourierAccount ? 'إدارة تفضيلات المظهر واللغة.' : 'تخصيص تفضيلات العرض والتنبيهات والملفات.')}
         </p>
       </div>
 
+      <section className="surface-card rounded-2xl p-5 sm:p-6">
+        <div className="flex items-center gap-2">
+          <Settings2 className="h-5 w-5 text-[#e85f40]" />
+          <h2 className="text-base font-extrabold text-slate-900">{t('إعدادات المظهر واللغة')}</h2>
+        </div>
+        <div className="mt-5 grid gap-6 md:grid-cols-2">
+          <div>
+            <p className="text-sm font-bold text-slate-800">{t('المظهر')}</p>
+            <p className="mt-1 text-xs text-slate-500">{t('اختر مظهر النظام')}</p>
+            <div className="mt-3 flex gap-2">
+              {([
+                ['light', 'فاتح', Sun],
+                ['dark', 'داكن', Moon],
+              ] as const).map(([value, label, Icon]) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={theme === value}
+                  onClick={() => changeTheme(value)}
+                  className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-bold ${
+                    theme === value
+                      ? 'border-[#ef6a47] bg-orange-50 text-[#c54a30]'
+                      : 'border-slate-200 bg-white text-slate-600 hover:border-orange-200'
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  {t(label)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-sm font-bold text-slate-800">{t('اللغة')}</p>
+            <p className="mt-1 text-xs text-slate-500">{t('اختر اللغة المفضلة للواجهة')}</p>
+            <div className="mt-3 flex gap-2">
+              {([
+                ['ar', '🇪🇬', 'العربية'],
+                ['en', '🇺🇸', 'English'],
+              ] as const).map(([value, flag, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={locale === value}
+                  onClick={() => changeLocale(value)}
+                  className={`inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-bold ${
+                    locale === value
+                      ? 'border-[#ef6a47] bg-orange-50 text-[#c54a30]'
+                      : 'border-slate-200 bg-white text-slate-600 hover:border-orange-200'
+                  }`}
+                >
+                  <span aria-hidden="true">{flag}</span>
+                  {t(label)}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        <p role="status" className="mt-4 text-xs text-slate-500">{t('تم حفظ تفضيلات العرض على هذا الجهاز.')}</p>
+        <div className="mt-5 border-t border-slate-100 pt-4">
+          <button
+            type="button"
+            onClick={() => void handleSignOut()}
+            className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700"
+          >
+            <LogOut className="h-4 w-4" />
+            {t('خروج')}
+          </button>
+        </div>
+      </section>
+
+      {!isClientAccount && !isCourierAccount && (
+      <>
       {!isAdmin && (
         <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-900">
           <ShieldAlert className="h-4 w-4 shrink-0" />
@@ -229,7 +343,7 @@ export function TenantSettingsPage() {
                   className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 font-mono-tabular text-xs disabled:bg-slate-50"
                 />
                 <p className="mt-1 text-[11px] text-slate-500">
-                  الصيغ المسموحة أمنيًا: JPEG, PNG, WEBP, PDF داخل حاويات Supabase Storage الخاصة مع روابط مؤقتة (300 ثانية).
+                  الصيغ المسموحة: JPEG وPNG وWEBP وPDF، وتُعرض الملفات من خلال روابط آمنة مؤقتة.
                 </p>
               </div>
             </div>
@@ -314,7 +428,7 @@ export function TenantSettingsPage() {
                 <div className="flex items-center gap-2">
                   <MapPinned className="h-4 w-4 text-slate-700" />
                   <h2 className="text-sm font-semibold text-slate-900">
-                    سياسة الخرائط وتتبع مواقع المندوبين (ADR-022)
+                    سياسة الخرائط وتتبع مواقع المندوبين
                   </h2>
                 </div>
                 {isAdmin && (
@@ -401,7 +515,7 @@ export function TenantSettingsPage() {
             </form>
           )}
 
-      {/* Phase 15 Subscription, Quotas, Domains & Audited Support Visits (ADR-023) */}
+      {/* Subscription, quotas, domains, and support visits */}
       {!loading && subOverview && (
         <section
           aria-label="باقة الاشتراك والحدود والنطاقات وسجل الدعم"
@@ -411,7 +525,7 @@ export function TenantSettingsPage() {
             <div className="flex items-center gap-2">
               <Crown className="h-4 w-4 text-slate-700" />
               <h2 className="text-sm font-semibold text-slate-900">
-                باقة الاشتراك والحدود والنطاقات وسجل الدعم (ADR-023)
+                باقة الاشتراك والحدود والنطاقات وسجل الدعم
               </h2>
             </div>
             {subOverview.subscription && (
@@ -505,7 +619,7 @@ export function TenantSettingsPage() {
                           dom.verification_status === 'verified' ? 'text-emerald-700' : 'text-amber-700'
                         }`}
                       >
-                        {dom.verification_status === 'verified' ? 'موثق (SSL نشط)' : 'بانتظار التوثيق'}
+                        {dom.verification_status === 'verified' ? 'تم التأكيد' : 'بانتظار التأكيد'}
                       </span>
                     </li>
                   ))}
@@ -572,6 +686,8 @@ export function TenantSettingsPage() {
           </Link>
         </div>
       </section>
+      </>
+      )}
     </div>
   );
 }

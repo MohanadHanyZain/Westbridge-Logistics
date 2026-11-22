@@ -558,7 +558,7 @@ describe('Phase 9: Finance, Cashboxes, Collections, Client & Courier Settlements
     await waitFor(() => {
       expect(screen.getByText('COL-000099')).toBeInTheDocument();
     });
-    expect(screen.getByText('بانتظار مراجع آخر (ADR-018)')).toBeInTheDocument();
+    expect(screen.getByText('بانتظار اعتماد مراجع آخر')).toBeInTheDocument();
     expect(screen.queryByRole('button', {name: 'اعتماد وإيداع'})).not.toBeInTheDocument();
   });
 
@@ -669,7 +669,7 @@ describe('Phase 9: Finance, Cashboxes, Collections, Client & Courier Settlements
       expect(screen.getByText('SHP-COD-WAIT')).toBeInTheDocument();
     });
 
-    expect(screen.getByText('معلّقة لحين توريد COD (ADR-012)')).toBeInTheDocument();
+    expect(screen.getByText('معلّقة لحين توريد المبلغ المحصل')).toBeInTheDocument();
     expect(screen.getByText('SHP-READY-2')).toBeInTheDocument();
 
     const checkboxes = screen.getAllByRole('checkbox');

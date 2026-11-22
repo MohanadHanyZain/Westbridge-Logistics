@@ -156,7 +156,7 @@ export function JournalEntriesPage() {
         <div>
           <h1 className="text-xl font-bold text-slate-900">قيود اليومية العامة (JENT)</h1>
           <p className="mt-1 text-xs text-slate-500">
-            القيود المحاسبية المتوازنة (مدين = دائن)، الاعتماد بمبدأ العينين الأربع (ADR-018)، والترحيل الفوري للأستاذ وميزان المراجعة.
+            القيود المحاسبية المتوازنة، واعتمادها من مراجع آخر، وترحيلها إلى الأستاذ وميزان المراجعة.
           </p>
         </div>
         {canCreate && (
@@ -362,7 +362,7 @@ export function JournalEntriesPage() {
                     <td className="px-3 py-2.5">
                       {e.status === 'draft' && canApprove ? (
                         blocked ? (
-                          <span className="text-[11px] text-amber-700">بانتظار مراجع آخر (ADR-018)</span>
+                          <span className="text-[11px] text-amber-700">بانتظار اعتماد مراجع آخر</span>
                         ) : (
                           <button
                             type="button"

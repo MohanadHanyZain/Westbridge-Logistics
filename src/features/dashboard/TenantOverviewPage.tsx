@@ -6,6 +6,7 @@ import {getExecutiveOperationsReport} from '@/features/reports/reportsService';
 import {fetchShipmentDashboardCounts} from '@/features/shipments/shipmentsService';
 import {useTenantWorkspace} from '@/features/tenants/TenantWorkspaceContext';
 import {AccountSubjectType} from '@/types/common';
+import {translateUi, useLocale} from '@/lib/i18n';
 import type {ShipmentDashboardCounts} from '@/types/shipments';
 import {AlertCircle, ArrowLeft, Package, PackageCheck, Truck} from 'lucide-react';
 import {Skeleton} from '@/components/ui/Skeleton';
@@ -28,6 +29,8 @@ export function TenantOverviewPage() {
 
 function StaffTenantOverviewInner() {
   const {tenant} = useTenantWorkspace();
+  const locale = useLocale();
+  const t = (text: string) => translateUi(text, locale);
   const basePath = `${buildTenantBasePath(tenant.slug)}/app`;
   const [shipmentCounts, setShipmentCounts] = useState<ShipmentDashboardCounts | null>(null);
   const [loading, setLoading] = useState(true);
@@ -81,21 +84,28 @@ function StaffTenantOverviewInner() {
     {label: 'المرتجعات', value: shipmentCounts?.returnsCount ?? 0, to: `${basePath}/shipments/returns`, icon: AlertCircle},
   ];
 
-  const chartValues = [
-    cards[0].value,
-    cards[1].value,
-    cards[2].value,
-    cards[3].value,
-    cards[4].value,
-  ];
-  const maxChartValue = Math.max(1, ...chartValues);
+  const distribution = cards.slice(1).map((card, index) => ({
+    label: card.label,
+    value: card.value,
+    color: ['#38bdf8', '#a78bfa', '#34d399', '#fb7185'][index],
+  }));
+  const distributionTotal = distribution.reduce((sum, item) => sum + item.value, 0);
+  let chartOffset = 0;
+  const chartSegments = distribution.map((item) => {
+    const start = chartOffset;
+    chartOffset += distributionTotal === 0 ? 0 : (item.value / distributionTotal) * 100;
+    return `${item.color} ${start}% ${chartOffset}%`;
+  });
+  const chartBackground = distributionTotal > 0
+    ? `conic-gradient(${chartSegments.join(', ')})`
+    : 'conic-gradient(#e5e7eb 0% 100%)';
 
   return (
     <div className="space-y-5">
       <section className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs font-medium text-slate-500">لوحة الإدارة</p>
-          <h1 className="mt-1 text-xl font-extrabold text-slate-900 sm:text-2xl">نظرة عامة على العمليات</h1>
+          <p className="text-xs font-medium text-slate-500">{t('لوحة الإدارة')}</p>
+          <h1 className="mt-1 text-xl font-extrabold text-slate-900 sm:text-2xl">{t('نظرة عامة على العمليات')}</h1>
         </div>
         <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1" role="group" aria-label="نطاق المؤشرات الزمني">
           {([
@@ -143,8 +153,8 @@ function StaffTenantOverviewInner() {
                     </span>
                     <ArrowLeft className="h-4 w-4 text-slate-300 transition-transform group-hover:-translate-x-1" />
                   </div>
-                  <p className="mt-3 text-xs font-medium text-slate-500">{card.label}</p>
-                  <p className="mt-1 font-mono-tabular text-2xl font-extrabold text-slate-900">{card.value.toLocaleString('ar-EG')}</p>
+                  <p className="mt-3 text-xs font-medium text-slate-500">{t(card.label)}</p>
+                  <p className="mt-1 font-mono-tabular text-2xl font-extrabold text-slate-900">{card.value.toLocaleString(locale === 'ar' ? 'ar-EG' : 'en-US')}</p>
                 </>
               )}
             </Link>
@@ -155,8 +165,8 @@ function StaffTenantOverviewInner() {
       <section className="surface-card rounded-2xl p-4 sm:p-5" aria-label="رسم حركة الشحنات">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-bold text-slate-900">حركة الشحنات</p>
-            <p className="mt-1 text-xs text-slate-500">توزيع مؤشرات العمليات للفترة المحددة</p>
+            <p className="text-sm font-bold text-slate-900">{t('حركة الشحنات')}</p>
+            <p className="mt-1 text-xs text-slate-500">{t('توزيع مؤشرات العمليات للفترة المحددة')}</p>
           </div>
           <Link to={`${basePath}/reports`} className="text-xs font-bold text-[#d95537] hover:text-[#b94329]">
             عرض التقرير
@@ -164,29 +174,37 @@ function StaffTenantOverviewInner() {
         </div>
 
         {loading ? (
-          <div className="mt-6 flex h-52 items-end gap-3">
-            {[45, 72, 58, 84, 38].map((height, index) => (
-              <Skeleton key={index} className="flex-1 rounded-t-xl" style={{height: `${height}%`}} />
-            ))}
+          <div className="mt-6 flex h-52 items-center justify-center">
+            <Skeleton className="h-40 w-40 rounded-full" />
           </div>
         ) : (
-          <div className="mt-6 flex h-52 items-end gap-2 sm:gap-4" dir="ltr">
-            {cards.map((card, index) => {
-              const height = Math.max(8, (chartValues[index] / maxChartValue) * 100);
-              const colors = ['bg-orange-400', 'bg-sky-400', 'bg-violet-400', 'bg-emerald-400', 'bg-rose-400'];
-              return (
-                <div key={card.label} className="flex h-full min-w-0 flex-1 flex-col justify-end text-center">
-                  <div
-                    className={`mx-auto w-full max-w-14 rounded-t-xl ${colors[index]} transition-all duration-500`}
-                    style={{height: `${height}%`}}
-                    title={`${card.label}: ${card.value}`}
-                  />
-                  <p className="mt-2 truncate text-[10px] font-medium text-slate-500 sm:text-xs" dir="rtl">
-                    {card.label}
-                  </p>
+          <div className="mt-6 flex flex-col items-center justify-center gap-6 sm:flex-row">
+            <div
+              role="img"
+              aria-label={t('حركة الشحنات')}
+              className="relative h-44 w-44 shrink-0 rounded-full"
+              style={{background: chartBackground}}
+            >
+              <div className="absolute inset-5 flex flex-col items-center justify-center rounded-full bg-white text-center">
+                <span className="text-xs font-medium text-slate-500">{t('إجمالي الشحنات')}</span>
+                <span className="mt-1 font-mono-tabular text-2xl font-extrabold text-slate-900">
+                  {(shipmentCounts?.totalCount ?? 0).toLocaleString(locale === 'ar' ? 'ar-EG' : 'en-US')}
+                </span>
+              </div>
+            </div>
+            <div className="grid w-full max-w-sm grid-cols-1 gap-3">
+              {distribution.map((item) => (
+                <div key={item.label} className="flex items-center justify-between gap-4 rounded-xl bg-slate-50 px-3 py-2.5">
+                  <span className="flex items-center gap-2 text-xs font-semibold text-slate-600">
+                    <span className="h-2.5 w-2.5 rounded-full" style={{backgroundColor: item.color}} />
+                    {t(item.label)}
+                  </span>
+                  <span className="font-mono-tabular text-sm font-bold text-slate-900">
+                    {item.value.toLocaleString(locale === 'ar' ? 'ar-EG' : 'en-US')}
+                  </span>
                 </div>
-              );
-            })}
+              ))}
+            </div>
           </div>
         )}
       </section>

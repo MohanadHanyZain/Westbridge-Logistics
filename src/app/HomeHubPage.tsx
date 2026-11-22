@@ -7,6 +7,8 @@ import {
   Building2,
   Check,
   Globe2,
+  Mail,
+  MessageCircle,
   PackageCheck,
   Route,
   ShieldCheck,
@@ -14,17 +16,13 @@ import {
   Wallet,
 } from 'lucide-react';
 
+const heroImageUrl = new URL('../../images/Golden Hour Logistics Hub.png', import.meta.url).href;
+
 const features = [
   {icon: PackageCheck, title: 'إدارة الشحنات', text: 'من الإنشاء وحتى التسليم والمرتجعات مع تدفق واضح لكل حالة.'},
   {icon: Route, title: 'تشغيل يومي منظم', text: 'التقاط، مخزن، نقل، توصيل وتحركات المندوبين في مكان واحد.'},
   {icon: Wallet, title: 'المالية والتسويات', text: 'متابعة التحصيل والعهد والخزائن وتسويات العملاء والمناديب.'},
   {icon: BarChart3, title: 'رؤية وتقارير', text: 'مؤشرات دقيقة تساعدك على اتخاذ القرار ومتابعة الأداء.'},
-];
-
-const plans = [
-  {name: 'Starter', price: 'حسب احتياجك', text: 'للمبدئين وشركات الشحن الصغيرة.', featured: false},
-  {name: 'Growth', price: 'خطة مرنة', text: 'للفروع والفرق المتنامية والتشغيل اليومي.', featured: true},
-  {name: 'Enterprise', price: 'حل مخصص', text: 'للمؤسسات ذات الأحجام والتكاملات المتقدمة.', featured: false},
 ];
 
 export function HomeHubPage() {
@@ -41,7 +39,7 @@ export function HomeHubPage() {
           <nav className="hidden items-center gap-7 md:flex" aria-label="التنقل الرئيسي">
             <a href="#features" className="text-sm font-semibold text-slate-600 hover:text-[#d95537]">المميزات</a>
             <a href="#workflow" className="text-sm font-semibold text-slate-600 hover:text-[#d95537]">كيف يعمل</a>
-            <a href="#pricing" className="text-sm font-semibold text-slate-600 hover:text-[#d95537]">الخطط والأسعار</a>
+            <a href="#contact" className="text-sm font-semibold text-slate-600 hover:text-[#d95537]">تواصل معنا</a>
           </nav>
           <Link
             to={platformAdmin?.is_active ? '/platform' : '/platform/login'}
@@ -80,42 +78,18 @@ export function HomeHubPage() {
             </div>
 
             <div className="relative mx-auto w-full max-w-xl">
-              <div className="surface-card rounded-[28px] p-3 shadow-[0_24px_70px_-34px_rgba(15,23,42,.35)]">
-                <div className="rounded-[20px] bg-[#f7f8fa] p-4 sm:p-5">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs font-medium text-slate-500">نظرة العمليات</p>
-                      <p className="mt-1 text-lg font-extrabold text-slate-900">اليوم</p>
-                    </div>
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-orange-50 text-[#e85f40]">
-                      <Truck className="h-5 w-5" />
-                    </div>
-                  </div>
-                  <div className="mt-5 grid grid-cols-3 gap-2 sm:gap-3">
-                    {[
-                      ['الشحنات', 'الإجمالي', 'bg-orange-50 text-orange-700'],
-                      ['التوصيل', 'متابع', 'bg-sky-50 text-sky-700'],
-                      ['المخزن', 'منظم', 'bg-emerald-50 text-emerald-700'],
-                    ].map(([label, value, style]) => (
-                      <div key={label} className={`rounded-2xl p-3 ${style}`}>
-                        <p className="text-[11px] font-semibold opacity-70">{label}</p>
-                        <p className="mt-2 text-sm font-extrabold">{value}</p>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
-                    <div className="flex h-36 items-end gap-3" dir="ltr">
-                      {[42, 68, 54, 82, 64, 92, 76].map((height, index) => (
-                        <div key={index} className="flex h-full flex-1 items-end">
-                          <div
-                            className="w-full rounded-t-lg bg-gradient-to-t from-[#cf4f31] to-[#ef8669]"
-                            style={{height: `${height}%`, animationDelay: `${index * 70}ms`}}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+              <div className="overflow-hidden rounded-[28px] border border-slate-200 bg-white p-2 shadow-[0_24px_70px_-34px_rgba(15,23,42,.35)]">
+                <img
+                  src={heroImageUrl}
+                  alt="فريق توصيل ينظم حركة الشحنات في مركز لوجستي"
+                  className="aspect-[4/3] w-full rounded-[22px] object-cover"
+                />
+              </div>
+              <div className="absolute -bottom-4 right-4 flex items-center gap-2 rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-lg sm:right-8">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-50 text-[#e85f40]">
+                  <Truck className="h-5 w-5" />
+                </span>
+                <span className="text-sm font-extrabold text-slate-800">عمليات الشحن في مكان واحد</span>
               </div>
             </div>
           </div>
@@ -168,22 +142,27 @@ export function HomeHubPage() {
           </div>
         </section>
 
-        <section id="pricing" className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20">
-          <div className="text-center">
-            <p className="text-xs font-bold text-[#d95537]">خطط مرنة</p>
-            <h2 className="mt-2 text-3xl font-extrabold text-slate-950">اختر ما يناسب حجمك</h2>
-          </div>
-          <div className="mt-8 grid gap-4 lg:grid-cols-3">
-            {plans.map((plan) => (
-              <article key={plan.name} className={`rounded-2xl p-6 ${plan.featured ? 'brand-gradient text-white shadow-[0_20px_50px_-28px_rgba(239,106,71,.9)]' : 'surface-card'}`}>
-                <p className={`text-sm font-extrabold ${plan.featured ? 'text-white' : 'text-slate-900'}`}>{plan.name}</p>
-                <p className={`mt-4 text-2xl font-extrabold ${plan.featured ? 'text-white' : 'text-slate-950'}`}>{plan.price}</p>
-                <p className={`mt-3 text-sm leading-7 ${plan.featured ? 'text-white/80' : 'text-slate-500'}`}>{plan.text}</p>
-                <Link to="/platform/login" className={`mt-6 flex w-full items-center justify-center rounded-xl px-4 py-3 text-sm font-bold ${plan.featured ? 'bg-white text-[#cf4f31]' : 'border border-slate-200 text-slate-800 hover:border-orange-200 hover:text-[#d95537]'}`}>
-                  عرض التفاصيل
-                </Link>
-              </article>
-            ))}
+        <section id="contact" className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20">
+          <div className="surface-card rounded-[28px] p-6 sm:p-10">
+            <div className="grid gap-8 md:grid-cols-[1fr_auto] md:items-center">
+              <div>
+                <p className="text-xs font-bold text-[#d95537]">تواصل معنا</p>
+                <h2 className="mt-2 text-3xl font-extrabold text-slate-950">ابدأ رحلتك مع ShipFlow</h2>
+                <p className="mt-3 max-w-xl text-sm leading-7 text-slate-500">
+                  تواصل معنا للتعرّف على المنصة وكيفية تهيئتها لتناسب عمليات شركتك.
+                </p>
+              </div>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <a href="mailto:shipflow.official@gmail.com" className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold text-slate-700 hover:border-orange-200 hover:text-[#d95537]">
+                  <Mail className="h-4 w-4" />
+                  البريد الإلكتروني
+                </a>
+                <a href="https://wa.me/201016987179" target="_blank" rel="noreferrer" className="inline-flex items-center justify-center gap-2 rounded-xl brand-gradient px-4 py-3 text-sm font-bold text-white hover:shadow-md">
+                  <MessageCircle className="h-4 w-4" />
+                  تواصل عبر واتساب
+                </a>
+              </div>
+            </div>
           </div>
         </section>
 

@@ -256,7 +256,7 @@ export function CourierSettlementsPage() {
         <div>
           <h1 className="text-xl font-bold text-slate-900">قيد التسوية مع المندوبين</h1>
           <p className="mt-1 text-xs text-slate-500">
-            الفصل المحاسبي بين العهدة النقدية لدى المندوب والعمولات المستحقة وصرف العمولات (CMP) وفق ADR-012.
+            فصل المبالغ المحصلة من العملاء عن العمولات المستحقة للمندوبين.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3 text-xs">
@@ -365,7 +365,7 @@ export function CourierSettlementsPage() {
           <div className="flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
             <p>
-              وفق قاعدة <strong className="font-mono-tabular">ADR-012</strong>: لا يُسمح بصرف عمولة أي شحنة{' '}
+              لا يُسمح بصرف عمولة أي شحنة{' '}
               <strong className="font-mono-tabular">COD</strong> قبل توريد نقديتها إلى الخزينة عبر{' '}
               <Link to={`${basePath}/finance/collections`} className="font-semibold underline">
                 سند التحصيل من المندوب (COL)
@@ -418,7 +418,7 @@ export function CourierSettlementsPage() {
                         <td className="px-3 py-2">
                           {locked ? (
                             <span className="text-[11px] font-medium text-amber-700">
-                              معلّقة لحين توريد COD (ADR-012)
+                              معلّقة لحين توريد المبلغ المحصل
                             </span>
                           ) : (
                             <span className="text-[11px] font-medium text-emerald-700">جاهزة للصرف</span>
@@ -572,7 +572,7 @@ export function CourierSettlementsPage() {
                       <td className="px-3 py-2.5">
                         {p.status === 'draft' && canApprove ? (
                           blocked ? (
-                            <span className="text-[11px] text-amber-700">بانتظار مراجع آخر (ADR-018)</span>
+                            <span className="text-[11px] text-amber-700">بانتظار اعتماد مراجع آخر</span>
                           ) : (
                             <button
                               type="button"

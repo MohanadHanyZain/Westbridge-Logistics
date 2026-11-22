@@ -49,7 +49,7 @@ export function DataTable<T>({
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
-      <div className="overflow-x-auto">
+      <div className="safe-mobile-table overflow-x-auto">
         <table className="w-full border-collapse text-right text-sm">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50 text-xs font-medium text-slate-500">
@@ -83,7 +83,7 @@ export function DataTable<T>({
               pagedRows.map((row) => (
                 <tr key={rowKey(row)} className="hover:bg-slate-50/70">
                   {columns.map((col) => (
-                    <td key={col.key} className={`px-4 py-3 ${col.className ?? ''}`}>
+                    <td key={col.key} data-label={col.header} className={`px-4 py-3 ${col.className ?? ''}`}>
                       {col.render(row)}
                     </td>
                   ))}

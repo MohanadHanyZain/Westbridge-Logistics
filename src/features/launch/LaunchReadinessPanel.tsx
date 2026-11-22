@@ -198,7 +198,7 @@ export function LaunchReadinessPanel({isSuperAdmin}: LaunchReadinessPanelProps) 
           : 'رُصد تسرب صلاحيات على عمود أو مخطط خاص',
     },
     {
-      label: 'خصوصية حاويات التخزين (Supabase Storage)',
+      label: 'خصوصية الملفات المرفوعة',
       passed: audit.public_exposed_buckets_count === 0,
       detail: `${audit.private_storage_buckets_count} حاويات خاصة · ${audit.public_exposed_buckets_count} مكشوفة`,
     },
@@ -221,7 +221,7 @@ export function LaunchReadinessPanel({isSuperAdmin}: LaunchReadinessPanelProps) 
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-xs font-medium text-slate-500">
-              المرحلة 17 · المراجعة الأمنية الحية وخطط RPO/RTO وجاهزية الإطلاق (ADR-025)
+              مراجعة الأمان والنسخ الاحتياطي وجاهزية الإطلاق
             </p>
             <div className="mt-1.5 flex items-center gap-2.5">
               {overview.ready_for_launch ? (

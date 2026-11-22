@@ -241,13 +241,27 @@ export function CreateShipmentPage() {
 
   // Live server-side price preview whenever pricing inputs change
   useEffect(() => {
-    if (!clientId || !serviceId || !senderGovId || !recipientGovId) {
+    let cancelled = false;
+    if (
+      loadingRefs ||
+      !clientId ||
+      !serviceId ||
+      !senderGovId ||
+      !senderRegionId ||
+      !recipientGovId ||
+      !recipientRegionId ||
+      !recipientName.trim() ||
+      !recipientMobile.trim()
+    ) {
       setPricingBreakdown(null);
-      return;
+      setPricingError(null);
+      setCalculatingPrice(false);
+      return () => {
+        cancelled = true;
+      };
     }
 
     const timer = setTimeout(() => {
-      let cancelled = false;
       setCalculatingPrice(true);
       setPricingError(null);
 
@@ -284,14 +298,14 @@ export function CreateShipmentPage() {
         .finally(() => {
           if (!cancelled) setCalculatingPrice(false);
         });
-
-      return () => {
-        cancelled = true;
-      };
     }, 200);
 
-    return () => clearTimeout(timer);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [
+    loadingRefs,
     tenant.id,
     clientId,
     serviceId,
@@ -299,6 +313,8 @@ export function CreateShipmentPage() {
     senderRegionId,
     recipientGovId,
     recipientRegionId,
+    recipientName,
+    recipientMobile,
     actualWeightKg,
     lengthCm,
     widthCm,
@@ -723,7 +739,7 @@ export function CreateShipmentPage() {
             {isPtpOrder && (
               <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50/70 p-4">
                 <label htmlFor="shp-exchange-desc" className="block text-xs font-semibold text-amber-900">
-                  وصف طرد الاستبدال المرتجع (إلزامي لطلبات PTP · ADR-014)
+                  وصف طرد الاستبدال المرتجع (إلزامي لطلبات الاستبدال)
                 </label>
                 <input
                   id="shp-exchange-desc"
@@ -739,7 +755,7 @@ export function CreateShipmentPage() {
 
             {isPdpOrder && (
               <p className="mt-3 text-xs text-slate-600">
-                طلب تسليم جزئي (PDP): يُعالج التسليم الجزئي عند التنفيذ على نفس الشحنة بتحديد عدد القطع المسلمة والباقي المرتجع (ADR-014).
+                طلب التسليم الجزئي: يُعالج عند التنفيذ على الشحنة بتحديد عدد القطع المسلمة والباقي المرتجع.
               </p>
             )}
 
@@ -747,7 +763,7 @@ export function CreateShipmentPage() {
               <div className="mt-4 grid grid-cols-1 gap-3 border-t border-slate-100 pt-4 sm:grid-cols-2">
                 <div>
                   <label htmlFor="shp-override-fee" className="block text-xs font-medium text-slate-700">
-                    تعديل يدوي لإجمالي الشحن (صلاحية إدارية · ADR-010)
+                    تعديل يدوي لإجمالي الشحن (صلاحية إدارية)
                   </label>
                   <input
                     id="shp-override-fee"

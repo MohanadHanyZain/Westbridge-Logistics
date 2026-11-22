@@ -763,7 +763,7 @@ export function ShipmentDetailPage() {
             <form onSubmit={handleRepriceSubmit} className="rounded-xl border border-slate-200 bg-white p-5">
               <div className="flex items-center gap-2">
                 <Scale className="h-4 w-4 text-slate-700" />
-                <h2 className="text-sm font-semibold text-slate-900">تعديل الوزن / إعادة التسعير (ADR-010)</h2>
+                <h2 className="text-sm font-semibold text-slate-900">تعديل الوزن وإعادة التسعير</h2>
               </div>
 
               <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -1212,7 +1212,7 @@ export function ShipmentDetailPage() {
           </section>
 
           <section className="rounded-xl border border-slate-200 bg-white p-5">
-            <h2 className="text-sm font-semibold text-slate-900">علاقات الطرود وعهدة الاستبدال (ADR-014)</h2>
+            <h2 className="text-sm font-semibold text-slate-900">الطرود المرتبطة وعهدة الاستبدال</h2>
             {detail.relations.length === 0 ? (
               <p className="mt-3 text-xs text-slate-500">لا توجد علاقات مرتبطة بهذه الشحنة.</p>
             ) : (

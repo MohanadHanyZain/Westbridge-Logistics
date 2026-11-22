@@ -1,11 +1,12 @@
 import {useCallback, useEffect, useMemo, useState} from 'react';
-import {Link, NavLink, Outlet, useParams} from 'react-router-dom';
-import {buildTenantBasePath} from '@/config/brand';
+import {Link, Navigate, NavLink, Outlet, useLocation, useParams} from 'react-router-dom';
+import {BRAND_CONFIG, buildTenantBasePath} from '@/config/brand';
 import {getMyTenantPermissions} from '@/features/security/securityService';
 import {TenantWorkspaceProvider} from '@/features/tenants/TenantWorkspaceContext';
 import {useAuth} from '@/lib/auth';
 import {hasEffectivePermission} from '@/lib/permissions';
 import {AccountSubjectType} from '@/types/common';
+import {translateUi, useLocale} from '@/lib/i18n';
 import type {MyTenantPermissionsBundle} from '@/types/security';
 import {getUnreadNotificationsCount, subscribeToMessagingUpdates} from '@/features/messaging/messagingService';
 import {
@@ -26,7 +27,6 @@ import {
   FileSpreadsheet,
   KeyRound,
   LayoutDashboard,
-  LogOut,
   Map,
   MapPin,
   MapPinned,
@@ -45,6 +45,7 @@ import {
   UserCheck,
   UserCog,
   UserPlus,
+  UserRound,
   Users,
   Wallet,
   Webhook,
@@ -53,18 +54,27 @@ import {
 
 export function TenantAdminShellPage() {
   const {companySlug = ''} = useParams();
-  const {memberships, profile, signOut} = useAuth();
+  const location = useLocation();
+  const {memberships} = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [openSection, setOpenSection] = useState<string | null>(null);
-  const [locale, setLocale] = useState<'ar' | 'en'>(
-    typeof localStorage !== 'undefined' && localStorage.getItem('shipflow_locale') === 'en' ? 'en' : 'ar',
-  );
+  const locale = useLocale();
+  const t = (text: string) => translateUi(text, locale);
   const [permBundle, setPermBundle] = useState<MyTenantPermissionsBundle>({
     client_id: null,
     branch_ids: [],
     permissions: [],
   });
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
+
+  useEffect(() => {
+    if (!sidebarOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [sidebarOpen]);
 
   const activeMembership = memberships.find(
     (m) => m.tenants?.slug === companySlug.trim().toLowerCase() && m.is_active,
@@ -109,14 +119,6 @@ export function TenantAdminShellPage() {
 
   const toggleSection = (section: string) => {
     setOpenSection((current) => current === section ? null : section);
-  };
-
-  const changeLocale = (nextLocale: 'ar' | 'en') => {
-    setLocale(nextLocale);
-    localStorage.setItem('shipflow_locale', nextLocale);
-    document.documentElement.dir = nextLocale === 'ar' ? 'rtl' : 'ltr';
-    document.documentElement.lang = nextLocale;
-    window.dispatchEvent(new Event('shipflow-language-change'));
   };
 
   const can = useCallback(
@@ -168,10 +170,35 @@ export function TenantAdminShellPage() {
     {to: `${basePath}/clients/registrations`, label: 'الحسابات المسجلة', icon: UserCheck, end: true},
     {to: `${basePath}/pricing/price-lists`, label: 'قوائم أسعار الشحن', icon: ReceiptText, end: false},
     {to: `${basePath}/clients/settlements`, label: 'قيد التسوية مع العملاء', icon: FileSpreadsheet, end: true},
-    {to: `${basePath}/portal/dashboard`, label: 'معاينة بوابة التاجر', icon: LayoutDashboard, end: true},
   ];
 
   const isClientAccount = activeMembership.account_subject_type === AccountSubjectType.CLIENT;
+  const isCourierAccount = activeMembership.account_subject_type === AccountSubjectType.COURIER;
+  const courierPortalPath = `${basePath}/operations/courier-portal`;
+  const allowedClientPath =
+    location.pathname === basePath ||
+    location.pathname.startsWith(`${basePath}/shipments`) ||
+    location.pathname.startsWith(`${basePath}/portal/`) ||
+    location.pathname.startsWith(`${basePath}/reports`) ||
+    location.pathname.startsWith(`${basePath}/messaging`) ||
+    location.pathname.startsWith(`${basePath}/notifications`) ||
+    location.pathname === `${basePath}/security/integrations` ||
+    location.pathname === `${basePath}/settings`;
+
+  if (
+    isCourierAccount &&
+    location.pathname !== courierPortalPath &&
+    location.pathname !== `${basePath}/messaging` &&
+    location.pathname !== `${basePath}/settings`
+  ) {
+    return <Navigate to={courierPortalPath} replace />;
+  }
+  if (isClientAccount && !allowedClientPath) {
+    return <Navigate to={basePath} replace />;
+  }
+  if (!isClientAccount && location.pathname.startsWith(`${basePath}/portal/`)) {
+    return <Navigate to={basePath} replace />;
+  }
 
   const clientPortalLinks = [
     {to: basePath, label: 'لوحة التاجر', icon: LayoutDashboard, end: true},
@@ -193,6 +220,7 @@ export function TenantAdminShellPage() {
       end: true,
     },
     {to: `${basePath}/security/integrations`, label: 'رموز API والتكاملات', icon: Webhook, end: true},
+    {to: `${basePath}/settings`, label: 'إعدادات الحساب', icon: Settings, end: true},
   ];
 
   const shipmentLinks = [
@@ -213,7 +241,6 @@ export function TenantAdminShellPage() {
     {to: `${basePath}/operations/delivery`, label: 'قوائم التوصيل', icon: Truck, end: true},
     {to: `${basePath}/operations/redelivery`, label: 'قوائم إعادة التوصيل', icon: Clock, end: true},
     {to: `${basePath}/operations/returns`, label: 'قوائم المرتجعات', icon: RotateCcw, end: true},
-    {to: `${basePath}/operations/courier-portal`, label: 'بوابة المندوب', icon: UserCheck, end: true},
   ];
 
   const securityLinks = [
@@ -257,8 +284,8 @@ export function TenantAdminShellPage() {
   ];
 
   const renderSidebarContent = () => (
-    <div className="flex h-full flex-col justify-between">
-      <div>
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col">
         <div className="border-b border-slate-200 px-5 py-4">
           <Link to={buildTenantBasePath(tenant.slug)} className="block text-base font-bold text-slate-900">
             {tenant.name}
@@ -268,7 +295,7 @@ export function TenantAdminShellPage() {
           </p>
         </div>
 
-        <nav aria-label={isClientAccount ? 'القائمة الجانبية لبوابة العميل' : 'القائمة الجانبية للشركة'} className="space-y-1 p-3">
+        <nav aria-label={isClientAccount ? 'القائمة الجانبية لبوابة العميل' : isCourierAccount ? 'القائمة الجانبية للمندوب' : 'القائمة الجانبية للشركة'} className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain p-3">
           {isClientAccount ? (
             <div className="space-y-1">
               {clientPortalLinks.map((item) => {
@@ -286,10 +313,49 @@ export function TenantAdminShellPage() {
                     }
                   >
                     <Icon className="h-4 w-4 shrink-0" />
-                    <span>{item.label}</span>
+                    <span>{t(item.label)}</span>
                   </NavLink>
                 );
               })}
+            </div>
+          ) : isCourierAccount ? (
+            <div className="space-y-1">
+              <NavLink
+                to={courierPortalPath}
+                onClick={() => setSidebarOpen(false)}
+                className={({isActive}) =>
+                  `flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-bold transition-colors ${
+                    isActive ? 'bg-[#ef6a47] text-white shadow-sm' : 'text-slate-700 hover:bg-orange-50 hover:text-[#d95537]'
+                  }`
+                }
+              >
+                <Truck className="h-4 w-4 shrink-0" />
+                <span>{t('بوابة المندوب')}</span>
+              </NavLink>
+              <NavLink
+                to={`${basePath}/messaging`}
+                onClick={() => setSidebarOpen(false)}
+                className={({isActive}) =>
+                  `flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-bold ${
+                    isActive ? 'bg-[#ef6a47] text-white' : 'text-slate-700 hover:bg-orange-50 hover:text-[#d95537]'
+                  }`
+                }
+              >
+                <MessageSquare className="h-4 w-4 shrink-0" />
+                <span>{t('الرسائل والمحادثات')}</span>
+              </NavLink>
+              <NavLink
+                to={`${basePath}/settings`}
+                onClick={() => setSidebarOpen(false)}
+                className={({isActive}) =>
+                  `flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-bold ${
+                    isActive ? 'bg-[#ef6a47] text-white' : 'text-slate-700 hover:bg-orange-50 hover:text-[#d95537]'
+                  }`
+                }
+              >
+                <Settings className="h-4 w-4 shrink-0" />
+                <span>{t('إعدادات الشركة والملفات')}</span>
+              </NavLink>
             </div>
           ) : (
             <>
@@ -304,7 +370,7 @@ export function TenantAdminShellPage() {
                 }
               >
                 <LayoutDashboard className="h-4 w-4 shrink-0" />
-                <span>لوحة التحكم</span>
+                <span>{t('لوحة التحكم')}</span>
               </NavLink>
 
           <div className="pt-2">
@@ -313,7 +379,7 @@ export function TenantAdminShellPage() {
               onClick={() => toggleSection('definitions')}
               className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-900"
             >
-              <span>التعريفات الأساسية</span>
+              <span>{t('التعريفات الأساسية')}</span>
               <ChevronDown
                 className={`h-3.5 w-3.5 transition-transform ${openSection === 'definitions' ? 'rotate-180' : ''}`}
               />
@@ -337,7 +403,7 @@ export function TenantAdminShellPage() {
                       }
                     >
                       <Icon className="h-3.5 w-3.5 shrink-0" />
-                      <span>{item.label}</span>
+                      <span>{t(item.label)}</span>
                     </NavLink>
                   );
                 })}
@@ -351,7 +417,7 @@ export function TenantAdminShellPage() {
               onClick={() => toggleSection('shipments')}
               className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-900"
             >
-              <span>الشحنات</span>
+              <span>{t('الشحنات')}</span>
               <ChevronDown
                 className={`h-3.5 w-3.5 transition-transform ${openSection === 'shipments' ? 'rotate-180' : ''}`}
               />
@@ -376,7 +442,7 @@ export function TenantAdminShellPage() {
                       }
                     >
                       <Icon className="h-3.5 w-3.5 shrink-0" />
-                      <span>{item.label}</span>
+                      <span>{t(item.label)}</span>
                     </NavLink>
                   );
                 })}
@@ -390,7 +456,7 @@ export function TenantAdminShellPage() {
               onClick={() => toggleSection('operations')}
               className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-900"
             >
-              <span>العمليات اليومية</span>
+              <span>{t('العمليات اليومية')}</span>
               <ChevronDown
                 className={`h-3.5 w-3.5 transition-transform ${openSection === 'operations' ? 'rotate-180' : ''}`}
               />
@@ -415,7 +481,7 @@ export function TenantAdminShellPage() {
                       }
                     >
                       <Icon className="h-3.5 w-3.5 shrink-0" />
-                      <span>{item.label}</span>
+                      <span>{t(item.label)}</span>
                     </NavLink>
                   );
                 })}
@@ -429,7 +495,7 @@ export function TenantAdminShellPage() {
               onClick={() => toggleSection('clients')}
               className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-900"
             >
-              <span>العملاء</span>
+              <span>{t('العملاء')}</span>
               <ChevronDown
                 className={`h-3.5 w-3.5 transition-transform ${openSection === 'clients' ? 'rotate-180' : ''}`}
               />
@@ -454,7 +520,7 @@ export function TenantAdminShellPage() {
                       }
                     >
                       <Icon className="h-3.5 w-3.5 shrink-0" />
-                      <span>{item.label}</span>
+                      <span>{t(item.label)}</span>
                     </NavLink>
                   );
                 })}
@@ -470,7 +536,7 @@ export function TenantAdminShellPage() {
             >
               <span className="inline-flex items-center gap-1.5">
                 <MapPin className="h-3.5 w-3.5 shrink-0" />
-                <span>مندوبو التوصيل</span>
+                <span>{t('مندوبو التوصيل')}</span>
               </span>
               <ChevronDown
                 className={`h-3.5 w-3.5 transition-transform ${openSection === 'couriers' ? 'rotate-180' : ''}`}
@@ -496,7 +562,7 @@ export function TenantAdminShellPage() {
                       }
                     >
                       <Icon className="h-3.5 w-3.5 shrink-0" />
-                      <span>{item.label}</span>
+                      <span>{t(item.label)}</span>
                     </NavLink>
                   );
                 })}
@@ -512,7 +578,7 @@ export function TenantAdminShellPage() {
             >
               <span className="inline-flex items-center gap-1.5">
                 <Wallet className="h-3.5 w-3.5 shrink-0" />
-                <span>المالية والخزائن</span>
+                <span>{t('المالية والخزائن')}</span>
               </span>
               <ChevronDown
                 className={`h-3.5 w-3.5 transition-transform ${openSection === 'finance' ? 'rotate-180' : ''}`}
@@ -538,7 +604,7 @@ export function TenantAdminShellPage() {
                       }
                     >
                       <Icon className="h-3.5 w-3.5 shrink-0" />
-                      <span>{item.label}</span>
+                      <span>{t(item.label)}</span>
                     </NavLink>
                   );
                 })}
@@ -554,7 +620,7 @@ export function TenantAdminShellPage() {
             >
               <span className="inline-flex items-center gap-1.5">
                 <Scale className="h-3.5 w-3.5 shrink-0" />
-                <span>الحسابات العامة والتقارير</span>
+                <span>{t('الحسابات العامة والتقارير')}</span>
               </span>
               <ChevronDown className={`h-3.5 w-3.5 transition-transform ${openSection === 'accounting' ? 'rotate-180' : ''}`} />
             </button>
@@ -575,7 +641,7 @@ export function TenantAdminShellPage() {
                       }
                     >
                       <Icon className="h-4 w-4 shrink-0" />
-                      <span>{item.label}</span>
+                      <span>{t(item.label)}</span>
                     </NavLink>
                   );
                 })}
@@ -591,7 +657,7 @@ export function TenantAdminShellPage() {
             >
               <span className="inline-flex items-center gap-1.5">
                 <Shield className="h-3.5 w-3.5 shrink-0" />
-                <span>الأمان</span>
+                <span>{t('الأمان')}</span>
               </span>
               <ChevronDown
                 className={`h-3.5 w-3.5 transition-transform ${openSection === 'security' ? 'rotate-180' : ''}`}
@@ -617,7 +683,7 @@ export function TenantAdminShellPage() {
                       }
                     >
                       <Icon className="h-3.5 w-3.5 shrink-0" />
-                      <span>{item.label}</span>
+                      <span>{t(item.label)}</span>
                     </NavLink>
                   );
                 })}
@@ -633,7 +699,7 @@ export function TenantAdminShellPage() {
             >
               <span className="inline-flex items-center gap-1.5">
                 <MessageSquare className="h-3.5 w-3.5 shrink-0" />
-                <span>الرسائل والإعدادات</span>
+                <span>{t('الرسائل والإعدادات')}</span>
               </span>
               <ChevronDown className={`h-3.5 w-3.5 transition-transform ${openSection === 'messages' ? 'rotate-180' : ''}`} />
             </button>
@@ -654,7 +720,7 @@ export function TenantAdminShellPage() {
                       }
                     >
                       <Icon className="h-4 w-4 shrink-0" />
-                      <span>{item.label}</span>
+                      <span>{t(item.label)}</span>
                     </NavLink>
                   );
                 })}
@@ -666,18 +732,14 @@ export function TenantAdminShellPage() {
         </nav>
       </div>
 
-      <div className="border-t border-slate-200 p-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full brand-gradient text-sm font-extrabold text-white shadow-sm">
-            {(profile?.display_name ?? activeMembership.username).trim().charAt(0).toUpperCase()}
-          </div>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-bold text-slate-900">{profile?.display_name ?? activeMembership.username}</p>
-            <p className="mt-0.5 truncate text-xs font-medium text-slate-500">
-              {activeMembership.account_subject_type} · {activeMembership.role_key}
-            </p>
-          </div>
-        </div>
+      <div className="shrink-0 border-t border-slate-200 p-4">
+        <Link
+          to={`${basePath}/settings`}
+          aria-label={t('إعدادات الشركة والملفات')}
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-500 hover:border-orange-200 hover:bg-orange-50 hover:text-[#d95537]"
+        >
+          <UserRound className="h-5 w-5" />
+        </Link>
       </div>
     </div>
   );
@@ -716,60 +778,32 @@ export function TenantAdminShellPage() {
                 >
                   {sidebarOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
                 </button>
-                <span className="text-sm font-semibold text-slate-900 whitespace-nowrap">
-                  {isClientAccount ? `بوابة التاجر · ${tenant.name}` : `بوابة إدارة ${tenant.name}`}
+                <span className="text-base font-extrabold tracking-tight text-slate-900 whitespace-nowrap">
+                  {BRAND_CONFIG.appName}
                 </span>
               </div>
 
-              <div className="hidden items-center gap-4 text-xs text-slate-500 sm:flex">
+              <div className="ml-auto flex items-center gap-2">
                 <Link
                   to={`${basePath}/notifications`}
-                  className="inline-flex items-center gap-1.5 font-medium text-slate-700 hover:text-slate-900 whitespace-nowrap"
+                  aria-label={t('الإشعارات')}
+                  className="relative flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:border-orange-200 hover:bg-orange-50 hover:text-[#d95537]"
                 >
-                  <Bell className="h-3.5 w-3.5" />
-                  <span className="font-mono-tabular">
-                    {unreadNotifCount > 0 ? `الإشعارات · ${unreadNotifCount}` : 'الإشعارات'}
-                  </span>
+                  <Bell className="h-5 w-5" />
+                  {unreadNotifCount > 0 && (
+                    <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#ef6a47] px-1 text-[9px] font-bold text-white">
+                      {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
+                    </span>
+                  )}
                 </Link>
-                <span aria-hidden="true">·</span>
-                <Link to={buildTenantBasePath(tenant.slug)} className="hover:text-slate-900 whitespace-nowrap">
-                  الموقع العام للشركة
+                <Link
+                  to={`${basePath}/settings`}
+                  aria-label={t('إعدادات الشركة والملفات')}
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:border-orange-200 hover:bg-orange-50 hover:text-[#d95537]"
+                >
+                  <UserRound className="h-5 w-5" />
                 </Link>
               </div>
-
-              <div className="ml-auto flex items-center rounded-xl border border-slate-200 bg-slate-50 p-1" aria-label="اختيار اللغة">
-                <button
-                  type="button"
-                  onClick={() => changeLocale('ar')}
-                  aria-label="العربية"
-                  className={`flex h-8 items-center gap-1.5 rounded-lg px-2 text-xs font-bold ${
-                    locale === 'ar' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'
-                  }`}
-                >
-                  <span aria-hidden="true">🇪🇬</span>
-                  <span className="hidden sm:inline">العربية</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => changeLocale('en')}
-                  aria-label="English"
-                  className={`flex h-8 items-center gap-1.5 rounded-lg px-2 text-xs font-bold ${
-                    locale === 'en' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'
-                  }`}
-                >
-                  <span aria-hidden="true">🇺🇸</span>
-                  <span className="hidden sm:inline">English</span>
-                </button>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => void signOut()}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 whitespace-nowrap shrink-0"
-              >
-                <LogOut className="h-3.5 w-3.5" />
-                خروج
-              </button>
             </div>
           </header>
 

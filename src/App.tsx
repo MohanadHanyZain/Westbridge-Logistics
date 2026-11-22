@@ -12,7 +12,6 @@ import {
   TenantLoginPage,
 } from '@/app/AuthPages';
 import {HomeHubPage} from '@/app/HomeHubPage';
-import {PhaseZeroConsole} from '@/app/PhaseZeroConsole';
 import {AppErrorBoundary} from '@/components/common/AppErrorBoundary';
 import {DirectionProvider} from '@/components/common/DirectionProvider';
 import {BranchesPage} from '@/features/branches/BranchesPage';
@@ -72,7 +71,6 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<HomeHubPage />} />
-      <Route path="/architecture" element={<PhaseZeroConsole />} />
       <Route path="/platform/login" element={<PlatformLoginPage />} />
       <Route
         path="/platform"

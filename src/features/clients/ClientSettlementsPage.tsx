@@ -312,7 +312,7 @@ export function ClientSettlementsPage() {
         <div>
           <h1 className="text-xl font-bold text-slate-900">قيد التسوية مع العملاء</h1>
           <p className="mt-1 text-xs text-slate-500">
-            كشوف تسوية مستحقات التجار (CST) من شحنات COD وخصم مصاريف الشحن والمرتجعات (ADR-016) والربط المباشر بالخزائن.
+            كشوف مستحقات التجار من الشحنات، مع خصم مصاريف الشحن والمرتجعات وربطها بالخزائن.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3 text-xs">
@@ -511,7 +511,7 @@ export function ClientSettlementsPage() {
                         <td className="px-3 py-2 font-mono-tabular text-red-700">
                           -{formatCurrency(feesDeducted, tenant.default_currency)}
                           {s.return_fee_deducted > 0 && (
-                            <span className="block text-[10px] text-slate-500">رسوم مرتجع (ADR-016)</span>
+                            <span className="block text-[10px] text-slate-500">رسوم المرتجع</span>
                           )}
                         </td>
                         <td className="px-3 py-2 font-mono-tabular font-bold text-slate-900">
@@ -725,7 +725,7 @@ export function ClientSettlementsPage() {
                         <div className="flex flex-wrap items-center gap-2">
                           {st.status === 'draft' && canApprove ? (
                             blocked ? (
-                              <span className="text-[11px] text-amber-700">بانتظار مراجع آخر (ADR-018)</span>
+                              <span className="text-[11px] text-amber-700">بانتظار اعتماد مراجع آخر</span>
                             ) : (
                               <button
                                 type="button"
@@ -813,7 +813,7 @@ export function ClientSettlementsPage() {
                 </dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-slate-500">خصم رسوم المرتجعات (ADR-016)</dt>
+                <dt className="text-slate-500">خصم رسوم المرتجعات</dt>
                 <dd className="font-mono-tabular text-red-700">
                   -{formatCurrency(printSettlement.return_fees_deducted, tenant.default_currency)}
                 </dd>

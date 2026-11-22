@@ -1,0 +1,125 @@
+import {useEffect, useState} from 'react';
+
+export type AppLocale = 'ar' | 'en';
+
+const translations: Record<string, string> = {
+  'لوحة التحكم': 'Dashboard',
+  'التعريفات الأساسية': 'Definitions',
+  'الفروع': 'Branches',
+  'الأقاليم والمناطق': 'Regions & Areas',
+  'خدمات الشحن': 'Shipping Services',
+  'أسباب التعذر والإرجاع': 'Delivery Exceptions & Returns',
+  'الخزائن وأمناؤها': 'Cashboxes & Custodians',
+  'الحركات واليوميات والحسابات': 'Accounting References',
+  'الشحنات': 'Shipments',
+  'قائمة الشحنات': 'All Shipments',
+  'إنشاء شحنة': 'Create Shipment',
+  'إنشاء شحنة جديدة': 'Create Shipment',
+  'استيراد Excel': 'Import Shipments',
+  'استيراد شحنات Excel': 'Import Shipments',
+  'شحنات في المخزون': 'In Warehouse',
+  'الشحنات قيد التوصيل': 'Out for Delivery',
+  'انتظار إعادة التوصيل': 'Rescheduled',
+  'المرتجعات والمتعثرة': 'Returns & Exceptions',
+  'الباركود والتتبع': 'Barcode & Tracking',
+  'العمليات اليومية': 'Daily Operations',
+  'قوائم الالتقاط': 'Pickup Lists',
+  'قوائم الاستلام بالمخزن': 'Warehouse Intake',
+  'النقل بين الفروع': 'Branch Transfers',
+  'قوائم التوصيل': 'Delivery Lists',
+  'قوائم إعادة التوصيل': 'Redelivery Lists',
+  'قوائم المرتجعات': 'Return Lists',
+  'بوابة المندوب': 'Courier Workspace',
+  'العملاء': 'Clients',
+  'قائمة العملاء': 'Client List',
+  'إنشاء عميل': 'Create Client',
+  'الحسابات المسجلة': 'Registrations',
+  'قوائم أسعار الشحن': 'Price Lists',
+  'قيد التسوية مع العملاء': 'Client Settlements',
+  'معاينة بوابة التاجر': 'Client Portal Preview',
+  'مندوبو التوصيل': 'Couriers',
+  'قائمة المندوبين': 'Courier List',
+  'إنشاء مندوب': 'Create Courier',
+  'قوائم عمولات المندوبين': 'Commission Lists',
+  'خطوط سير المندوبين': 'Courier Routes',
+  'قيد التسوية مع المندوبين': 'Courier Settlements',
+  'تحركات مندوب الشحن': 'Courier Activity',
+  'المالية والخزائن': 'Finance & Cashboxes',
+  'إدارة الخزائن والحركات': 'Cashboxes & Transactions',
+  'التحصيل من المندوبين': 'Courier Collections',
+  'تسويات العملاء': 'Client Settlements',
+  'تسويات وعمولات المندوبين': 'Courier Settlements & Commissions',
+  'الحسابات العامة والتقارير': 'Accounting & Reports',
+  'التقارير التنفيذية': 'Operations Reports',
+  'قيود اليومية العامة': 'Journal Entries',
+  'ميزان المراجعة والأستاذ': 'Trial Balance & Ledger',
+  'الأمان': 'Security',
+  'المستخدمون': 'Users',
+  'الأدوار والصلاحيات': 'Roles & Permissions',
+  'سجل الدخول والجلسات': 'Sessions & Sign-in History',
+  'رموز API والتكاملات': 'API & Integrations',
+  'الرسائل والإعدادات': 'Messages & Settings',
+  'الرسائل والمحادثات': 'Messages',
+  'الإشعارات': 'Notifications',
+  'إعدادات الشركة والملفات': 'Settings',
+  'إعدادات الحساب': 'Account Settings',
+  'لوحة التاجر': 'Client Dashboard',
+  'شحناتي': 'My Shipments',
+  'طلبات الالتقاط والعناوين': 'Pickup Requests & Addresses',
+  'قيد التسوية وكشف الحساب': 'Settlements & Statement',
+  'التقارير التنفيذية': 'Reports',
+  'الموقع العام للشركة': 'Company Website',
+  'تم التسليم': 'Delivered',
+  'في المخزون': 'In Warehouse',
+  'قيد التوصيل': 'Out for Delivery',
+  'المرتجعات': 'Returns',
+  'إجمالي الشحنات': 'Total Shipments',
+  'مؤشرات حركة الشحنات': 'Shipment Activity',
+  'آخر 7 أيام': 'Last 7 days',
+  'آخر 30 يومًا': 'Last 30 days',
+  'عرض التقرير': 'View report',
+  'حركة الشحنات': 'Shipment Activity',
+  'توزيع مؤشرات العمليات للفترة المحددة': 'Operations overview for the selected period',
+  'لوحة الإدارة': 'Workspace',
+  'نظرة عامة على العمليات': 'Operations Overview',
+  'العربية': 'Arabic',
+  'English': 'English',
+  'خروج': 'Sign out',
+  'إعدادات المظهر واللغة': 'Appearance & Language',
+  'إعدادات الحساب': 'Account Settings',
+  'المظهر': 'Appearance',
+  'فاتح': 'Light',
+  'داكن': 'Dark',
+  'اللغة': 'Language',
+  'اختر اللغة المفضلة للواجهة': 'Choose your preferred interface language',
+  'اختر مظهر النظام': 'Choose the workspace appearance',
+  'إعدادات العرض': 'Display Settings',
+  'تم حفظ تفضيلات العرض على هذا الجهاز.': 'Display preferences are saved on this device.',
+  'إدارة تفضيلات المظهر واللغة.': 'Manage your appearance and language preferences.',
+  'تخصيص تفضيلات العرض والتنبيهات والملفات.': 'Customize display, notifications, and file preferences.',
+  'المحافظات والمدن والمناطق': 'Governorates, Cities & Areas',
+  'إضافة محافظة': 'Add Governorate',
+  'اختر محافظة من القائمة لعرض المدن والمناطق التابعة لها.': 'Select a governorate to view its cities and areas.',
+  'رجوع إلى المحافظات': 'Back to Governorates',
+};
+
+export function translateUi(text: string, locale: AppLocale): string {
+  if (locale === 'ar') return text;
+  return translations[text] ?? text;
+}
+
+export function useLocale(): AppLocale {
+  const [locale, setLocale] = useState<AppLocale>(
+    () => (typeof localStorage !== 'undefined' && localStorage.getItem('shipflow_locale') === 'en' ? 'en' : 'ar'),
+  );
+
+  useEffect(() => {
+    const syncLocale = () => {
+      setLocale(localStorage.getItem('shipflow_locale') === 'en' ? 'en' : 'ar');
+    };
+    window.addEventListener('shipflow-language-change', syncLocale);
+    return () => window.removeEventListener('shipflow-language-change', syncLocale);
+  }, []);
+
+  return locale;
+}

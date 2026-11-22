@@ -19,9 +19,12 @@ import type {
   RegionRecord,
 } from '@/types/definitions';
 import {CheckCircle2, Edit3, MapPin, Plus, Search, XCircle} from 'lucide-react';
+import {translateUi, useLocale} from '@/lib/i18n';
 
 export function GeographyPage() {
   const {tenant, isAdmin} = useTenantWorkspace();
+  const locale = useLocale();
+  const t = (text: string) => translateUi(text, locale);
   const [countries, setCountries] = useState<readonly CountryRecord[]>([]);
   const [governorates, setGovernorates] = useState<readonly GovernorateRecord[]>([]);
   const [cities, setCities] = useState<readonly CityRecord[]>([]);
@@ -29,6 +32,7 @@ export function GeographyPage() {
   const [branches, setBranches] = useState<readonly BranchRecord[]>([]);
 
   const [selectedGovId, setSelectedGovId] = useState<string>('');
+  const [showGovernorateList, setShowGovernorateList] = useState(true);
   const [govSearch, setGovSearch] = useState('');
   const [regionSearch, setRegionSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -262,8 +266,9 @@ export function GeographyPage() {
       )}
 
       {showGovForm && (
-        <section className="rounded-xl border border-slate-200 bg-white p-5">
-          <h2 className="text-sm font-semibold text-slate-900">
+        <div role="dialog" aria-modal="true" aria-labelledby="gov-form-title" className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm">
+        <section className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+          <h2 id="gov-form-title" className="text-sm font-semibold text-slate-900">
             {editingGov ? `تعديل محافظة: ${editingGov.name}` : 'إضافة محافظة جديدة'}
           </h2>
           <form onSubmit={handleSaveGov} className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-4">
@@ -334,11 +339,12 @@ export function GeographyPage() {
             </div>
           </form>
         </section>
+        </div>
       )}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+      <div className="grid grid-cols-1 gap-6">
         {/* Master List: Governorates */}
-        <div className="space-y-3 lg:col-span-4">
+        {showGovernorateList && <div className="space-y-3">
           <div className="relative">
             <Search className="pointer-events-none absolute top-2.5 right-3 h-4 w-4 text-slate-400" />
             <input
@@ -363,7 +369,10 @@ export function GeographyPage() {
                   <button
                     key={gov.id}
                     type="button"
-                    onClick={() => setSelectedGovId(gov.id)}
+                    onClick={() => {
+                      setSelectedGovId(gov.id);
+                      setShowGovernorateList(false);
+                    }}
                     className={`flex w-full items-center justify-between px-4 py-3 text-right transition-colors ${
                       selected ? 'bg-slate-900 text-white' : 'hover:bg-slate-50 text-slate-900'
                     }`}
@@ -392,13 +401,21 @@ export function GeographyPage() {
               })
             )}
           </div>
-        </div>
+        </div>}
 
         {/* Detail Panel: Selected Governorate + Regions */}
-        <div className="space-y-4 lg:col-span-8">
+        {!showGovernorateList && <div className="space-y-4">
           {selectedGov ? (
             <>
               <div className="rounded-xl border border-slate-200 bg-white p-5">
+                <button
+                  type="button"
+                  onClick={() => setShowGovernorateList(true)}
+                  className="mb-4 inline-flex items-center gap-2 rounded-lg px-2 py-1 text-xs font-bold text-slate-600 hover:bg-orange-50 hover:text-[#d95537]"
+                >
+                  <span aria-hidden="true">←</span>
+                  {t('رجوع إلى المحافظات')}
+                </button>
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2">
@@ -459,8 +476,9 @@ export function GeographyPage() {
               </div>
 
               {showRegionForm && (
-                <section className="rounded-xl border border-slate-200 bg-white p-5">
-                  <h3 className="text-sm font-semibold text-slate-900">
+                <div role="dialog" aria-modal="true" aria-labelledby="region-form-title" className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm">
+                <section className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+                  <h3 id="region-form-title" className="text-sm font-semibold text-slate-900">
                     {editingRegion ? `تعديل منطقة: ${editingRegion.name}` : `إضافة منطقة داخل ${selectedGov.name}`}
                   </h3>
                   <form onSubmit={handleSaveRegion} className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -545,6 +563,7 @@ export function GeographyPage() {
                     </div>
                   </form>
                 </section>
+                </div>
               )}
 
               <div className="space-y-3">
@@ -560,7 +579,7 @@ export function GeographyPage() {
                   />
                 </div>
 
-                <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+                <div className="safe-mobile-table overflow-hidden rounded-xl border border-slate-200 bg-white">
                   <table className="w-full border-collapse text-right text-sm">
                     <thead>
                       <tr className="border-b border-slate-200 bg-slate-50 text-xs font-medium text-slate-500">
@@ -581,14 +600,14 @@ export function GeographyPage() {
                       ) : (
                         govRegions.map((reg) => (
                           <tr key={reg.id} className="hover:bg-slate-50/70">
-                            <td className="px-4 py-3 font-mono-tabular text-xs font-medium text-slate-900">
+                            <td data-label="الكود" className="px-4 py-3 font-mono-tabular text-xs font-medium text-slate-900">
                               {reg.code}
                             </td>
-                            <td className="px-4 py-3 font-medium text-slate-900">{reg.name}</td>
-                            <td className="px-4 py-3 text-xs text-slate-600">
+                            <td data-label="المنطقة" className="px-4 py-3 font-medium text-slate-900">{reg.name}</td>
+                            <td data-label="الفرع" className="px-4 py-3 text-xs text-slate-600">
                               {reg.default_branch_id ? branchMap.get(reg.default_branch_id) : '—'}
                             </td>
-                            <td className="px-4 py-3">
+                            <td data-label="الحالة" className="px-4 py-3">
                               <span
                                 className={`inline-flex items-center gap-1 text-xs font-medium ${
                                   reg.is_active ? 'text-emerald-700' : 'text-slate-500'
@@ -602,7 +621,7 @@ export function GeographyPage() {
                                 {reg.is_active ? 'فعال' : 'غير فعال'}
                               </span>
                             </td>
-                            <td className="px-4 py-3">
+                            <td data-label="الإجراءات" className="px-4 py-3">
                               {isAdmin && (
                                 <div className="flex items-center gap-3">
                                   <button
@@ -619,7 +638,7 @@ export function GeographyPage() {
                                   >
                                     {reg.is_active ? 'تعطيل' : 'تفعيل'}
                                   </button>
-                                </div>
+                                </div>}
                               )}
                             </td>
                           </tr>

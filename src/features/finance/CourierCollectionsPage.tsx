@@ -190,7 +190,7 @@ export function CourierCollectionsPage() {
         <div>
           <h1 className="text-xl font-bold text-slate-900">التحصيل النقدي من المناديب (COL)</h1>
           <p className="mt-1 text-xs text-slate-500">
-            توريد مبالغ الـ COD ورسوم المرتجع المحصلة من المستلم إلى الخزينة قبل صرف عمولات المندوب (ADR-012 / ADR-016).
+            توريد المبالغ المحصلة من المستلم إلى الخزينة قبل صرف عمولات المندوب.
           </p>
         </div>
         <div className="flex items-center gap-4 text-xs">
@@ -296,7 +296,7 @@ export function CourierCollectionsPage() {
                       </td>
                       <td className="px-3 py-2 font-mono-tabular font-semibold">{s.shipment_number}</td>
                       <td className="px-3 py-2 text-slate-600">
-                        {s.cash_source_type === 'cod_delivery' ? 'تحصيل COD تسليم' : 'رسوم مرتجع من المستلم (ADR-016)'}
+                        {s.cash_source_type === 'cod_delivery' ? 'تحصيل عند التسليم' : 'رسوم مرتجع من المستلم'}
                       </td>
                       <td className="px-3 py-2 font-mono-tabular font-bold text-slate-900">
                         {formatCurrency(s.expected_amount, tenant.default_currency)}
@@ -415,7 +415,7 @@ export function CourierCollectionsPage() {
                       <td className="px-3 py-2.5">
                         {v.status === 'draft' && canApprove ? (
                           blocked ? (
-                            <span className="text-[11px] text-amber-700">بانتظار مراجع آخر (ADR-018)</span>
+                            <span className="text-[11px] text-amber-700">بانتظار اعتماد مراجع آخر</span>
                           ) : (
                             <button
                               type="button"

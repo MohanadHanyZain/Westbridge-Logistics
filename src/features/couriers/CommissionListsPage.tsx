@@ -245,7 +245,7 @@ export function CommissionListsPage() {
         <div>
           <h1 className="text-xl font-bold text-slate-900">قوائم عمولات المناديب</h1>
           <p className="mt-1 text-xs text-slate-500">
-            وفق ADR-012: تستحق العمولة عند تمام التسليم وتُطبّق بأولوية المنطقة المحددة ← المحافظة كاملة ← افتراضي المندوب.
+            تستحق العمولة عند إتمام التسليم، وتُطبّق حسب المنطقة ثم المحافظة ثم الإعداد الافتراضي للمندوب.
           </p>
         </div>
 
@@ -514,11 +514,11 @@ export function CommissionListsPage() {
         </section>
       </div>
 
-      {/* Server Commission Calculator Preview (ADR-012) */}
+      {/* Commission calculator preview */}
       <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-6">
         <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
           <Calculator className="h-4 w-4 text-slate-700" />
-          <h2 className="text-sm font-semibold text-slate-900">معاينة احتساب عمولة المندوب من الخادم (ADR-012)</h2>
+          <h2 className="text-sm font-semibold text-slate-900">معاينة احتساب عمولة المندوب</h2>
         </div>
 
         <form onSubmit={handleSimulateCommission} className="grid grid-cols-1 gap-4 sm:grid-cols-6 items-end">

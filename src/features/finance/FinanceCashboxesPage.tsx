@@ -132,7 +132,7 @@ export function FinanceCashboxesPage() {
         high_value_approval_threshold: Number(thresholdInput) || 0,
       });
       setPolicy(updated);
-      setFeedback({type: 'success', text: 'تم تحديث سياسة الرقابة المالية وحدود الاعتماد (ADR-018) بنجاح.'});
+      setFeedback({type: 'success', text: 'تم تحديث سياسة الرقابة المالية وحدود الاعتماد بنجاح.'});
       setShowPolicy(false);
     } catch (err) {
       setFeedback({type: 'error', text: err instanceof Error ? err.message : 'تعذر حفظ السياسة المالية.'});
@@ -256,7 +256,7 @@ export function FinanceCashboxesPage() {
       {showPolicy && canManagePolicy && (
         <form onSubmit={handleSavePolicy} className="space-y-4 rounded-xl border border-slate-200 bg-white p-5">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <h2 className="text-sm font-semibold text-slate-900">سياسة الرقابة المالية وحدود الاعتماد (ADR-018)</h2>
+            <h2 className="text-sm font-semibold text-slate-900">سياسة الرقابة المالية وحدود الاعتماد</h2>
             <button type="button" onClick={() => setShowPolicy(false)} className="text-xs text-slate-500 hover:text-slate-900">
               إغلاق
             </button>
@@ -518,7 +518,7 @@ export function FinanceCashboxesPage() {
                         <td className="px-3 py-2.5">
                           {tr.status === 'draft' && canApproveCollection ? (
                             blocked ? (
-                              <span className="text-[11px] text-amber-700">بانتظار مراجع آخر (ADR-018)</span>
+                              <span className="text-[11px] text-amber-700">بانتظار اعتماد مراجع آخر</span>
                             ) : (
                               <button
                                 type="button"
@@ -672,7 +672,7 @@ export function FinanceCashboxesPage() {
                         <td className="px-3 py-2.5">
                           {vc.status === 'draft' && canApp ? (
                             blocked ? (
-                              <span className="text-[11px] text-amber-700">بانتظار مراجع آخر (ADR-018)</span>
+                              <span className="text-[11px] text-amber-700">بانتظار اعتماد مراجع آخر</span>
                             ) : (
                               <button
                                 type="button"

@@ -150,6 +150,7 @@ export function ClientsListPage({initialMode = 'list'}: ClientsListPageProps) {
       setShipmentTypes(stRows);
 
       if (
+        isAdmin &&
         Object.keys(tenantService).includes('getTenantRegistrationSettings') &&
         typeof tenantService.getTenantRegistrationSettings === 'function'
       ) {
@@ -160,8 +161,8 @@ export function ClientsListPage({initialMode = 'list'}: ClientsListPageProps) {
           setPublicTagline(regSettings.public_tagline ?? '');
           setPublicSupportPhone(regSettings.public_support_phone ?? '');
           setPublicSupportEmail(regSettings.public_support_email ?? '');
-        } catch {
-          // Non-blocking for non-admin staff roles
+        } catch (err) {
+          setError(err instanceof Error ? err.message : 'تعذر تحميل إعدادات تسجيل التجار.');
         }
       }
     } catch (err) {
@@ -169,7 +170,7 @@ export function ClientsListPage({initialMode = 'list'}: ClientsListPageProps) {
     } finally {
       setLoading(false);
     }
-  }, [tenant.id]);
+  }, [tenant.id, isAdmin]);
 
   useEffect(() => {
     void loadData();
