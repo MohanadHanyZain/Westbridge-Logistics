@@ -10,8 +10,22 @@ import {
   getTenantMessagingSettings,
   updateTenantMessagingSettings,
 } from '@/features/messaging/messagingService';
+import * as tenantService from '@/features/tenants/tenantService';
 import {useTenantWorkspace} from '@/features/tenants/TenantWorkspaceContext';
-import {Bell, HardDrive, MapPinned, Save, Settings2, ShieldAlert, Trash2} from 'lucide-react';
+import {formatDateTime} from '@/lib/formatters';
+import type {TenantSubscriptionOverview} from '@/types/tenant';
+import {
+  Bell,
+  Crown,
+  Globe,
+  HardDrive,
+  MapPinned,
+  Save,
+  Settings2,
+  ShieldAlert,
+  ShieldCheck,
+  Trash2,
+} from 'lucide-react';
 
 export function TenantSettingsPage() {
   const {tenant, isAdmin} = useTenantWorkspace();
@@ -27,6 +41,8 @@ export function TenantSettingsPage() {
   const [gpsPingInterval, setGpsPingInterval] = useState(60);
   const [requireGpsOnDelivery, setRequireGpsOnDelivery] = useState(false);
 
+  const [subOverview, setSubOverview] = useState<TenantSubscriptionOverview | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingMaps, setSavingMaps] = useState(false);
@@ -36,7 +52,10 @@ export function TenantSettingsPage() {
   const loadSettings = useCallback(async () => {
     setLoading(true);
     try {
-      const [s, m] = await Promise.all([
+      const hasSubOverview =
+        Object.keys(tenantService).includes('getTenantSubscriptionOverview') &&
+        typeof tenantService.getTenantSubscriptionOverview === 'function';
+      const [s, m, overview] = await Promise.all([
         getTenantMessagingSettings(tenant.id),
         getTenantMapsSettings(tenant.id).catch(() => ({
           tenant_id: tenant.id,
@@ -44,6 +63,9 @@ export function TenantSettingsPage() {
           gps_ping_interval_seconds: 60,
           require_gps_on_delivery: false,
         })),
+        hasSubOverview
+          ? tenantService.getTenantSubscriptionOverview(tenant.id).catch(() => null)
+          : Promise.resolve(null),
       ]);
       setRetentionDays(s.message_retention_days);
       setMaxSizeMb(s.attachment_max_size_mb);
@@ -54,6 +76,7 @@ export function TenantSettingsPage() {
       setLocationRetentionDays(m.location_retention_days);
       setGpsPingInterval(m.gps_ping_interval_seconds);
       setRequireGpsOnDelivery(m.require_gps_on_delivery);
+      setSubOverview(overview);
     } catch (err) {
       setFeedback({type: 'error', text: err instanceof Error ? err.message : 'تعذر تحميل الإعدادات.'});
     } finally {
@@ -377,6 +400,147 @@ export function TenantSettingsPage() {
               )}
             </form>
           )}
+
+      {/* Phase 15 Subscription, Quotas, Domains & Audited Support Visits (ADR-023) */}
+      {!loading && subOverview && (
+        <section
+          aria-label="باقة الاشتراك والحدود والنطاقات وسجل الدعم"
+          className="rounded-xl border border-slate-200 bg-white p-5 space-y-5"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-3">
+            <div className="flex items-center gap-2">
+              <Crown className="h-4 w-4 text-slate-700" />
+              <h2 className="text-sm font-semibold text-slate-900">
+                باقة الاشتراك والحدود والنطاقات وسجل الدعم (ADR-023)
+              </h2>
+            </div>
+            {subOverview.subscription && (
+              <span className="font-mono-tabular text-xs font-semibold text-slate-800">
+                {subOverview.subscription.plan_name_ar} ({subOverview.subscription.plan_code}) ·{' '}
+                {subOverview.subscription.billing_cycle === 'annual' ? 'سنوي' : 'شهري'}
+              </span>
+            )}
+          </div>
+
+          {subOverview.subscription && (
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 text-xs">
+              {(
+                [
+                  {
+                    label: 'الفروع النشطة',
+                    used: subOverview.usage.active_branches,
+                    max: subOverview.subscription.effective_max_branches,
+                  },
+                  {
+                    label: 'حسابات المستخدمين',
+                    used: subOverview.usage.active_users,
+                    max: subOverview.subscription.effective_max_users,
+                  },
+                  {
+                    label: 'المناديب النشطون',
+                    used: subOverview.usage.active_couriers,
+                    max: subOverview.subscription.effective_max_couriers,
+                  },
+                  {
+                    label: 'شحنات الشهر الحالي',
+                    used: subOverview.usage.month_shipments,
+                    max: subOverview.subscription.effective_max_monthly_shipments,
+                  },
+                ] as const
+              ).map((quota) => {
+                const ratio = quota.max ? Math.min(1, quota.used / quota.max) : 0;
+                const barWidthClass =
+                  quota.max === null
+                    ? 'w-1/4 bg-emerald-600'
+                    : ratio >= 0.9
+                      ? 'w-full bg-red-600'
+                      : ratio >= 0.7
+                        ? 'w-3/4 bg-amber-500'
+                        : ratio >= 0.4
+                          ? 'w-1/2 bg-slate-700'
+                          : ratio > 0
+                            ? 'w-1/4 bg-slate-700'
+                            : 'w-0 bg-slate-300';
+                return (
+                  <div key={quota.label} className="rounded-lg border border-slate-200 p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium text-slate-700">{quota.label}</span>
+                      <span className="font-mono-tabular font-bold text-slate-900">
+                        {quota.max === null ? `${quota.used} / مفتوح` : `${quota.used} / ${quota.max}`}
+                      </span>
+                    </div>
+                    <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-100">
+                      <div className={`h-full rounded-full ${barWidthClass}`} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <div className="rounded-lg border border-slate-200 p-4">
+              <div className="flex items-center gap-2 text-xs font-semibold text-slate-900">
+                <Globe className="h-3.5 w-3.5 text-slate-700" />
+                <span>النطاقات المربوطة بالشركة</span>
+              </div>
+              {subOverview.domains.length === 0 ? (
+                <p className="mt-2 text-xs text-slate-500">لا توجد نطاقات مسجلة.</p>
+              ) : (
+                <ul className="mt-2 divide-y divide-slate-100 text-xs">
+                  {subOverview.domains.map((dom) => (
+                    <li key={dom.id} className="flex items-center justify-between py-2">
+                      <div>
+                        <span className="font-mono-tabular font-semibold text-slate-900" dir="ltr">
+                          {dom.domain}
+                        </span>
+                        {dom.is_primary && (
+                          <span className="mr-2 rounded bg-slate-900 px-1.5 py-0.5 text-[10px] text-white">
+                            رئيسي
+                          </span>
+                        )}
+                      </div>
+                      <span
+                        className={`font-medium ${
+                          dom.verification_status === 'verified' ? 'text-emerald-700' : 'text-amber-700'
+                        }`}
+                      >
+                        {dom.verification_status === 'verified' ? 'موثق (SSL نشط)' : 'بانتظار التوثيق'}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            <div className="rounded-lg border border-slate-200 p-4">
+              <div className="flex items-center gap-2 text-xs font-semibold text-slate-900">
+                <ShieldCheck className="h-3.5 w-3.5 text-slate-700" />
+                <span>سجل زيارات الدعم الفني المركزي</span>
+              </div>
+              {subOverview.support_sessions.length === 0 ? (
+                <p className="mt-2 text-xs text-slate-500">لم يتم تسجيل أي دخول دعم فني لهذه الشركة.</p>
+              ) : (
+                <ul className="mt-2 divide-y divide-slate-100 text-xs">
+                  {subOverview.support_sessions.map((ses) => (
+                    <li key={ses.id} className="py-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-mono-tabular font-semibold text-slate-900">
+                          {ses.support_username ?? 'فريق المنصة'}
+                        </span>
+                        <span className="font-mono-tabular text-[11px] text-slate-500">
+                          {formatDateTime(ses.created_at, tenant.default_timezone, tenant.default_locale)}
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-slate-600">{ses.reason}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Quick Links to Domain Policies */}
       <section className="rounded-xl border border-slate-200 bg-white p-5">

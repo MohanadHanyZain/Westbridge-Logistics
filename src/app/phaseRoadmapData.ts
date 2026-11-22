@@ -102,16 +102,16 @@ export const ROADMAP_PHASES: readonly RoadmapPhase[] = [
   {
     phaseNumber: 14,
     title: 'الخرائط وتحركات المندوبين',
-    summary: 'Google Maps Platform، تتبع مسارات المندوبين خلال المهام، وسجل المواقع.',
-    status: PhaseStatus.READY_FOR_OWNER_REVIEW,
+    summary: 'Mapbox GL JS، تتبع مسارات المندوبين خلال المهام، وسجل المواقع.',
+    status: PhaseStatus.APPROVED,
     hasOpenDecisions: false,
   },
   {
     phaseNumber: 15,
     title: 'المنصة المركزية والاشتراكات والنطاقات',
-    summary: 'إدارة شركات الشحن، الباقات والحدود، النطاقات الفرعية والمخصصة، ودخول الدعم.',
-    status: PhaseStatus.BLOCKED_BY_OPEN_QUESTION,
-    hasOpenDecisions: true,
+    summary: 'إدارة شركات الشحن، الباقات والحدود الخادمية، النطاقات الفرعية والمخصصة، ودخول الدعم المسبب.',
+    status: PhaseStatus.READY_FOR_OWNER_REVIEW,
+    hasOpenDecisions: false,
   },
   {
     phaseNumber: 16,
@@ -235,6 +235,11 @@ export const APPROVED_DECISIONS: readonly ApprovedDecisionSummary[] = [
     code: 'ADR-022',
     title: 'الخرائط وتتبع مواقع المندوبين الميداني (GPS)',
     decision: 'تسجيل إحداثيات المندوب أثناء المهام النشطة فقط بموافقته مع الدقة والمصدر، واحتفاظ افتراضي 90 يومًا (7–365) عبر مكتبة Mapbox GL JS (mapbox-gl) بترتيب [lng, lat] ورمز عام VITE_MAPBOX_ACCESS_TOKEN.',
+  },
+  {
+    code: 'ADR-023',
+    title: 'المنصة المركزية والباقات والحدود والنطاقات ودخول الدعم المراقب',
+    decision: 'فرض حدود السعة خادميًا عبر الباقات (STARTER/GROWTH/ENTERPRISE) والاستثناءات، نطاق فرعي تلقائي ونطاق مخصص بتحدي DNS TXT، وحصر دخول الدعم التشخيصي في جلسات مؤقتة مسببة وموثقة.',
   },
 ];
 
