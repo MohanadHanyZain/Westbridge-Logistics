@@ -49,11 +49,14 @@ import {PricingCalculatorPage} from '@/features/pricing/PricingCalculatorPage';
 import {RolesPermissionsPage} from '@/features/security/RolesPermissionsPage';
 import {SessionAuditPage} from '@/features/security/SessionAuditPage';
 import {UsersManagementPage} from '@/features/security/UsersManagementPage';
+import {ApiIntegrationsPage} from '@/features/integrations/ApiIntegrationsPage';
 import {CreateShipmentPage} from '@/features/shipments/CreateShipmentPage';
 import {PublicTrackingPage} from '@/features/shipments/PublicTrackingPage';
 import {ShipmentDetailPage} from '@/features/shipments/ShipmentDetailPage';
 import {ShipmentsListPage} from '@/features/shipments/ShipmentsListPage';
 import {MessagingCenterPage} from '@/features/messaging/MessagingCenterPage';
+import {ExecutiveReportsPage} from '@/features/reports/ExecutiveReportsPage';
+import {ShipmentsImportPage} from '@/features/reports/ShipmentsImportPage';
 import {TenantSettingsPage} from '@/features/settings/TenantSettingsPage';
 import {PlatformTenantsPage} from '@/features/tenants/PlatformTenantsPage';
 import {TenantAdminShellPage} from '@/features/tenants/TenantAdminShellPage';
@@ -111,6 +114,7 @@ export function AppRoutes() {
         <Route path="security/users" element={<UsersManagementPage />} />
         <Route path="security/roles" element={<RolesPermissionsPage />} />
         <Route path="security/sessions" element={<SessionAuditPage />} />
+        <Route path="security/integrations" element={<ApiIntegrationsPage />} />
         <Route path="couriers" element={<CouriersListPage initialMode="list" />} />
         <Route path="couriers/new" element={<CouriersListPage initialMode="create" />} />
         <Route path="couriers/commissions" element={<CommissionListsPage />} />
@@ -119,6 +123,7 @@ export function AppRoutes() {
         <Route path="couriers/movements" element={<CourierMovementsPage />} />
         <Route path="shipments" element={<ShipmentsListPage preset="all" />} />
         <Route path="shipments/new" element={<CreateShipmentPage />} />
+        <Route path="shipments/import" element={<ShipmentsImportPage />} />
         <Route path="shipments/warehouse" element={<ShipmentsListPage preset="warehouse" />} />
         <Route path="shipments/out-for-delivery" element={<ShipmentsListPage preset="out-for-delivery" />} />
         <Route path="shipments/rescheduled" element={<ShipmentsListPage preset="rescheduled" />} />
@@ -136,6 +141,7 @@ export function AppRoutes() {
         <Route path="finance/collections" element={<CourierCollectionsPage />} />
         <Route path="accounting/journal-entries" element={<JournalEntriesPage />} />
         <Route path="accounting/trial-balance" element={<TrialBalancePage />} />
+        <Route path="reports" element={<ExecutiveReportsPage />} />
         <Route path="portal/dashboard" element={<ClientPortalDashboardPage />} />
         <Route path="portal/pickups" element={<ClientPortalPickupPage />} />
         <Route path="portal/finance" element={<ClientPortalFinancePage />} />

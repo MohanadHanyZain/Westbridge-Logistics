@@ -1,4 +1,17 @@
+
+phase16_api_tokens_webhooks_isolation.sql
 سجل التغييرات (CHANGELOG)
+[المرحلة 16] - 2026-11-22
+المضاف
+اعتماد القرار ADR-024 (رموز API المجزأة بـ SHA-256 مع عرض السر مرة واحدة وتقييد الباقة والنطاق، ونقاط Webhooks العامة بتوقيع HMAC-SHA256 وحماية العناوين الداخلية، وبوابة REST الخارجية public-api-v1).
+إنشاء Migration supabase/migrations/0017_phase16_api_tokens_webhooks.sql:
+إضافة صلاحيات api_tokens.read, api_tokens.revoke, وwebhooks.manage وتحديث الصلاحيات الافتراضية للمالك والأدمن وصاحب حساب التاجر.
+جداول api_tokens, webhook_endpoints, webhook_deliveries, api_request_logs, والجدول المعزول app_private.webhook_secrets المحمية بـ FORCE ROW LEVEL SECURITY والقيود المركبة.
+مشغل trg_shipment_status_event_webhook لجدولة إشعارات shipment.created وshipment.status_changed تلقائيًا في طابور webhook_deliveries مع التحقق من عناوين HTTPS العامة.
+دوال خادمية ذرية: get_integrations_overview, create_api_token, revoke_api_token, upsert_webhook_endpoint, rotate_webhook_secret, delete_webhook_endpoint, trigger_test_webhook_event, ودوال التكامل الخادمية المحمية لـ service_role: srv_authenticate_api_token, srv_api_create_shipment, srv_record_api_request_log, srv_claim_pending_webhook_deliveries, وsrv_complete_webhook_delivery.
+إنشاء اختبار العزل والتحقق supabase/tests/rls/phase16_api_tokens_webhooks_isolation.sql.
+إنشاء دالة Edge Function supabase/functions/public-api-v1/index.ts لإنشاء واستعراض الشحنات والتتبع وإرسال Webhooks الموقعة.
+إضافة شاشة رموز API والتكاملات وWebhooks (ApiIntegrationsPage) لإدارة الشركة وبوابة التاجر مع اختبارات src/tests/phase16.test.tsx.
 [المرحلة 15] - 2026-11-22
 المضاف
 اعتماد القرار ADR-023 (باقات الاشتراكات وحدود السعة الخادمية، النطاقات الفرعية والمخصصة بتوثيق DNS TXT، وجلسات دخول الدعم الفني المؤقتة والمسببة والمراقبة).

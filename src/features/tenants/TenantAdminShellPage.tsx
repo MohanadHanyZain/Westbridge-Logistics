@@ -47,6 +47,7 @@ import {
   UserPlus,
   Users,
   Wallet,
+  Webhook,
   X,
 } from 'lucide-react';
 
@@ -182,6 +183,7 @@ export function TenantAdminShellPage() {
       icon: Bell,
       end: true,
     },
+    {to: `${basePath}/security/integrations`, label: 'رموز API والتكاملات', icon: Webhook, end: true},
   ];
 
   const shipmentLinks = [
@@ -209,6 +211,7 @@ export function TenantAdminShellPage() {
     {to: `${basePath}/security/users`, label: 'المستخدمون', icon: UserCog, end: false},
     {to: `${basePath}/security/roles`, label: 'الأدوار والصلاحيات', icon: KeyRound, end: false},
     {to: `${basePath}/security/sessions`, label: 'سجل الدخول والجلسات', icon: Activity, end: false},
+    {to: `${basePath}/security/integrations`, label: 'رموز API والتكاملات', icon: Webhook, end: false},
   ];
 
   const courierLinks = [

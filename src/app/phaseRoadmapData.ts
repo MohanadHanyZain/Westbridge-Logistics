@@ -110,14 +110,14 @@ export const ROADMAP_PHASES: readonly RoadmapPhase[] = [
     phaseNumber: 15,
     title: 'المنصة المركزية والاشتراكات والنطاقات',
     summary: 'إدارة شركات الشحن، الباقات والحدود الخادمية، النطاقات الفرعية والمخصصة، ودخول الدعم المسبب.',
-    status: PhaseStatus.READY_FOR_OWNER_REVIEW,
+    status: PhaseStatus.APPROVED,
     hasOpenDecisions: false,
   },
   {
     phaseNumber: 16,
     title: 'API Tokens والتكاملات وWebhooks',
-    summary: 'توليد رموز API للعملاء والربط الخارجي المستقبلي مع المتاجر.',
-    status: PhaseStatus.PENDING,
+    summary: 'رموز API مجزأة بصلاحيات ونطاقات، Webhooks موقعة بـ HMAC-SHA256، بوابة REST خارجية، وسجل التسليم والطلبات.',
+    status: PhaseStatus.READY_FOR_OWNER_REVIEW,
     hasOpenDecisions: false,
   },
   {
@@ -240,6 +240,11 @@ export const APPROVED_DECISIONS: readonly ApprovedDecisionSummary[] = [
     code: 'ADR-023',
     title: 'المنصة المركزية والباقات والحدود والنطاقات ودخول الدعم المراقب',
     decision: 'فرض حدود السعة خادميًا عبر الباقات (STARTER/GROWTH/ENTERPRISE) والاستثناءات، نطاق فرعي تلقائي ونطاق مخصص بتحدي DNS TXT، وحصر دخول الدعم التشخيصي في جلسات مؤقتة مسببة وموثقة.',
+  },
+  {
+    code: 'ADR-024',
+    title: 'رموز API والتكاملات الخارجية وWebhooks الموقعة',
+    decision: 'حفظ تجزئة SHA-256 لرموز sf_live_* وعرض السر مرة واحدة، تقييدها بـ allow_api_access ونطاق التاجر/الشركة، وتوقيع Webhooks بـ HMAC-SHA256 مع التحقق من عناوين HTTPS العامة ومنع العناوين الداخلية.',
   },
 ];
 
