@@ -1,4 +1,15 @@
 سجل التغييرات (CHANGELOG)
+[المرحلة 15] - 2026-11-22
+المضاف
+اعتماد القرار ADR-023 (باقات الاشتراكات وحدود السعة الخادمية، النطاقات الفرعية والمخصصة بتوثيق DNS TXT، وجلسات دخول الدعم الفني المؤقتة والمسببة والمراقبة).
+إنشاء Migration supabase/migrations/0016_phase15_platform_subscriptions_domains.sql:
+جداول subscription_plans (مع البذر القياسي لباقات STARTER, GROWTH, ENTERPRISE), tenant_subscriptions, وtenant_domains المحمية بـ FORCE ROW LEVEL SECURITY ومفاتيح التفرد.
+توسيع جدول platform_support_access لدعم أنماط الدخول (read_only, diagnostic_assist) وتوقيت آخر دخول last_entered_at.
+التزويد التلقائي لكل شركة جديدة بباقة STARTER تجريبية ونطاق فرعي رئيسي موثق ({slug}.shipflow.app) عبر المشغّل trg_tenants_phase15_defaults.
+فرض حدود السعة خادميًا عبر app_private.assert_tenant_quota ومشغلات BEFORE INSERT على الفروع والعضويات والمناديب وشحنات الشهر.
+دوال خادمية ذرية: list_subscription_plans, upsert_subscription_plan, assign_tenant_subscription, list_platform_tenants_directory, get_tenant_subscription_overview, list_tenant_domains, upsert_tenant_domain, verify_tenant_domain, delete_tenant_domain, resolve_tenant_by_domain, request_platform_support_access, revoke_platform_support_access, list_platform_support_sessions, وget_platform_tenant_support_snapshot.
+إنشاء اختبار العزل والتحقق supabase/tests/rls/phase15_platform_subscriptions_isolation.sql.
+ترقية لوحة المنصة المركزية (PlatformTenantsPage) لتشمل تبويبات الشركات والاشتراكات، الباقات والحدود، النطاقات المخصصة والفرعية، ودخول الدعم المسبب مع لوحة التشخيص المقيدة، وعرض تفاصيل الباقة والحدود والنطاقات وسجل زيارات الدعم لإدارة الشركة في TenantSettingsPage مع اختبارات src/tests/phase15.test.tsx.
 [المرحلة 14] - 2026-11-21
 المضاف
 اعتماد القرار ADR-022 (تتبع مواقع المندوبين الميداني أثناء المهام النشطة فقط بموافقة المندوب مع حفظ الدقة والمصدر، احتفاظ افتراضي 90 يومًا، وتكامل mapbox-gl بترتيب الإحداثيات [lng, lat] عبر VITE_MAPBOX_ACCESS_TOKEN).
