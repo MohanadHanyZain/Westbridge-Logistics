@@ -55,13 +55,10 @@ export function TenantAdminShellPage() {
   const {companySlug = ''} = useParams();
   const {memberships, profile, signOut} = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [defsExpanded, setDefsExpanded] = useState(true);
-  const [shipmentsExpanded, setShipmentsExpanded] = useState(true);
-  const [operationsExpanded, setOperationsExpanded] = useState(true);
-  const [clientsExpanded, setClientsExpanded] = useState(true);
-  const [couriersExpanded, setCouriersExpanded] = useState(true);
-  const [financeExpanded, setFinanceExpanded] = useState(true);
-  const [securityExpanded, setSecurityExpanded] = useState(true);
+  const [openSection, setOpenSection] = useState<string | null>(null);
+  const [locale, setLocale] = useState<'ar' | 'en'>(
+    typeof localStorage !== 'undefined' && localStorage.getItem('shipflow_locale') === 'en' ? 'en' : 'ar',
+  );
   const [permBundle, setPermBundle] = useState<MyTenantPermissionsBundle>({
     client_id: null,
     branch_ids: [],
@@ -109,6 +106,18 @@ export function TenantAdminShellPage() {
 
   const roleKey = activeMembership?.role_key ?? '';
   const isAdmin = roleKey === 'company_owner' || roleKey === 'company_admin';
+
+  const toggleSection = (section: string) => {
+    setOpenSection((current) => current === section ? null : section);
+  };
+
+  const changeLocale = (nextLocale: 'ar' | 'en') => {
+    setLocale(nextLocale);
+    localStorage.setItem('shipflow_locale', nextLocale);
+    document.documentElement.dir = nextLocale === 'ar' ? 'rtl' : 'ltr';
+    document.documentElement.lang = nextLocale;
+    window.dispatchEvent(new Event('shipflow-language-change'));
+  };
 
   const can = useCallback(
     (permissionKey: string, branchId?: string | null) => {
@@ -301,16 +310,16 @@ export function TenantAdminShellPage() {
           <div className="pt-2">
             <button
               type="button"
-              onClick={() => setDefsExpanded((prev) => !prev)}
+              onClick={() => toggleSection('definitions')}
               className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-900"
             >
               <span>التعريفات الأساسية</span>
               <ChevronDown
-                className={`h-3.5 w-3.5 transition-transform ${defsExpanded ? 'rotate-180' : ''}`}
+                className={`h-3.5 w-3.5 transition-transform ${openSection === 'definitions' ? 'rotate-180' : ''}`}
               />
             </button>
 
-            {defsExpanded && (
+            {openSection === 'definitions' && (
               <div className="mt-1 space-y-0.5 pr-1">
                 {definitionLinks.map((item) => {
                   const Icon = item.icon;
@@ -339,16 +348,16 @@ export function TenantAdminShellPage() {
           <div className="pt-2">
             <button
               type="button"
-              onClick={() => setShipmentsExpanded((prev) => !prev)}
+              onClick={() => toggleSection('shipments')}
               className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-900"
             >
               <span>الشحنات</span>
               <ChevronDown
-                className={`h-3.5 w-3.5 transition-transform ${shipmentsExpanded ? 'rotate-180' : ''}`}
+                className={`h-3.5 w-3.5 transition-transform ${openSection === 'shipments' ? 'rotate-180' : ''}`}
               />
             </button>
 
-            {shipmentsExpanded && (
+            {openSection === 'shipments' && (
               <div className="mt-1 space-y-0.5 pr-1">
                 {shipmentLinks.map((item) => {
                   const Icon = item.icon;
@@ -378,16 +387,16 @@ export function TenantAdminShellPage() {
           <div className="pt-2">
             <button
               type="button"
-              onClick={() => setOperationsExpanded((prev) => !prev)}
+              onClick={() => toggleSection('operations')}
               className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-900"
             >
               <span>العمليات اليومية</span>
               <ChevronDown
-                className={`h-3.5 w-3.5 transition-transform ${operationsExpanded ? 'rotate-180' : ''}`}
+                className={`h-3.5 w-3.5 transition-transform ${openSection === 'operations' ? 'rotate-180' : ''}`}
               />
             </button>
 
-            {operationsExpanded && (
+            {openSection === 'operations' && (
               <div className="mt-1 space-y-0.5 pr-1">
                 {operationLinks.map((item) => {
                   const Icon = item.icon;
@@ -417,16 +426,16 @@ export function TenantAdminShellPage() {
           <div className="pt-2">
             <button
               type="button"
-              onClick={() => setClientsExpanded((prev) => !prev)}
+              onClick={() => toggleSection('clients')}
               className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-900"
             >
               <span>العملاء</span>
               <ChevronDown
-                className={`h-3.5 w-3.5 transition-transform ${clientsExpanded ? 'rotate-180' : ''}`}
+                className={`h-3.5 w-3.5 transition-transform ${openSection === 'clients' ? 'rotate-180' : ''}`}
               />
             </button>
 
-            {clientsExpanded && (
+            {openSection === 'clients' && (
               <div className="mt-1 space-y-0.5 pr-1">
                 {clientLinks.map((item) => {
                   const Icon = item.icon;
@@ -456,7 +465,7 @@ export function TenantAdminShellPage() {
           <div className="pt-2">
             <button
               type="button"
-              onClick={() => setCouriersExpanded((prev) => !prev)}
+              onClick={() => toggleSection('couriers')}
               className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-900"
             >
               <span className="inline-flex items-center gap-1.5">
@@ -464,11 +473,11 @@ export function TenantAdminShellPage() {
                 <span>مندوبو التوصيل</span>
               </span>
               <ChevronDown
-                className={`h-3.5 w-3.5 transition-transform ${couriersExpanded ? 'rotate-180' : ''}`}
+                className={`h-3.5 w-3.5 transition-transform ${openSection === 'couriers' ? 'rotate-180' : ''}`}
               />
             </button>
 
-            {couriersExpanded && (
+            {openSection === 'couriers' && (
               <div className="mt-1 space-y-0.5 pr-1">
                 {courierLinks.map((item) => {
                   const Icon = item.icon;
@@ -498,7 +507,7 @@ export function TenantAdminShellPage() {
           <div className="pt-2">
             <button
               type="button"
-              onClick={() => setFinanceExpanded((prev) => !prev)}
+              onClick={() => toggleSection('finance')}
               className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-900"
             >
               <span className="inline-flex items-center gap-1.5">
@@ -506,11 +515,11 @@ export function TenantAdminShellPage() {
                 <span>المالية والخزائن</span>
               </span>
               <ChevronDown
-                className={`h-3.5 w-3.5 transition-transform ${financeExpanded ? 'rotate-180' : ''}`}
+                className={`h-3.5 w-3.5 transition-transform ${openSection === 'finance' ? 'rotate-180' : ''}`}
               />
             </button>
 
-            {financeExpanded && (
+            {openSection === 'finance' && (
               <div className="mt-1 space-y-0.5 pr-1">
                 {financeLinks.map((item) => {
                   const Icon = item.icon;
@@ -538,38 +547,46 @@ export function TenantAdminShellPage() {
           </div>
 
           <div className="pt-2">
-            <div className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-400">
-              <span>الحسابات العامة والتقارير</span>
-            </div>
-            <div className="mt-1 space-y-0.5 pr-1">
-              {accountingLinks.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    end={item.end}
-                    onClick={() => setSidebarOpen(false)}
-                    className={({isActive}) =>
-                      `flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
-                        isActive
-                          ? 'bg-slate-900 text-white'
-                          : 'text-slate-700 hover:bg-slate-100'
-                      }`
-                    }
-                  >
-                    <Icon className="h-3.5 w-3.5 shrink-0" />
-                    <span>{item.label}</span>
-                  </NavLink>
-                );
-              })}
-            </div>
+            <button
+              type="button"
+              onClick={() => toggleSection('accounting')}
+              className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <Scale className="h-3.5 w-3.5 shrink-0" />
+                <span>الحسابات العامة والتقارير</span>
+              </span>
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${openSection === 'accounting' ? 'rotate-180' : ''}`} />
+            </button>
+            {openSection === 'accounting' && (
+              <div className="mt-1 space-y-0.5 pr-1">
+                {accountingLinks.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      end={item.end}
+                      onClick={() => setSidebarOpen(false)}
+                      className={({isActive}) =>
+                        `flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
+                          isActive ? 'bg-[#ef6a47] text-white shadow-sm' : 'text-slate-700 hover:bg-orange-50 hover:text-[#d95537]'
+                        }`
+                      }
+                    >
+                      <Icon className="h-4 w-4 shrink-0" />
+                      <span>{item.label}</span>
+                    </NavLink>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           <div className="pt-2">
             <button
               type="button"
-              onClick={() => setSecurityExpanded((prev) => !prev)}
+              onClick={() => toggleSection('security')}
               className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-900"
             >
               <span className="inline-flex items-center gap-1.5">
@@ -577,11 +594,11 @@ export function TenantAdminShellPage() {
                 <span>الأمان</span>
               </span>
               <ChevronDown
-                className={`h-3.5 w-3.5 transition-transform ${securityExpanded ? 'rotate-180' : ''}`}
+                className={`h-3.5 w-3.5 transition-transform ${openSection === 'security' ? 'rotate-180' : ''}`}
               />
             </button>
 
-            {securityExpanded && (
+            {openSection === 'security' && (
               <div className="mt-1 space-y-0.5 pr-1">
                 {securityLinks.map((item) => {
                   const Icon = item.icon;
@@ -609,43 +626,58 @@ export function TenantAdminShellPage() {
           </div>
 
           <div className="pt-2">
-            <div className="rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-400">
-              <span>الرسائل والإعدادات</span>
-            </div>
-            <div className="mt-1 space-y-0.5 pr-1">
-              {messagingSettingsLinks.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    end={item.end}
-                    onClick={() => setSidebarOpen(false)}
-                    className={({isActive}) =>
-                      `flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
-                        isActive
-                          ? 'bg-slate-900 text-white'
-                          : 'text-slate-700 hover:bg-slate-100'
-                      }`
-                    }
-                  >
-                    <Icon className="h-3.5 w-3.5 shrink-0" />
-                    <span>{item.label}</span>
-                  </NavLink>
-                );
-              })}
-            </div>
+            <button
+              type="button"
+              onClick={() => toggleSection('messages')}
+              className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+            >
+              <span className="inline-flex items-center gap-1.5">
+                <MessageSquare className="h-3.5 w-3.5 shrink-0" />
+                <span>الرسائل والإعدادات</span>
+              </span>
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${openSection === 'messages' ? 'rotate-180' : ''}`} />
+            </button>
+            {openSection === 'messages' && (
+              <div className="mt-1 space-y-0.5 pr-1">
+                {messagingSettingsLinks.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      end={item.end}
+                      onClick={() => setSidebarOpen(false)}
+                      className={({isActive}) =>
+                        `flex items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-medium transition-colors ${
+                          isActive ? 'bg-[#ef6a47] text-white shadow-sm' : 'text-slate-700 hover:bg-orange-50 hover:text-[#d95537]'
+                        }`
+                      }
+                    >
+                      <Icon className="h-4 w-4 shrink-0" />
+                      <span>{item.label}</span>
+                    </NavLink>
+                  );
+                })}
+              </div>
+            )}
           </div>
             </>
           )}
         </nav>
       </div>
 
-      <div className="border-t border-slate-200 p-4 text-xs">
-        <p className="font-semibold text-slate-900">{profile?.display_name ?? activeMembership.username}</p>
-        <p className="mt-0.5 font-mono-tabular text-slate-500">
-          {activeMembership.username} · {activeMembership.role_key}
-        </p>
+      <div className="border-t border-slate-200 p-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full brand-gradient text-sm font-extrabold text-white shadow-sm">
+            {(profile?.display_name ?? activeMembership.username).trim().charAt(0).toUpperCase()}
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-bold text-slate-900">{profile?.display_name ?? activeMembership.username}</p>
+            <p className="mt-0.5 truncate text-xs font-medium text-slate-500">
+              {activeMembership.account_subject_type} · {activeMembership.role_key}
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -654,7 +686,7 @@ export function TenantAdminShellPage() {
     <TenantWorkspaceProvider value={workspaceValue}>
       <div className="flex min-h-screen bg-slate-50 text-slate-900">
         {/* Desktop Sidebar */}
-        <aside className="hidden w-64 shrink-0 border-l border-slate-200 bg-white lg:block print:hidden">
+        <aside className="sticky top-0 hidden h-screen w-64 shrink-0 border-l border-slate-200 bg-white lg:block print:hidden">
           {renderSidebarContent()}
         </aside>
 
@@ -673,8 +705,8 @@ export function TenantAdminShellPage() {
 
         <div className="flex min-w-0 flex-1 flex-col">
           {/* Top Bar Contract: Single row, 3 zones */}
-          <header className="border-b border-slate-200 bg-white print:hidden">
-            <div className="flex items-center justify-between gap-4 px-6 py-3.5">
+          <header className="sticky top-0 z-30 border-b border-slate-200/90 bg-white/95 print:hidden backdrop-blur">
+            <div className="flex h-16 items-center justify-between gap-3 px-4 sm:px-6">
               <div className="flex items-center gap-3">
                 <button
                   type="button"
@@ -705,6 +737,31 @@ export function TenantAdminShellPage() {
                 </Link>
               </div>
 
+              <div className="ml-auto flex items-center rounded-xl border border-slate-200 bg-slate-50 p-1" aria-label="اختيار اللغة">
+                <button
+                  type="button"
+                  onClick={() => changeLocale('ar')}
+                  aria-label="العربية"
+                  className={`flex h-8 items-center gap-1.5 rounded-lg px-2 text-xs font-bold ${
+                    locale === 'ar' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  <span aria-hidden="true">🇪🇬</span>
+                  <span className="hidden sm:inline">العربية</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => changeLocale('en')}
+                  aria-label="English"
+                  className={`flex h-8 items-center gap-1.5 rounded-lg px-2 text-xs font-bold ${
+                    locale === 'en' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  <span aria-hidden="true">🇺🇸</span>
+                  <span className="hidden sm:inline">English</span>
+                </button>
+              </div>
+
               <button
                 type="button"
                 onClick={() => void signOut()}
@@ -716,7 +773,7 @@ export function TenantAdminShellPage() {
             </div>
           </header>
 
-          <main className="mx-auto w-full max-w-7xl flex-1 px-6 py-6">
+          <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-4 sm:px-6 sm:py-6">
             <Outlet />
           </main>
         </div>

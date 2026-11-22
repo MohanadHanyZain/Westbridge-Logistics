@@ -1,345 +1,193 @@
-import {useEffect, useState, type FormEvent} from 'react';
+import {useEffect, useState} from 'react';
 import {Link} from 'react-router-dom';
 import {buildTenantBasePath} from '@/config/brand';
 import {ClientPortalDashboardPage} from '@/features/clients/ClientPortalDashboardPage';
-import {fetchPhase2SummaryCounts} from '@/features/definitions/definitionsService';
 import {getExecutiveOperationsReport} from '@/features/reports/reportsService';
 import {fetchShipmentDashboardCounts} from '@/features/shipments/shipmentsService';
 import {useTenantWorkspace} from '@/features/tenants/TenantWorkspaceContext';
-import {updateMyCredentials, useAuth} from '@/lib/auth';
-import {isValidUsername} from '@/lib/formatters';
 import {AccountSubjectType} from '@/types/common';
-import type {Phase2SummaryCounts} from '@/types/definitions';
 import type {ShipmentDashboardCounts} from '@/types/shipments';
-import {
-  AlertCircle,
-  Building,
-  MapPinned,
-  Package,
-  PackageCheck,
-  ShieldCheck,
-  Truck,
-  Wallet,
-} from 'lucide-react';
+import {AlertCircle, ArrowLeft, Package, PackageCheck, Truck} from 'lucide-react';
+import {Skeleton} from '@/components/ui/Skeleton';
+
+const cardStyles = [
+  {icon: 'text-orange-600', surface: 'bg-orange-50/80 border-orange-100'},
+  {icon: 'text-sky-600', surface: 'bg-sky-50/80 border-sky-100'},
+  {icon: 'text-violet-600', surface: 'bg-violet-50/80 border-violet-100'},
+  {icon: 'text-emerald-600', surface: 'bg-emerald-50/80 border-emerald-100'},
+  {icon: 'text-rose-600', surface: 'bg-rose-50/80 border-rose-100'},
+] as const;
 
 export function TenantOverviewPage() {
   const {membership} = useTenantWorkspace();
-
   if (membership.account_subject_type === AccountSubjectType.CLIENT) {
     return <ClientPortalDashboardPage />;
   }
-
   return <StaffTenantOverviewInner />;
 }
 
 function StaffTenantOverviewInner() {
-  const {tenant, membership} = useTenantWorkspace();
-  const {profile, refreshContext} = useAuth();
+  const {tenant} = useTenantWorkspace();
   const basePath = `${buildTenantBasePath(tenant.slug)}/app`;
-
-  const [counts, setCounts] = useState<Phase2SummaryCounts | null>(null);
   const [shipmentCounts, setShipmentCounts] = useState<ShipmentDashboardCounts | null>(null);
+  const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<'all' | '7d' | '30d'>('all');
-  const [newUsername, setNewUsername] = useState(membership.username);
-  const [newPassword, setNewPassword] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [feedback, setFeedback] = useState<{type: 'error' | 'success'; text: string} | null>(null);
 
   useEffect(() => {
     let active = true;
-    fetchPhase2SummaryCounts(tenant.id)
+    setLoading(true);
+
+    const load = period === 'all'
+      ? fetchShipmentDashboardCounts(tenant.id)
+      : (() => {
+          const days = period === '7d' ? 7 : 30;
+          const dateTo = new Date();
+          const dateFrom = new Date();
+          dateFrom.setDate(dateTo.getDate() - days);
+          return getExecutiveOperationsReport({
+            tenantId: tenant.id,
+            dateFrom: dateFrom.toISOString().slice(0, 10),
+            dateTo: dateTo.toISOString().slice(0, 10),
+          }).then((report) => ({
+            totalCount: report.kpis.total_shipments,
+            inWarehouseCount: report.kpis.in_warehouse_count,
+            outForDeliveryCount: report.kpis.out_for_delivery_count,
+            deliveredCount: report.kpis.delivered_count + report.kpis.partially_delivered_count,
+            returnsCount: report.kpis.returned_count + report.kpis.delivery_failed_count,
+          }));
+        })();
+
+    load
       .then((res) => {
-        if (active) setCounts(res);
+        if (active) setShipmentCounts(res);
       })
       .catch(() => {
-        if (active) setCounts(null);
+        if (active) setShipmentCounts(null);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
       });
-    return () => {
-      active = false;
-    };
-  }, [tenant.id]);
 
-  useEffect(() => {
-    let active = true;
-    if (period === 'all') {
-      fetchShipmentDashboardCounts(tenant.id)
-        .then((res) => {
-          if (active) setShipmentCounts(res);
-        })
-        .catch(() => {
-          if (active) setShipmentCounts(null);
-        });
-    } else {
-      const days = period === '7d' ? 7 : 30;
-      const fromDt = new Date();
-      fromDt.setDate(fromDt.getDate() - days);
-      const dateFrom = fromDt.toISOString().slice(0, 10);
-      const dateTo = new Date().toISOString().slice(0, 10);
-      getExecutiveOperationsReport({tenantId: tenant.id, dateFrom, dateTo})
-        .then((rep) => {
-          if (!active) return;
-          setShipmentCounts({
-            totalCount: rep.kpis.total_shipments,
-            inWarehouseCount: rep.kpis.in_warehouse_count,
-            outForDeliveryCount: rep.kpis.out_for_delivery_count,
-            deliveredCount: rep.kpis.delivered_count + rep.kpis.partially_delivered_count,
-            returnsCount: rep.kpis.returned_count + rep.kpis.delivery_failed_count,
-          });
-        })
-        .catch(() => {
-          if (active) setShipmentCounts(null);
-        });
-    }
     return () => {
       active = false;
     };
   }, [tenant.id, period]);
 
-  const handleCredentialsSubmit = async (event: FormEvent) => {
-    event.preventDefault();
-    setFeedback(null);
-
-    if (newUsername && !isValidUsername(newUsername)) {
-      setFeedback({type: 'error', text: 'صيغة اسم المستخدم غير صالحة (3–32 حرفًا إنجليزيًا/رقميًا).'});
-      return;
-    }
-
-    if (newPassword && newPassword.length < 8) {
-      setFeedback({type: 'error', text: 'كلمة المرور يجب أن لا تقل عن 8 أحرف.'});
-      return;
-    }
-
-    setSaving(true);
-    try {
-      await updateMyCredentials({
-        tenantId: tenant.id,
-        newUsername: newUsername !== membership.username ? newUsername : undefined,
-        newPassword: newPassword || undefined,
-      });
-      setNewPassword('');
-      await refreshContext();
-      setFeedback({type: 'success', text: 'تم تحديث بيانات الحساب بنجاح.'});
-    } catch (err) {
-      setFeedback({
-        type: 'error',
-        text: err instanceof Error ? err.message : 'تعذر تحديث بيانات الحساب.',
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const summaryCards = [
-    {
-      label: 'الفروع النشطة',
-      value: counts?.branchesCount ?? '—',
-      to: `${basePath}/definitions/branches`,
-      icon: Building,
-    },
-    {
-      label: 'المحافظات المفعلة',
-      value: counts?.activeGovernoratesCount ?? '—',
-      to: `${basePath}/definitions/geography`,
-      icon: MapPinned,
-    },
-    {
-      label: 'المناطق المغطاة',
-      value: counts?.activeRegionsCount ?? '—',
-      to: `${basePath}/definitions/geography`,
-      icon: MapPinned,
-    },
-    {
-      label: 'خدمات الشحن',
-      value: counts?.activeServicesCount ?? '—',
-      to: `${basePath}/definitions/services`,
-      icon: PackageCheck,
-    },
-    {
-      label: 'الخزائن الفعالة',
-      value: counts?.activeCashboxesCount ?? '—',
-      to: `${basePath}/definitions/cashboxes`,
-      icon: Wallet,
-    },
-    {
-      label: 'أسباب التعذر والإرجاع',
-      value: counts?.activeExceptionReasonsCount ?? '—',
-      to: `${basePath}/definitions/exceptions`,
-      icon: AlertCircle,
-    },
+  const cards = [
+    {label: 'إجمالي الشحنات', value: shipmentCounts?.totalCount ?? 0, to: `${basePath}/shipments`, icon: Package},
+    {label: 'في المخزون', value: shipmentCounts?.inWarehouseCount ?? 0, to: `${basePath}/shipments/warehouse`, icon: PackageCheck},
+    {label: 'قيد التوصيل', value: shipmentCounts?.outForDeliveryCount ?? 0, to: `${basePath}/shipments/out-for-delivery`, icon: Truck},
+    {label: 'تم التسليم', value: shipmentCounts?.deliveredCount ?? 0, to: `${basePath}/shipments`, icon: PackageCheck},
+    {label: 'المرتجعات', value: shipmentCounts?.returnsCount ?? 0, to: `${basePath}/shipments/returns`, icon: AlertCircle},
   ];
 
+  const chartValues = [
+    cards[0].value,
+    cards[1].value,
+    cards[2].value,
+    cards[3].value,
+    cards[4].value,
+  ];
+  const maxChartValue = Math.max(1, ...chartValues);
+
   return (
-    <div className="space-y-6">
-      <section className="rounded-xl border border-slate-200 bg-white p-6">
-        <p className="text-xs font-medium text-slate-500">لوحة إدارة الشركة · {tenant.name}</p>
-        <h1 className="mt-1 text-xl font-bold text-slate-900">مرحبًا، {profile?.display_name}</h1>
-        <dl className="mt-4 grid grid-cols-1 gap-4 border-t border-slate-100 pt-4 text-sm sm:grid-cols-3">
-          <div>
-            <dt className="text-xs text-slate-500">اسم المستخدم</dt>
-            <dd className="mt-1 font-mono-tabular font-medium text-slate-900">{membership.username}</dd>
-          </div>
-          <div>
-            <dt className="text-xs text-slate-500">نوع الحساب / الدور</dt>
-            <dd className="mt-1 font-mono-tabular font-medium text-slate-900">
-              {membership.account_subject_type} · {membership.role_key}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-xs text-slate-500">كود الشركة</dt>
-            <dd className="mt-1 font-mono-tabular font-medium text-slate-900">{tenant.code}</dd>
-          </div>
-        </dl>
-      </section>
-
-      <section aria-label="ملخص الشحنات والتشغيل">
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-          <h2 className="text-sm font-semibold text-slate-900">مؤشرات حركة الشحنات</h2>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="inline-flex rounded-lg border border-slate-200 bg-white p-0.5" role="group" aria-label="نطاق المؤشرات الزمني">
-              {(
-                [
-                  {id: 'all', label: 'الكل'},
-                  {id: '7d', label: 'آخر 7 أيام'},
-                  {id: '30d', label: 'آخر 30 يومًا'},
-                ] as const
-              ).map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => setPeriod(p.id)}
-                  className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors whitespace-nowrap ${
-                    period === p.id
-                      ? 'bg-slate-900 text-white'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-            <Link
-              to={`${basePath}/reports`}
-              className="text-xs font-medium text-slate-700 underline underline-offset-4 hover:text-slate-900"
-            >
-              التقارير التنفيذية
-            </Link>
-            <Link
-              to={`${basePath}/shipments/new`}
-              className="text-xs font-medium text-slate-700 underline underline-offset-4 hover:text-slate-900"
-            >
-              + إنشاء شحنة جديدة
-            </Link>
-          </div>
+    <div className="space-y-5">
+      <section className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-xs font-medium text-slate-500">لوحة الإدارة</p>
+          <h1 className="mt-1 text-xl font-extrabold text-slate-900 sm:text-2xl">نظرة عامة على العمليات</h1>
         </div>
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
-          {[
-            {label: 'إجمالي الشحنات', value: shipmentCounts?.totalCount ?? '—', to: `${basePath}/shipments`, icon: Package},
-            {label: 'في المخزون', value: shipmentCounts?.inWarehouseCount ?? '—', to: `${basePath}/shipments/warehouse`, icon: PackageCheck},
-            {label: 'قيد التوصيل', value: shipmentCounts?.outForDeliveryCount ?? '—', to: `${basePath}/shipments/out-for-delivery`, icon: Truck},
-            {label: 'تم التسليم', value: shipmentCounts?.deliveredCount ?? '—', to: `${basePath}/shipments`, icon: PackageCheck},
-            {label: 'المرتجعات', value: shipmentCounts?.returnsCount ?? '—', to: `${basePath}/shipments/returns`, icon: AlertCircle},
-          ].map((card) => {
-            const Icon = card.icon;
-            return (
-              <Link
-                key={card.label}
-                to={card.to}
-                className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-4 transition-colors hover:border-slate-300 hover:bg-slate-50/50"
-              >
-                <div>
-                  <p className="text-xs font-medium text-slate-500">{card.label}</p>
-                  <p className="mt-1 font-mono-tabular text-xl font-bold text-slate-900">{card.value}</p>
-                </div>
-                <Icon className="h-4 w-4 text-slate-400" />
-              </Link>
-            );
-          })}
-        </div>
-      </section>
-
-      <section aria-label="ملخص التعريفات الأساسية">
-        <h2 className="mb-3 text-sm font-semibold text-slate-900">جاهزية التعريفات الأساسية للشركة</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {summaryCards.map((card) => {
-            const Icon = card.icon;
-            return (
-              <Link
-                key={card.label}
-                to={card.to}
-                className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-5 transition-colors hover:border-slate-300 hover:bg-slate-50/50"
-              >
-                <div>
-                  <p className="text-xs font-medium text-slate-500">{card.label}</p>
-                  <p className="mt-1.5 font-mono-tabular text-2xl font-bold text-slate-900">{card.value}</p>
-                </div>
-                <Icon className="h-5 w-5 text-slate-400" />
-              </Link>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="rounded-xl border border-slate-200 bg-white p-6">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="h-4 w-4 text-slate-700" />
-          <h2 className="text-base font-semibold text-slate-900">تحديث اسم المستخدم أو كلمة المرور</h2>
-        </div>
-        {membership.must_change_password && (
-          <p className="mt-2 text-xs font-medium text-amber-700">
-            يُرجى تعيين كلمة مرور شخصية جديدة لاستكمال تفعيل حسابك.
-          </p>
-        )}
-
-        <form onSubmit={handleCredentialsSubmit} className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-          <div>
-            <label htmlFor="update-username" className="block text-xs font-medium text-slate-700">
-              اسم المستخدم الجديد (اختياري)
-            </label>
-            <input
-              id="update-username"
-              type="text"
-              dir="ltr"
-              value={newUsername}
-              onChange={(e) => setNewUsername(e.target.value.toLowerCase())}
-              className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2 font-mono-tabular text-sm focus:border-slate-400 focus:outline-none"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="update-password" className="block text-xs font-medium text-slate-700">
-              كلمة المرور الجديدة (8 أحرف على الأقل)
-            </label>
-            <input
-              id="update-password"
-              type="password"
-              dir="ltr"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="اتركه فارغًا إن لم ترغب بالتغيير"
-              className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-            />
-          </div>
-
-          <div className="md:col-span-2">
+        <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1" role="group" aria-label="نطاق المؤشرات الزمني">
+          {([
+            ['all', 'الكل'],
+            ['7d', '7 أيام'],
+            ['30d', '30 يومًا'],
+          ] as const).map(([id, label]) => (
             <button
-              type="submit"
-              disabled={saving}
-              className="rounded-lg bg-slate-900 px-5 py-2 text-xs font-medium text-white hover:bg-slate-800 disabled:opacity-60"
+              key={id}
+              type="button"
+              onClick={() => setPeriod(id)}
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${
+                period === id
+                  ? 'brand-gradient text-white shadow-sm'
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+              }`}
             >
-              {saving ? 'جاري الحفظ...' : 'حفظ التعديلات'}
+              {label}
             </button>
-          </div>
-        </form>
+          ))}
+        </div>
+      </section>
 
-        {feedback && (
-          <p
-            role="status"
-            className={`mt-3 text-xs font-medium ${
-              feedback.type === 'error' ? 'text-red-700' : 'text-emerald-700'
-            }`}
-          >
-            {feedback.text}
-          </p>
+      <section aria-label="مؤشرات حركة الشحنات" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        {cards.map((card, index) => {
+          const Icon = card.icon;
+          const style = cardStyles[index];
+          return (
+            <Link
+              key={card.label}
+              to={card.to}
+              className={`group min-h-28 rounded-2xl border p-4 ${style.surface} hover:-translate-y-0.5 hover:shadow-sm`}
+            >
+              {loading ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-9 w-9 rounded-xl" />
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-6 w-16" />
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-start justify-between">
+                    <span className={`flex h-9 w-9 items-center justify-center rounded-xl bg-white/80 shadow-sm ${style.icon}`}>
+                      <Icon className="h-5 w-5" />
+                    </span>
+                    <ArrowLeft className="h-4 w-4 text-slate-300 transition-transform group-hover:-translate-x-1" />
+                  </div>
+                  <p className="mt-3 text-xs font-medium text-slate-500">{card.label}</p>
+                  <p className="mt-1 font-mono-tabular text-2xl font-extrabold text-slate-900">{card.value.toLocaleString('ar-EG')}</p>
+                </>
+              )}
+            </Link>
+          );
+        })}
+      </section>
+
+      <section className="surface-card rounded-2xl p-4 sm:p-5" aria-label="رسم حركة الشحنات">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm font-bold text-slate-900">حركة الشحنات</p>
+            <p className="mt-1 text-xs text-slate-500">توزيع مؤشرات العمليات للفترة المحددة</p>
+          </div>
+          <Link to={`${basePath}/reports`} className="text-xs font-bold text-[#d95537] hover:text-[#b94329]">
+            عرض التقرير
+          </Link>
+        </div>
+
+        {loading ? (
+          <div className="mt-6 flex h-52 items-end gap-3">
+            {[45, 72, 58, 84, 38].map((height, index) => (
+              <Skeleton key={index} className="flex-1 rounded-t-xl" style={{height: `${height}%`}} />
+            ))}
+          </div>
+        ) : (
+          <div className="mt-6 flex h-52 items-end gap-2 sm:gap-4" dir="ltr">
+            {cards.map((card, index) => {
+              const height = Math.max(8, (chartValues[index] / maxChartValue) * 100);
+              const colors = ['bg-orange-400', 'bg-sky-400', 'bg-violet-400', 'bg-emerald-400', 'bg-rose-400'];
+              return (
+                <div key={card.label} className="flex h-full min-w-0 flex-1 flex-col justify-end text-center">
+                  <div
+                    className={`mx-auto w-full max-w-14 rounded-t-xl ${colors[index]} transition-all duration-500`}
+                    style={{height: `${height}%`}}
+                    title={`${card.label}: ${card.value}`}
+                  />
+                  <p className="mt-2 truncate text-[10px] font-medium text-slate-500 sm:text-xs" dir="rtl">
+                    {card.label}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
         )}
       </section>
     </div>

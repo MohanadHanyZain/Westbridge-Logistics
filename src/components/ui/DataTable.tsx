@@ -1,5 +1,7 @@
 import {useMemo, useState, type ReactNode} from 'react';
 import {ChevronLeft, ChevronRight} from 'lucide-react';
+import {EmptyState} from '@/components/ui/EmptyState';
+import {Skeleton} from '@/components/ui/Skeleton';
 
 export interface DataTableColumn<T> {
   readonly key: string;
@@ -60,15 +62,21 @@ export function DataTable<T>({
           </thead>
           <tbody className="divide-y divide-slate-100">
             {loading ? (
-              <tr>
-                <td colSpan={columns.length} className="px-4 py-8 text-center text-sm text-slate-500">
-                  جاري تحميل البيانات...
-                </td>
-              </tr>
+            <>
+              {[0, 1, 2, 3, 4].map((row) => (
+                <tr key={row}>
+                  {columns.map((col) => (
+                    <td key={col.key} className="px-4 py-4">
+                      <Skeleton className="h-4 w-full max-w-40" />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </>
             ) : pagedRows.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="px-4 py-10 text-center text-sm text-slate-500">
-                  {emptyMessage}
+              <td colSpan={columns.length}>
+                <EmptyState title={emptyMessage} />
                 </td>
               </tr>
             ) : (

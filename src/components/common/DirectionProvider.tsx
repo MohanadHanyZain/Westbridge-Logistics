@@ -1,4 +1,4 @@
-import {useEffect, type ReactNode} from 'react';
+import {useEffect, useState, type ReactNode} from 'react';
 import {BRAND_CONFIG} from '@/config/brand';
 
 interface DirectionProviderProps {
@@ -6,14 +6,26 @@ interface DirectionProviderProps {
 }
 
 export function DirectionProvider({children}: DirectionProviderProps) {
+  const [locale, setLocale] = useState<'ar' | 'en'>(
+    typeof localStorage !== 'undefined' && localStorage.getItem('shipflow_locale') === 'en' ? 'en' : 'ar',
+  );
+
   useEffect(() => {
-    document.documentElement.dir = BRAND_CONFIG.defaultDirection;
-    document.documentElement.lang = BRAND_CONFIG.defaultLanguage;
-    document.title = `${BRAND_CONFIG.appName} | منصة إدارة شركات الشحن والتوصيل`;
+    const locale = localStorage.getItem('shipflow_locale') === 'en' ? 'en' : 'ar';
+    document.documentElement.dir = locale === 'ar' ? 'rtl' : 'ltr';
+    document.documentElement.lang = locale === 'ar' ? 'ar' : 'en';
+    document.title = `${BRAND_CONFIG.appName} | منصة إدارة عمليات الشحن`;
+
+    const syncLocale = () => {
+      setLocale(localStorage.getItem('shipflow_locale') === 'en' ? 'en' : 'ar');
+    };
+    window.addEventListener('shipflow-language-change', syncLocale);
+    return () => window.removeEventListener('shipflow-language-change', syncLocale);
   }, []);
 
+  const dir = locale === 'ar' ? 'rtl' : 'ltr';
   return (
-    <div dir={BRAND_CONFIG.defaultDirection} lang={BRAND_CONFIG.defaultLanguage} className="min-h-screen">
+    <div dir={dir} lang={locale} className="min-h-screen">
       {children}
     </div>
   );

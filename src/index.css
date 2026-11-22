@@ -1,10 +1,14 @@
 @import "tailwindcss";
+@import url("https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap");
 
 @layer base {
   :root {
-    --font-display: "Cairo", "IBM Plex Sans Arabic", system-ui, sans-serif;
-    --font-sans: "IBM Plex Sans Arabic", "Cairo", system-ui, sans-serif;
-    --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --brand: #ef6a47;
+    --brand-dark: #cf4f31;
+    --brand-soft: #fff1ec;
+    --font-display: "Cairo", system-ui, sans-serif;
+    --font-sans: "Cairo", system-ui, sans-serif;
+    --font-mono: "Cairo", ui-monospace, monospace;
   }
 
   html {
@@ -15,14 +19,23 @@
   }
 
   body {
-    background-color: #f8fafc;
-    color: #0f172a;
+    background-color: #f7f8fa;
+    color: #1f2937;
+    font-family: var(--font-sans);
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 
   h1, h2, h3, h4 {
     font-family: var(--font-display);
     text-wrap: balance;
+  }
+
+  button, a, input, select, textarea {
+    font-family: inherit;
+  }
+
+  button, [role="button"], a {
+    transition: color 160ms ease, background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
   }
 }
 
@@ -33,4 +46,50 @@
 .font-mono-tabular {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
+}
+
+.brand-gradient {
+  background: linear-gradient(135deg, #ef6a47 0%, #d95537 100%);
+}
+
+.brand-card {
+  border: 1px solid rgba(239, 106, 71, 0.12);
+  background: linear-gradient(145deg, rgba(255, 241, 236, 0.92), rgba(255, 255, 255, 0.96));
+}
+
+.surface-card {
+  border: 1px solid #e9eaed;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.025);
+}
+
+.safe-mobile-table {
+  display: block;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+[aria-current="page"] {
+  --nav-active-bg: #ef6a47;
+}
+
+nav [aria-current="page"] {
+  background: #ef6a47 !important;
+  color: #fff !important;
+  box-shadow: 0 1px 2px rgba(207, 79, 49, 0.12);
+}
+
+.bg-slate-900,
+.hover\:bg-slate-900:hover {
+  background-color: #ef6a47 !important;
+}
+
+.hover\:bg-slate-800:hover {
+  background-color: #d95537 !important;
+}
+
+@media (max-width: 1023px) {
+  body {
+    overflow-x: hidden;
+  }
 }
