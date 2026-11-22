@@ -105,9 +105,9 @@ describe('Phase 0: RTL Application Shell & Interactive Architecture Console', ()
     expect(screen.getByText(/محرك التسعير/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', {name: 'القرارات'}));
-    expect(screen.getByText('ADR-001')).toBeInTheDocument();
+    expect(screen.getByText('اسم المنصة التجاري وإدارة الهوية مركزيًا')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', {name: /القرارات المفتوحة/}));
-    expect(screen.getByText('OQ-01')).toBeInTheDocument();
+    expect(screen.getByText('معامل الوزن الحجمي ووحدته وسياسة التقريب')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', {name: 'جاهزية البيئة'}));
     fireEvent.click(screen.getByRole('button', {name: 'تشغيل فحص متغيرات الواجهة'}));

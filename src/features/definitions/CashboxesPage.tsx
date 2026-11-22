@@ -168,7 +168,7 @@ export function CashboxesPage() {
           <p className="text-xs font-medium text-slate-500">التعريفات الأساسية · الخزينة</p>
           <h1 className="mt-1 text-xl font-bold text-slate-900">الخزائن وأمناء الخزائن وصلاحيات الحركة</h1>
         </div>
-        {isAdmin && (
+        {isAdmin && !showForm && (
           <button
             type="button"
             onClick={openCreateForm}
@@ -284,7 +284,7 @@ export function CashboxesPage() {
         </section>
       )}
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+      {!showForm && <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white lg:col-span-7">
           <table className="w-full border-collapse text-right text-sm">
             <thead>
@@ -423,7 +423,7 @@ export function CashboxesPage() {
             )}
           </div>
         </div>
-      </div>
+      </div>}
     </div>
   );
 }

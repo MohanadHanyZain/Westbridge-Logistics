@@ -586,7 +586,7 @@ describe('Phase 8: Delivery Lists, Redelivery, Returns, POD, Attempts Policy & C
     expect(screen.getByRole('link', {name: 'قوائم التوصيل'})).toBeInTheDocument();
     expect(screen.getByRole('link', {name: 'قوائم إعادة التوصيل'})).toBeInTheDocument();
     expect(screen.getByRole('link', {name: 'قوائم المرتجعات'})).toBeInTheDocument();
-    expect(screen.getByRole('link', {name: 'بوابة المندوب'})).toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: 'بوابة المندوب'})).not.toBeInTheDocument();
   });
 
   it('supports ADR-017 delivery attempts policy config, admin override toggle, and delivery list approval', async () => {

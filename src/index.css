@@ -38,7 +38,7 @@
   select,
   textarea {
     border-color: #d7dbe1;
-    background-color: #f1f3f5;
+    background-color: #e8ebef;
     color: #1f2937;
   }
 
@@ -188,10 +188,10 @@ html[data-theme="dark"] .hover\:bg-slate-100:hover {
 
   .safe-mobile-table tbody td {
     display: grid;
-    grid-template-columns: minmax(5.5rem, 0.45fr) minmax(0, 1fr);
-    gap: 0.75rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.25rem 0.75rem;
     border-bottom: 1px solid #f1f2f4;
-    padding: 0.7rem 0.85rem;
+    padding: 0.55rem 0.75rem;
     overflow-wrap: anywhere;
   }
 
@@ -202,7 +202,7 @@ html[data-theme="dark"] .hover\:bg-slate-100:hover {
   .safe-mobile-table tbody td::before {
     content: attr(data-label);
     color: #78818e;
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     font-weight: 700;
   }
 

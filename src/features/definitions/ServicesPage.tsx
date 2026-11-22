@@ -219,10 +219,10 @@ export function ServicesPage() {
     <div className="space-y-6">
       <div className="border-b border-slate-200 pb-4">
         <p className="text-xs font-medium text-slate-500">التعريفات الأساسية · خدمات الشحن</p>
-        <h1 className="mt-1 text-xl font-bold text-slate-900">خدمات الشحن وأنواع الطلبات (ShipmentTypes)</h1>
+        <h1 className="mt-1 text-xl font-bold text-slate-900">خدمات الشحن وأنواع الطلبات</h1>
       </div>
 
-      <FilterBar
+      {!showForm && <FilterBar
         searchValue={searchQuery}
         onSearchChange={setSearchQuery}
         searchPlaceholder="ابحث باسم أو كود الخدمة..."
@@ -240,7 +240,7 @@ export function ServicesPage() {
             </button>
           ) : null
         }
-      />
+      />}
 
       {showForm && (
         <section className="rounded-xl border border-slate-200 bg-white p-6">
@@ -395,7 +395,7 @@ export function ServicesPage() {
             </div>
 
             <div className="md:col-span-3">
-              <p className="text-xs font-medium text-slate-700">أنواع الطلبات المسموح بها (ShipmentTypes)</p>
+              <p className="text-xs font-medium text-slate-700">أنواع الطلبات المسموح بها</p>
               <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {shipmentTypes.map((st) => {
                   const checked = selectedTypeIds.includes(st.id);
@@ -441,14 +441,14 @@ export function ServicesPage() {
         </section>
       )}
 
-      <DataTable
+      {!showForm && <DataTable
         columns={columns}
         rows={filteredServices}
         rowKey={(s) => s.id}
         loading={loading}
         error={error}
         emptyMessage="لا توجد خدمات شحن مطابقة."
-      />
+      />}
     </div>
   );
 }

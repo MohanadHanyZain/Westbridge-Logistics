@@ -49,6 +49,7 @@ export function CreateShipmentPage() {
   const [services, setServices] = useState<readonly ShippingServiceRecord[]>([]);
   const [paymentTerms, setPaymentTerms] = useState<readonly PaymentTermRecord[]>([]);
   const [loadingRefs, setLoadingRefs] = useState(true);
+  const [referencesError, setReferencesError] = useState<string | null>(null);
 
   // Section 1: Shipment Details
   const [originBranchId, setOriginBranchId] = useState('');
@@ -122,6 +123,7 @@ export function CreateShipmentPage() {
   useEffect(() => {
     let active = true;
     setLoadingRefs(true);
+    setReferencesError(null);
     Promise.all([
       clientsService.listClients(tenant.id),
       listBranches(tenant.id),
@@ -182,6 +184,13 @@ export function CreateShipmentPage() {
           setSenderGovId(activeGovs[0].id);
           const firstSenderReg = activeRegs.find((r) => r.governorate_id === activeGovs[0].id);
           if (firstSenderReg) setSenderRegionId(firstSenderReg.id);
+        }
+      })
+      .catch((err: unknown) => {
+        if (active) {
+          setReferencesError(
+            err instanceof Error ? err.message : 'تعذر تحميل بيانات العملاء والفروع والتسعير.',
+          );
         }
       })
       .finally(() => {
@@ -443,6 +452,12 @@ export function CreateShipmentPage() {
           </p>
         </div>
       </div>
+
+      {referencesError && (
+        <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          {referencesError}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         {/* Main 3 Form Sections */}

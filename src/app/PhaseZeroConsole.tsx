@@ -444,7 +444,6 @@ export function PhaseZeroConsole() {
                 {APPROVED_DECISIONS.map((item) => (
                   <article key={item.code} className="rounded-xl border border-slate-200 bg-white p-5">
                     <div className="flex items-center justify-between text-xs text-slate-500">
-                      <span className="font-mono-tabular font-medium text-slate-700">{item.code}</span>
                       <span className="font-medium text-emerald-700">معتمد</span>
                     </div>
                     <h2 className="mt-2 text-base font-semibold text-slate-900">{item.title}</h2>
@@ -470,7 +469,6 @@ export function PhaseZeroConsole() {
                   <table className="w-full border-collapse text-right text-sm">
                     <thead>
                       <tr className="border-b border-slate-200 bg-slate-50 text-xs font-medium text-slate-500">
-                        <th className="px-4 py-3">الرمز</th>
                         <th className="px-4 py-3">البند المفتوح</th>
                         <th className="px-4 py-3">المرحلة المرتبطة</th>
                         <th className="px-4 py-3">التفاصيل المطلوب حسمها</th>
@@ -479,7 +477,6 @@ export function PhaseZeroConsole() {
                     <tbody className="divide-y divide-slate-100">
                       {filteredOpenQuestions.map((oq) => (
                         <tr key={oq.id} className="hover:bg-slate-50">
-                          <td className="px-4 py-3 font-mono-tabular font-medium text-slate-900">{oq.id}</td>
                           <td className="px-4 py-3 font-medium text-slate-900">{oq.title}</td>
                           <td className="px-4 py-3 whitespace-nowrap text-amber-700">{oq.blockingPhase}</td>
                           <td className="px-4 py-3 text-slate-600">{oq.summary}</td>

@@ -154,7 +154,7 @@ export function JournalEntriesPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">قيود اليومية العامة (JENT)</h1>
+          <h1 className="text-xl font-bold text-slate-900">قيود اليومية العامة</h1>
           <p className="mt-1 text-xs text-slate-500">
             القيود المحاسبية المتوازنة، واعتمادها من مراجع آخر، وترحيلها إلى الأستاذ وميزان المراجعة.
           </p>
@@ -307,13 +307,13 @@ export function JournalEntriesPage() {
         </form>
       )}
 
-      <FilterBar
+      {!showForm && <FilterBar
         searchValue={search}
         onSearchChange={setSearch}
         searchPlaceholder="بحث برقم القيد أو الوصف أو المرجع..."
-      />
+      />}
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+      {!showForm && <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="min-w-full divide-y divide-slate-200 text-xs">
           <thead className="bg-slate-50 text-slate-600">
             <tr>
@@ -384,7 +384,7 @@ export function JournalEntriesPage() {
             )}
           </tbody>
         </table>
-      </div>
+      </div>}
     </div>
   );
 }

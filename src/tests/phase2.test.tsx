@@ -214,6 +214,8 @@ describe('Phase 2: Definitions, Geography, Branches, Services & Cashboxes', () =
 
     fireEvent.click(screen.getByRole('button', {name: 'إضافة فرع جديد'}));
     expect(screen.getByLabelText('كود الفرع')).toHaveValue('BR-002');
+    expect(screen.queryByText('الفرع الرئيسي')).not.toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
   });
 
   it('renders master-detail Egyptian governorates and their regions', async () => {

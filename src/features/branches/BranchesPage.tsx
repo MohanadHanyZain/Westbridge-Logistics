@@ -268,7 +268,7 @@ export function BranchesPage() {
         <h1 className="mt-1 text-xl font-bold text-slate-900">إدارة الفروع والمقرات</h1>
       </div>
 
-      <FilterBar
+      {!showForm && <FilterBar
         searchValue={searchQuery}
         onSearchChange={setSearchQuery}
         searchPlaceholder="ابحث باسم أو كود الفرع..."
@@ -286,7 +286,7 @@ export function BranchesPage() {
             </button>
           ) : null
         }
-      />
+      />}
 
       {showForm && (
         <section aria-label="نموذج بيانات الفرع" className="rounded-xl border border-slate-200 bg-white p-6">
@@ -511,14 +511,14 @@ export function BranchesPage() {
         </section>
       )}
 
-      <DataTable
+      {!showForm && <DataTable
         columns={columns}
         rows={filteredBranches}
         rowKey={(b) => b.id}
         loading={loading}
         error={error}
         emptyMessage="لا توجد فروع مطابقة لمعايير البحث."
-      />
+      />}
 
       <ConfirmDialog
         open={Boolean(archiveTarget)}

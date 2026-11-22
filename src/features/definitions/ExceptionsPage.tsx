@@ -169,7 +169,7 @@ export function ExceptionsPage() {
         <h1 className="mt-1 text-xl font-bold text-slate-900">أسباب الإلغاء والتعذر والرفض والإرجاع</h1>
       </div>
 
-      <FilterBar
+      {!showForm && <FilterBar
         searchValue={searchQuery}
         onSearchChange={setSearchQuery}
         searchPlaceholder="ابحث بالكود أو نص السبب..."
@@ -200,7 +200,7 @@ export function ExceptionsPage() {
             </button>
           ) : null
         }
-      />
+      />}
 
       {showForm && (
         <section className="rounded-xl border border-slate-200 bg-white p-6">
@@ -288,14 +288,14 @@ export function ExceptionsPage() {
         </section>
       )}
 
-      <DataTable
+      {!showForm && <DataTable
         columns={columns}
         rows={filteredReasons}
         rowKey={(r) => r.id}
         loading={loading}
         error={error}
         emptyMessage="لا توجد أسباب مطابقة."
-      />
+      />}
     </div>
   );
 }

@@ -193,6 +193,9 @@ export function TenantAdminShellPage() {
   ) {
     return <Navigate to={courierPortalPath} replace />;
   }
+  if (!isCourierAccount && location.pathname === courierPortalPath) {
+    return <Navigate to={basePath} replace />;
+  }
   if (isClientAccount && !allowedClientPath) {
     return <Navigate to={basePath} replace />;
   }
@@ -290,9 +293,6 @@ export function TenantAdminShellPage() {
           <Link to={buildTenantBasePath(tenant.slug)} className="block text-base font-bold text-slate-900">
             {tenant.name}
           </Link>
-          <p className="mt-0.5 font-mono-tabular text-xs text-slate-500">
-            {tenant.code} · {tenant.slug}
-          </p>
         </div>
 
         <nav aria-label={isClientAccount ? 'القائمة الجانبية لبوابة العميل' : isCourierAccount ? 'القائمة الجانبية للمندوب' : 'القائمة الجانبية للشركة'} className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain p-3">

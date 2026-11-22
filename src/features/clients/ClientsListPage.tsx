@@ -607,7 +607,7 @@ export function ClientsListPage({initialMode = 'list'}: ClientsListPageProps) {
               : 'إدارة ملفات العملاء وربط قوائم الأسعار والضرائب وبيانات التحصيل والسداد.'}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        {!showForm && <div className="flex items-center gap-2">
           <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-1">
             <button
               type="button"
@@ -638,7 +638,7 @@ export function ClientsListPage({initialMode = 'list'}: ClientsListPageProps) {
               إنشاء عميل جديد
             </button>
           )}
-        </div>
+        </div>}
       </div>
 
       {feedback && (
@@ -1067,7 +1067,7 @@ export function ClientsListPage({initialMode = 'list'}: ClientsListPageProps) {
 
       {tab === 'clients' ? (
         <>
-          <FilterBar
+          {!showForm && <FilterBar
             searchValue={search}
             onSearchChange={setSearch}
             searchPlaceholder="بحث باسم العميل أو الكود أو الموبايل..."
@@ -1086,14 +1086,14 @@ export function ClientsListPage({initialMode = 'list'}: ClientsListPageProps) {
                 ))}
               </select>
             }
-          />
-          <DataTable
+          />}
+          {!showForm && <DataTable
             columns={clientColumns}
             rows={filteredClients}
             rowKey={(r) => r.id}
             loading={loading}
             emptyMessage="لا يوجد عملاء مسجلون حتى الآن. اضغط على «إنشاء عميل جديد» للبدء."
-          />
+          />}
         </>
       ) : (
         <div className="space-y-6">

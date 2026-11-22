@@ -1,11 +1,10 @@
 import {useCallback, useEffect, useMemo, useState, type FormEvent} from 'react';
-import {Link} from 'react-router-dom';
+import {Link, Navigate} from 'react-router-dom';
 import {buildTenantBasePath} from '@/config/brand';
 import {CourierMapCanvas, type CourierMapMarkerItem} from '@/features/couriers/CourierMapCanvas';
 import {
   getTenantMapsSettings,
   listCourierMovementsTimeline,
-  listCouriers,
   recordCourierLocationEvent,
 } from '@/features/couriers/couriersService';
 import {listExceptionReasons} from '@/features/definitions/definitionsService';
@@ -20,7 +19,6 @@ import {
   LOCATION_EVENT_TYPE_LABELS,
   LOCATION_SOURCE_LABELS,
   type CourierLocationEventRecord,
-  type CourierRecord,
   type LocationEventType,
   type TenantMapsSettingsRecord,
 } from '@/types/couriers';
@@ -40,8 +38,6 @@ export function CourierPortalPage() {
 
   const isBoundCourierAccount = membership.account_subject_type === 'courier';
 
-  const [couriers, setCouriers] = useState<readonly CourierRecord[]>([]);
-  const [selectedCourierId, setSelectedCourierId] = useState('');
   const [exceptionReasons, setExceptionReasons] = useState<readonly DeliveryExceptionReasonRecord[]>([]);
   const [policy, setPolicy] = useState<TenantDeliveryPolicyRecord>({
     tenant_id: tenant.id,
@@ -67,6 +63,7 @@ export function CourierPortalPage() {
   const [feedback, setFeedback] = useState<{type: 'error' | 'success'; text: string} | null>(null);
 
   const loadRefsAndInit = useCallback(async () => {
+    if (!isBoundCourierAccount) return;
     try {
       const [reasons, pol, mPol] = await Promise.all([
         listExceptionReasons(tenant.id),
@@ -81,29 +78,21 @@ export function CourierPortalPage() {
       setExceptionReasons(reasons.filter((r) => r.is_active));
       setPolicy(pol);
       setMapsPolicy(mPol);
-
-      if (!isBoundCourierAccount) {
-        const crr = await listCouriers(tenant.id);
-        const activeCouriers = crr.filter((c) => c.is_active);
-        setCouriers(activeCouriers);
-        if (!selectedCourierId && activeCouriers[0]) {
-          setSelectedCourierId(activeCouriers[0].id);
-        }
-      }
-    } catch {
-      // Non-blocking
+    } catch (err) {
+      setFeedback({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'تعذر تحميل إعدادات مهام المندوب.',
+      });
     }
-  }, [tenant.id, isBoundCourierAccount, selectedCourierId]);
+  }, [tenant.id, isBoundCourierAccount]);
 
   const loadTasks = useCallback(async () => {
+    if (!isBoundCourierAccount) return;
     setLoading(true);
     try {
-      const data = await listCourierMyTasks(
-        tenant.id,
-        isBoundCourierAccount ? null : selectedCourierId || null,
-      );
+      const data = await listCourierMyTasks(tenant.id, null);
       setFeed(data);
-      const targetCourierId = data?.courier?.id ?? (isBoundCourierAccount ? null : selectedCourierId || null);
+      const targetCourierId = data?.courier?.id ?? null;
       if (targetCourierId) {
         const today = new Date().toISOString().slice(0, 10);
         try {
@@ -118,19 +107,19 @@ export function CourierPortalPage() {
     } finally {
       setLoading(false);
     }
-  }, [tenant.id, isBoundCourierAccount, selectedCourierId]);
+  }, [tenant.id, isBoundCourierAccount]);
 
   useEffect(() => {
     void loadRefsAndInit();
   }, [loadRefsAndInit]);
 
   useEffect(() => {
-    if (isBoundCourierAccount || selectedCourierId) {
+    if (isBoundCourierAccount) {
       void loadTasks();
     } else {
       setLoading(false);
     }
-  }, [isBoundCourierAccount, selectedCourierId, loadTasks]);
+  }, [isBoundCourierAccount, loadTasks]);
 
   const metrics = useMemo(() => {
     const shps = feed?.shipments ?? [];
@@ -172,9 +161,9 @@ export function CourierPortalPage() {
   };
 
   const handleFieldLocationCheckin = async (eventType: LocationEventType) => {
-    const targetCourierId = feed?.courier?.id ?? (selectedCourierId || null);
-    if (!targetCourierId && !isBoundCourierAccount) {
-      setFeedback({type: 'error', text: 'يرجى تحديد المندوب أولاً.'});
+    const targetCourierId = feed?.courier?.id ?? null;
+    if (!targetCourierId) {
+      setFeedback({type: 'error', text: 'تعذر تحديد حساب المندوب الحالي.'});
       return;
     }
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
@@ -240,6 +229,10 @@ export function CourierPortalPage() {
     [routeEvents],
   );
 
+  if (!isBoundCourierAccount) {
+    return <Navigate to={basePath} replace />;
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -252,25 +245,6 @@ export function CourierPortalPage() {
           </p>
         </div>
 
-        {!isBoundCourierAccount && couriers.length > 0 && (
-          <div className="flex items-center gap-2">
-            <label htmlFor="portal-courier-select" className="text-xs font-medium text-slate-600">
-              معاينة مهام المندوب:
-            </label>
-            <select
-              id="portal-courier-select"
-              value={selectedCourierId}
-              onChange={(e) => setSelectedCourierId(e.target.value)}
-              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
-            >
-              {couriers.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name} ({c.code})
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
       </div>
 
       {/* Metrics Strip */}
@@ -635,7 +609,7 @@ export function CourierPortalPage() {
         open={execShipment !== null}
         tenantId={tenant.id}
         shipment={execShipment}
-        courierId={feed?.courier?.id ?? (selectedCourierId || null)}
+        courierId={feed?.courier?.id ?? null}
         requirePod={policy.require_pod_on_delivery}
         requireGps={mapsPolicy.require_gps_on_delivery}
         maxAttempts={policy.max_delivery_attempts}

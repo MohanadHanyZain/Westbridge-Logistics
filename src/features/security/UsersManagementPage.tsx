@@ -574,7 +574,7 @@ export function UsersManagementPage() {
         </form>
       )}
 
-      <FilterBar
+      {!showForm && <FilterBar
         searchValue={search}
         onSearchChange={setSearch}
         searchPlaceholder="بحث باسم المستخدم أو الاسم أو الدور أو العميل..."
@@ -591,15 +591,15 @@ export function UsersManagementPage() {
             <option value={AccountSubjectType.COURIER}>مندوب توصيل</option>
           </select>
         }
-      />
+      />}
 
-      <DataTable
+      {!showForm && <DataTable
         columns={columns}
         rows={filteredUsers}
         rowKey={(r) => r.membership_id}
         loading={loading}
         emptyMessage="لا يوجد مستخدمون مطابقون للبحث."
-      />
+      />}
 
       <ConfirmDialog
         open={Boolean(toggleTarget)}

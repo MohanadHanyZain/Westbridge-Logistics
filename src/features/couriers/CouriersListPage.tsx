@@ -725,7 +725,7 @@ export function CouriersListPage({initialMode = 'list'}: CouriersListPageProps) 
         </form>
       )}
 
-      <FilterBar
+      {!showForm && <FilterBar
         searchValue={search}
         onSearchChange={setSearch}
         searchPlaceholder="بحث باسم المندوب أو الكود أو رقم الموبايل..."
@@ -744,15 +744,15 @@ export function CouriersListPage({initialMode = 'list'}: CouriersListPageProps) 
             ))}
           </select>
         }
-      />
+      />}
 
-      <DataTable
+      {!showForm && <DataTable
         columns={columns}
         rows={filteredCouriers}
         rowKey={(r) => r.id}
         loading={loading}
         emptyMessage="لا يوجد مناديب مسجلون بعد."
-      />
+      />}
 
       <ConfirmDialog
         open={Boolean(archiveTarget)}
