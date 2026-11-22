@@ -56,6 +56,12 @@ DECLARE
   v_tenant_a uuid;
   v_tenant_b uuid;
   v_branch_a uuid;
+  v_gov_a uuid;
+  v_reg_a uuid;
+  v_price_list_a uuid;
+  v_tax_profile_a uuid;
+  v_term_cod_a uuid;
+  v_shp_type_a uuid;
   v_role_client_a uuid;
   v_client_1 uuid;
   v_client_2 uuid;
@@ -76,16 +82,37 @@ BEGIN
   SELECT id INTO v_tenant_a FROM public.tenants WHERE slug = 'phase16-alpha';
   SELECT id INTO v_tenant_b FROM public.tenants WHERE slug = 'phase16-beta';
   SELECT id INTO v_branch_a FROM public.branches WHERE tenant_id = v_tenant_a AND is_main = true LIMIT 1;
+  SELECT id INTO v_gov_a FROM public.governorates WHERE tenant_id = v_tenant_a AND is_active = true LIMIT 1;
+  SELECT id INTO v_reg_a FROM public.regions WHERE tenant_id = v_tenant_a AND governorate_id = v_gov_a AND is_active = true LIMIT 1;
+  SELECT id INTO v_price_list_a FROM public.client_price_lists WHERE tenant_id = v_tenant_a LIMIT 1;
+  SELECT id INTO v_tax_profile_a FROM public.tax_profiles WHERE tenant_id = v_tenant_a LIMIT 1;
+  SELECT id INTO v_term_cod_a FROM public.payment_terms WHERE tenant_id = v_tenant_a AND code = 'COD' LIMIT 1;
+  SELECT id INTO v_shp_type_a FROM public.shipment_types WHERE tenant_id = v_tenant_a LIMIT 1;
   SELECT id INTO v_role_client_a FROM public.roles WHERE tenant_id = v_tenant_a AND code = 'client_owner' LIMIT 1;
   SELECT id INTO v_growth_plan_id FROM public.subscription_plans WHERE code = 'GROWTH' LIMIT 1;
 
   PERFORM app_private.seed_tenant_phase16_defaults(v_tenant_a, 'c1111111-1111-1111-1111-111111111111'::uuid);
   PERFORM app_private.seed_tenant_phase16_defaults(v_tenant_b, 'c2222222-2222-2222-2222-222222222222'::uuid);
 
-  INSERT INTO public.clients (tenant_id, code, name, phone, branch_id, payout_method, default_price_mode, is_active, created_by, updated_by)
+  INSERT INTO public.clients (
+    tenant_id, code, name, branch_id, governorate_id, region_id,
+    price_list_id, tax_profile_id, default_payment_term_id, default_shipment_type_id,
+    phone, mobile, address_line, payout_method, default_price_mode, is_active,
+    created_by, updated_by
+  )
   VALUES
-    (v_tenant_a, 'CL16-1', 'تاجر 16 الأول', '01011111111', v_branch_a, 'cash', 'shipping_excluded', true, 'c1111111-1111-1111-1111-111111111111', 'c1111111-1111-1111-1111-111111111111'),
-    (v_tenant_a, 'CL16-2', 'تاجر 16 الثاني', '01022222222', v_branch_a, 'cash', 'shipping_excluded', true, 'c1111111-1111-1111-1111-111111111111', 'c1111111-1111-1111-1111-111111111111');
+    (
+      v_tenant_a, 'CL16-1', 'تاجر 16 الأول', v_branch_a, v_gov_a, v_reg_a,
+      v_price_list_a, v_tax_profile_a, v_term_cod_a, v_shp_type_a,
+      '01011111111', '01011111111', 'القاهرة - مدينة نصر', 'cash', 'shipping_excluded', true,
+      'c1111111-1111-1111-1111-111111111111', 'c1111111-1111-1111-1111-111111111111'
+    ),
+    (
+      v_tenant_a, 'CL16-2', 'تاجر 16 الثاني', v_branch_a, v_gov_a, v_reg_a,
+      v_price_list_a, v_tax_profile_a, v_term_cod_a, v_shp_type_a,
+      '01022222222', '01022222222', 'الجيزة - المهندسين', 'cash', 'shipping_excluded', true,
+      'c1111111-1111-1111-1111-111111111111', 'c1111111-1111-1111-1111-111111111111'
+    );
 
   SELECT id INTO v_client_1 FROM public.clients WHERE tenant_id = v_tenant_a AND code = 'CL16-1';
   SELECT id INTO v_client_2 FROM public.clients WHERE tenant_id = v_tenant_a AND code = 'CL16-2';
