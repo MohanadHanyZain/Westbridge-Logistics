@@ -1,14 +1,12 @@
 import {useCallback, useEffect, useState, type FormEvent} from 'react';
 import {Link} from 'react-router-dom';
 import {buildTenantBasePath} from '@/config/brand';
-import {listClients} from '@/features/clients/clientsService';
 import {getClientPortalSummary} from '@/features/clients/clientPortalService';
 import {listShipments} from '@/features/shipments/shipmentsService';
 import {useTenantWorkspace} from '@/features/tenants/TenantWorkspaceContext';
 import {updateMyCredentials, useAuth} from '@/lib/auth';
 import {formatDateTime, isValidUsername} from '@/lib/formatters';
 import type {ClientPortalPeriod, ClientPortalSummary} from '@/types/clientPortal';
-import type {ClientRecord} from '@/types/pricing';
 import {SHIPMENT_STATUS_LABELS, type ShipmentListItem} from '@/types/shipments';
 import {
   Check,
@@ -35,8 +33,6 @@ export function ClientPortalDashboardPage() {
   const {profile, refreshContext} = useAuth();
   const basePath = `${buildTenantBasePath(tenant.slug)}/app`;
 
-  const [clients, setClients] = useState<readonly ClientRecord[]>([]);
-  const [selectedClientId, setSelectedClientId] = useState(boundClientId ?? '');
   const [period, setPeriod] = useState<ClientPortalPeriod>('all');
   const [summary, setSummary] = useState<ClientPortalSummary | null>(null);
   const [recentShipments, setRecentShipments] = useState<readonly ShipmentListItem[]>([]);
@@ -50,31 +46,11 @@ export function ClientPortalDashboardPage() {
   const [savingCreds, setSavingCreds] = useState(false);
   const [credsFeedback, setCredsFeedback] = useState<{type: 'error' | 'success'; text: string} | null>(null);
 
-  useEffect(() => {
-    if (boundClientId) {
-      setSelectedClientId(boundClientId);
-      return;
-    }
-    let active = true;
-    listClients(tenant.id)
-      .then((rows) => {
-        if (!active) return;
-        const activeRows = rows.filter((r) => r.is_active);
-        setClients(activeRows);
-        setSelectedClientId((curr) => curr || activeRows[0]?.id || '');
-      })
-      .catch(() => {
-        // Ignore if client-scoped
-      });
-    return () => {
-      active = false;
-    };
-  }, [tenant.id, boundClientId]);
-
-  const targetClientId = boundClientId ?? selectedClientId;
+  const targetClientId = boundClientId;
 
   const loadDashboard = useCallback(async () => {
     if (!targetClientId) {
+      setError('حساب التاجر غير مربوط بسجل تجاري. تواصل مع إدارة الشركة.');
       setLoading(false);
       return;
     }
@@ -163,21 +139,6 @@ export function ClientPortalDashboardPage() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            {!boundClientId && clients.length > 0 && (
-              <select
-                aria-label="اختيار التاجر للمعاينة"
-                value={selectedClientId}
-                onChange={(e) => setSelectedClientId(e.target.value)}
-                className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs"
-              >
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.code} · {c.name}
-                  </option>
-                ))}
-              </select>
-            )}
-
             <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-1">
               {PERIOD_OPTIONS.map((opt) => (
                 <button

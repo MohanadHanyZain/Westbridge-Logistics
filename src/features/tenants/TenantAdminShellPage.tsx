@@ -65,6 +65,8 @@ export function TenantAdminShellPage() {
     branch_ids: [],
     permissions: [],
   });
+  const [permissionsLoading, setPermissionsLoading] = useState(true);
+  const [permissionsError, setPermissionsError] = useState<string | null>(null);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
 
   useEffect(() => {
@@ -82,16 +84,25 @@ export function TenantAdminShellPage() {
   const tenantId = activeMembership?.tenants?.id ?? null;
 
   useEffect(() => {
-    if (!tenantId) return;
+    if (!tenantId) {
+      setPermissionsLoading(false);
+      return;
+    }
     let cancelled = false;
+    setPermissionsLoading(true);
+    setPermissionsError(null);
     void (async () => {
       try {
         const bundle = await getMyTenantPermissions(tenantId);
         if (!cancelled) {
           setPermBundle(bundle);
         }
-      } catch {
-        // Fallback smoothly when client/mock is unconfigured (e.g. unit tests)
+      } catch (error) {
+        if (!cancelled) {
+          setPermissionsError(error instanceof Error ? error.message : 'تعذر تحميل صلاحيات الحساب.');
+        }
+      } finally {
+        if (!cancelled) setPermissionsLoading(false);
       }
     })();
 
@@ -115,7 +126,17 @@ export function TenantAdminShellPage() {
   }, [tenantId, activeMembership?.user_id]);
 
   const roleKey = activeMembership?.role_key ?? '';
-  const isAdmin = roleKey === 'company_owner' || roleKey === 'company_admin';
+  const isCourierAccount =
+    activeMembership?.account_subject_type === AccountSubjectType.COURIER ||
+    roleKey === 'delivery_agent' ||
+    Boolean(permBundle.courier_id);
+  const isClientAccount =
+    activeMembership?.account_subject_type === AccountSubjectType.CLIENT ||
+    Boolean(permBundle.client_id);
+  const isAdmin =
+    !isCourierAccount &&
+    !isClientAccount &&
+    (roleKey === 'company_owner' || roleKey === 'company_admin');
 
   const toggleSection = (section: string) => {
     setOpenSection((current) => current === section ? null : section);
@@ -125,14 +146,14 @@ export function TenantAdminShellPage() {
     (permissionKey: string, branchId?: string | null) => {
       if (isAdmin) return true;
       return hasEffectivePermission(
-        roleKey,
+        isCourierAccount || isClientAccount ? '' : roleKey,
         permBundle.permissions,
         permissionKey,
         permBundle.branch_ids,
         branchId,
       );
     },
-    [isAdmin, roleKey, permBundle.permissions, permBundle.branch_ids],
+    [isAdmin, isCourierAccount, isClientAccount, roleKey, permBundle.permissions, permBundle.branch_ids],
   );
 
   const workspaceValue = useMemo(() => {
@@ -150,6 +171,27 @@ export function TenantAdminShellPage() {
 
   if (!activeMembership || !activeMembership.tenants || !workspaceValue) {
     return null;
+  }
+  if (permissionsLoading) {
+    return (
+      <div role="status" className="flex min-h-screen items-center justify-center bg-slate-50 text-sm text-slate-600">
+        جارٍ تحميل صلاحيات الحساب...
+      </div>
+    );
+  }
+  if (permissionsError) {
+    return (
+      <div role="alert" className="m-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+        تعذر تحميل صلاحيات الحساب: {permissionsError}
+      </div>
+    );
+  }
+  if (isCourierAccount && isClientAccount) {
+    return (
+      <div role="alert" className="m-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+        تعذر تحديد نوع الحساب المرتبط. تواصل مع إدارة الشركة لتصحيح ربط الحساب.
+      </div>
+    );
   }
 
   const tenant = activeMembership.tenants;
@@ -172,8 +214,6 @@ export function TenantAdminShellPage() {
     {to: `${basePath}/clients/settlements`, label: 'قيد التسوية مع العملاء', icon: FileSpreadsheet, end: true},
   ];
 
-  const isClientAccount = activeMembership.account_subject_type === AccountSubjectType.CLIENT;
-  const isCourierAccount = activeMembership.account_subject_type === AccountSubjectType.COURIER;
   const courierPortalPath = `${basePath}/operations/courier-portal`;
   const allowedClientPath =
     location.pathname === basePath ||

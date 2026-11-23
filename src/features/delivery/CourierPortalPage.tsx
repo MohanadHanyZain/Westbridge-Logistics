@@ -33,10 +33,14 @@ import {SHIPMENT_STATUS_LABELS, type ShipmentListItem} from '@/types/shipments';
 import {Barcode, CheckCircle2, LocateFixed, MapPin, MapPinned, MessageSquare, Phone, Truck} from 'lucide-react';
 
 export function CourierPortalPage() {
-  const {tenant, membership} = useTenantWorkspace();
+  const {tenant, membership, boundCourierId} = useTenantWorkspace();
   const basePath = `${buildTenantBasePath(tenant.slug)}/app`;
 
-  const isBoundCourierAccount = membership.account_subject_type === 'courier';
+  const hasCourierIdentity =
+    membership.account_subject_type === 'courier' ||
+    membership.role_key === 'delivery_agent' ||
+    Boolean(boundCourierId);
+  const isBoundCourierAccount = hasCourierIdentity && Boolean(boundCourierId);
 
   const [exceptionReasons, setExceptionReasons] = useState<readonly DeliveryExceptionReasonRecord[]>([]);
   const [policy, setPolicy] = useState<TenantDeliveryPolicyRecord>({
@@ -90,7 +94,7 @@ export function CourierPortalPage() {
     if (!isBoundCourierAccount) return;
     setLoading(true);
     try {
-      const data = await listCourierMyTasks(tenant.id, null);
+      const data = await listCourierMyTasks(tenant.id, boundCourierId);
       setFeed(data);
       const targetCourierId = data?.courier?.id ?? null;
       if (targetCourierId) {
@@ -107,7 +111,7 @@ export function CourierPortalPage() {
     } finally {
       setLoading(false);
     }
-  }, [tenant.id, isBoundCourierAccount]);
+  }, [tenant.id, isBoundCourierAccount, boundCourierId]);
 
   useEffect(() => {
     void loadRefsAndInit();
@@ -230,6 +234,13 @@ export function CourierPortalPage() {
   );
 
   if (!isBoundCourierAccount) {
+    if (hasCourierIdentity) {
+      return (
+        <div role="alert" className="m-6 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+          حساب المندوب غير مربوط بملف مندوب. اطلب من مسؤول الشركة تصحيح ربط الحساب.
+        </div>
+      );
+    }
     return <Navigate to={basePath} replace />;
   }
 

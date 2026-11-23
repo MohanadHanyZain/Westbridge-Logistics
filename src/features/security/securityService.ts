@@ -22,8 +22,11 @@ export async function getMyTenantPermissions(tenantId: string): Promise<MyTenant
   const {data, error} = await client.rpc('get_my_tenant_permissions', {
     p_tenant_id: tenantId,
   });
-  if (error || !data) {
-    return {client_id: null, branch_ids: [], permissions: []};
+  if (error) {
+    throw new Error(`تعذر تحميل صلاحيات الحساب: ${error.message}`);
+  }
+  if (!data) {
+    throw new Error('لم تُرجع قاعدة البيانات صلاحيات الحساب.');
   }
   return data as MyTenantPermissionsBundle;
 }

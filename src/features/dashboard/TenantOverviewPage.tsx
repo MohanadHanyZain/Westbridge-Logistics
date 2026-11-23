@@ -34,11 +34,13 @@ function StaffTenantOverviewInner() {
   const basePath = `${buildTenantBasePath(tenant.slug)}/app`;
   const [shipmentCounts, setShipmentCounts] = useState<ShipmentDashboardCounts | null>(null);
   const [loading, setLoading] = useState(true);
+  const [dashboardError, setDashboardError] = useState<string | null>(null);
   const [period, setPeriod] = useState<'all' | '7d' | '30d'>('all');
 
   useEffect(() => {
     let active = true;
     setLoading(true);
+    setDashboardError(null);
 
     const load = period === 'all'
       ? fetchShipmentDashboardCounts(tenant.id)
@@ -64,8 +66,11 @@ function StaffTenantOverviewInner() {
       .then((res) => {
         if (active) setShipmentCounts(res);
       })
-      .catch(() => {
-        if (active) setShipmentCounts(null);
+      .catch((error: unknown) => {
+        if (active) {
+          setShipmentCounts(null);
+          setDashboardError(error instanceof Error ? error.message : 'تعذر تحميل مؤشرات لوحة التحكم.');
+        }
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -77,16 +82,16 @@ function StaffTenantOverviewInner() {
   }, [tenant.id, period]);
 
   const cards = [
-    {label: 'إجمالي الشحنات', value: shipmentCounts?.totalCount ?? 0, to: `${basePath}/shipments`, icon: Package},
-    {label: 'في المخزون', value: shipmentCounts?.inWarehouseCount ?? 0, to: `${basePath}/shipments/warehouse`, icon: PackageCheck},
-    {label: 'قيد التوصيل', value: shipmentCounts?.outForDeliveryCount ?? 0, to: `${basePath}/shipments/out-for-delivery`, icon: Truck},
-    {label: 'تم التسليم', value: shipmentCounts?.deliveredCount ?? 0, to: `${basePath}/shipments`, icon: PackageCheck},
-    {label: 'المرتجعات', value: shipmentCounts?.returnsCount ?? 0, to: `${basePath}/shipments/returns`, icon: AlertCircle},
+    {label: 'إجمالي الشحنات', value: shipmentCounts?.totalCount ?? (dashboardError ? null : 0), to: `${basePath}/shipments`, icon: Package},
+    {label: 'في المخزون', value: shipmentCounts?.inWarehouseCount ?? (dashboardError ? null : 0), to: `${basePath}/shipments/warehouse`, icon: PackageCheck},
+    {label: 'قيد التوصيل', value: shipmentCounts?.outForDeliveryCount ?? (dashboardError ? null : 0), to: `${basePath}/shipments/out-for-delivery`, icon: Truck},
+    {label: 'تم التسليم', value: shipmentCounts?.deliveredCount ?? (dashboardError ? null : 0), to: `${basePath}/shipments`, icon: PackageCheck},
+    {label: 'المرتجعات', value: shipmentCounts?.returnsCount ?? (dashboardError ? null : 0), to: `${basePath}/shipments/returns`, icon: AlertCircle},
   ];
 
   const distribution = cards.slice(1).map((card, index) => ({
     label: card.label,
-    value: card.value,
+    value: card.value ?? 0,
     color: ['#38bdf8', '#a78bfa', '#34d399', '#fb7185'][index],
   }));
   const distributionTotal = distribution.reduce((sum, item) => sum + item.value, 0);
@@ -129,6 +134,12 @@ function StaffTenantOverviewInner() {
         </div>
       </section>
 
+      {dashboardError && (
+        <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          تعذر تحميل مؤشرات لوحة التحكم: {dashboardError}
+        </div>
+      )}
+
       <section aria-label="مؤشرات حركة الشحنات" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
         {cards.map((card, index) => {
           const Icon = card.icon;
@@ -154,7 +165,9 @@ function StaffTenantOverviewInner() {
                     <ArrowLeft className="h-4 w-4 text-slate-300 transition-transform group-hover:-translate-x-1" />
                   </div>
                   <p className="mt-3 text-xs font-medium text-slate-500">{t(card.label)}</p>
-                  <p className="mt-1 font-mono-tabular text-2xl font-extrabold text-slate-900">{card.value.toLocaleString(locale === 'ar' ? 'ar-EG' : 'en-US')}</p>
+                  <p className="mt-1 font-mono-tabular text-2xl font-extrabold text-slate-900">
+                    {card.value === null ? '—' : card.value.toLocaleString(locale === 'ar' ? 'ar-EG' : 'en-US')}
+                  </p>
                 </>
               )}
             </Link>
@@ -188,7 +201,7 @@ function StaffTenantOverviewInner() {
               <div className="absolute inset-5 flex flex-col items-center justify-center rounded-full bg-white text-center">
                 <span className="text-xs font-medium text-slate-500">{t('إجمالي الشحنات')}</span>
                 <span className="mt-1 font-mono-tabular text-2xl font-extrabold text-slate-900">
-                  {(shipmentCounts?.totalCount ?? 0).toLocaleString(locale === 'ar' ? 'ar-EG' : 'en-US')}
+                  {dashboardError ? '—' : (shipmentCounts?.totalCount ?? 0).toLocaleString(locale === 'ar' ? 'ar-EG' : 'en-US')}
                 </span>
               </div>
             </div>
@@ -200,7 +213,7 @@ function StaffTenantOverviewInner() {
                     {t(item.label)}
                   </span>
                   <span className="font-mono-tabular text-sm font-bold text-slate-900">
-                    {item.value.toLocaleString(locale === 'ar' ? 'ar-EG' : 'en-US')}
+                    {dashboardError ? '—' : item.value.toLocaleString(locale === 'ar' ? 'ar-EG' : 'en-US')}
                   </span>
                 </div>
               ))}

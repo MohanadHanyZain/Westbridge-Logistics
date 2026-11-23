@@ -635,7 +635,11 @@ describe('Phase 12: Messaging, Private Storage Attachments & Notifications', () 
       user: {id: 'user-courier-1', email: 'mandob@internal.test'},
       profile: {id: 'user-courier-1', display_name: 'كريم المنصور', is_platform_user: false, is_active: true},
       platformAdmin: null,
-      memberships: [membershipCourier],
+      memberships: [{
+        ...membershipCourier,
+        account_subject_type: AccountSubjectType.STAFF,
+        role_key: 'company_owner',
+      }],
       signOut: vi.fn(),
       refreshContext: vi.fn(),
     });
@@ -659,6 +663,8 @@ describe('Phase 12: Messaging, Private Storage Attachments & Notifications', () 
     await waitFor(() => {
       expect(screen.getByText('SHP-0001201')).toBeInTheDocument();
     });
+    expect(screen.getByRole('navigation', {name: 'القائمة الجانبية للمندوب'})).toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: 'قائمة العملاء'})).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', {name: 'الرسائل والتواصل'}));
     await waitFor(() => {

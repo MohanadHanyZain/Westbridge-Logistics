@@ -36,7 +36,6 @@ const translations: Record<string, string> = {
   'الحسابات المسجلة': 'Registrations',
   'قوائم أسعار الشحن': 'Price Lists',
   'قيد التسوية مع العملاء': 'Client Settlements',
-  'معاينة بوابة التاجر': 'Client Portal Preview',
   'مندوبو التوصيل': 'Couriers',
   'قائمة المندوبين': 'Courier List',
   'إنشاء مندوب': 'Create Courier',

@@ -27,3 +27,6 @@ file_size_limit = "10MiB"
 enabled = true
 site_url = "http://localhost:3000"
 enable_signup = false
+
+[functions.auth-resolve-login]
+verify_jwt = false
