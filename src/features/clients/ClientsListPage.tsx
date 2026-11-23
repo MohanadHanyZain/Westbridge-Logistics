@@ -1111,12 +1111,6 @@ export function ClientsListPage({initialMode = 'list'}: ClientsListPageProps) {
                     تحكم في إتاحة نموذج تسجيل المتاجر عبر صفحة الشركة العامة وسياسة الاعتماد التلقائي.
                   </p>
                 </div>
-                <Link
-                  to={buildTenantBasePath(tenant.slug)}
-                  className="text-xs font-medium text-slate-700 underline underline-offset-4 hover:text-slate-900"
-                >
-                  معاينة الموقع العام للشركة
-                </Link>
               </div>
 
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

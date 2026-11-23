@@ -14,10 +14,16 @@ export function DirectionProvider({children}: DirectionProviderProps) {
     const locale = localStorage.getItem('shipflow_locale') === 'en' ? 'en' : 'ar';
     document.documentElement.dir = locale === 'ar' ? 'rtl' : 'ltr';
     document.documentElement.lang = locale === 'ar' ? 'ar' : 'en';
-    document.title = `${BRAND_CONFIG.appName} | منصة إدارة عمليات الشحن`;
+    document.title = locale === 'ar'
+      ? `${BRAND_CONFIG.appName} | منصة إدارة عمليات الشحن`
+      : `${BRAND_CONFIG.appName} | Shipping Operations Platform`;
 
     const syncLocale = () => {
-      setLocale(localStorage.getItem('shipflow_locale') === 'en' ? 'en' : 'ar');
+      const nextLocale = localStorage.getItem('shipflow_locale') === 'en' ? 'en' : 'ar';
+      setLocale(nextLocale);
+      document.title = nextLocale === 'ar'
+        ? `${BRAND_CONFIG.appName} | منصة إدارة عمليات الشحن`
+        : `${BRAND_CONFIG.appName} | Shipping Operations Platform`;
     };
     const syncTheme = () => {
       document.documentElement.dataset.theme = localStorage.getItem('shipflow_theme') === 'dark' ? 'dark' : 'light';
@@ -37,6 +43,30 @@ export function DirectionProvider({children}: DirectionProviderProps) {
     document.documentElement.dir = dir;
     document.documentElement.lang = locale;
   }, [dir, locale]);
+
+  useEffect(() => {
+    const tagTableCells = () => {
+      document.querySelectorAll('table').forEach((table) => {
+        table.dataset.responsiveTable = 'true';
+        const headers = Array.from(table.querySelectorAll('thead th'), (header) =>
+          header.textContent?.trim() ?? '',
+        );
+        if (headers.length === 0) return;
+        table.querySelectorAll('tbody tr').forEach((row) => {
+          const cells = Array.from(row.querySelectorAll(':scope > td'));
+          if (cells.length !== headers.length) return;
+          cells.forEach((cell, index) => {
+            cell.setAttribute('data-label', headers[index]);
+          });
+        });
+      });
+    };
+
+    tagTableCells();
+    const observer = new MutationObserver(tagTableCells);
+    observer.observe(document.body, {childList: true, subtree: true});
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <div dir={dir} lang={locale} className="min-h-screen">

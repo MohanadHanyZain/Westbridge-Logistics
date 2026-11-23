@@ -112,7 +112,7 @@ function StaffTenantOverviewInner() {
           <p className="text-xs font-medium text-slate-500">{t('لوحة الإدارة')}</p>
           <h1 className="mt-1 text-xl font-extrabold text-slate-900 sm:text-2xl">{t('نظرة عامة على العمليات')}</h1>
         </div>
-        <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1" role="group" aria-label="نطاق المؤشرات الزمني">
+        <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1" role="group" aria-label={t('نطاق المؤشرات الزمني')}>
           {([
             ['all', 'الكل'],
             ['7d', '7 أيام'],
@@ -128,7 +128,7 @@ function StaffTenantOverviewInner() {
                   : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
               }`}
             >
-              {label}
+              {t(label)}
             </button>
           ))}
         </div>
@@ -136,7 +136,7 @@ function StaffTenantOverviewInner() {
 
       {dashboardError && (
         <div role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
-          تعذر تحميل مؤشرات لوحة التحكم: {dashboardError}
+          {t('تعذر تحميل مؤشرات لوحة التحكم')}: {dashboardError}
         </div>
       )}
 
@@ -182,7 +182,7 @@ function StaffTenantOverviewInner() {
             <p className="mt-1 text-xs text-slate-500">{t('توزيع مؤشرات العمليات للفترة المحددة')}</p>
           </div>
           <Link to={`${basePath}/reports`} className="text-xs font-bold text-[#d95537] hover:text-[#b94329]">
-            عرض التقرير
+            {t('عرض التقرير')}
           </Link>
         </div>
 

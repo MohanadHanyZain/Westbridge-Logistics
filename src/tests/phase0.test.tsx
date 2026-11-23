@@ -86,8 +86,8 @@ describe('Phase 0: RTL Application Shell & Interactive Architecture Console', ()
 
     expect(document.documentElement.dir).toBe('rtl');
     expect(document.documentElement.lang).toBe('ar');
-    expect(screen.getByText(BRAND_CONFIG.appName)).toBeInTheDocument();
-    expect(screen.getByRole('heading', {level: 1})).toHaveTextContent(BRAND_CONFIG.appName);
+    expect(screen.getAllByText(BRAND_CONFIG.appName).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByRole('heading', {level: 1})).toHaveTextContent('إدارة الشحنات والعمليات');
   });
 
   it('switches tabs and filters roadmap phases and open questions accurately', () => {

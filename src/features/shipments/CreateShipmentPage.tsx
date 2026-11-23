@@ -14,6 +14,7 @@ import {
 import {calculateShipmentPrice} from '@/features/pricing/pricingService';
 import {createShipment} from '@/features/shipments/shipmentsService';
 import {useTenantWorkspace} from '@/features/tenants/TenantWorkspaceContext';
+import {translateUi, useLocale} from '@/lib/i18n';
 import type {
   BranchRecord,
   GovernorateRecord,
@@ -34,10 +35,17 @@ function newIdempotencyKey(): string {
   return `shp-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+function friendlyPricingError(message: string, locale: 'ar' | 'en'): string {
+  const missingRouteRule = 'لم يتم العثور على قاعدة تسعير مطابقة للخدمة ومسار الالتقاط والتسليم المحدد.';
+  return message.includes(missingRouteRule) ? translateUi(missingRouteRule, locale) : message;
+}
+
 export function CreateShipmentPage() {
-  const {tenant, boundClientId, can} = useTenantWorkspace();
+  const {tenant, boundClientId, can, isAdmin} = useTenantWorkspace();
   const navigate = useNavigate();
   const basePath = `${buildTenantBasePath(tenant.slug)}/app`;
+  const locale = useLocale();
+  const t = (text: string) => translateUi(text, locale);
 
   // Reference data
   const [clients, setClients] = useState<readonly ClientRecord[]>([]);
@@ -308,6 +316,9 @@ export function CreateShipmentPage() {
           if (!cancelled) setCalculatingPrice(false);
         });
     }, 200);
+    setPricingBreakdown(null);
+    setPricingError(null);
+    setCalculatingPrice(true);
 
     return () => {
       cancelled = true;
@@ -372,12 +383,25 @@ export function CreateShipmentPage() {
     setSubmitError(null);
 
     if (!clientId || !originBranchId || !serviceId || !shipmentTypeId || !paymentTermId) {
-      setSubmitError('يرجى استكمال بيانات العميل والفرع والخدمة ونوع الطلب ونوع الدفع.');
+      setSubmitError(t('يرجى استكمال بيانات العميل والفرع والخدمة ونوع الطلب ونوع الدفع.'));
+      return;
+    }
+
+    const hasPricingInputs = Boolean(
+      clientId && serviceId && senderGovId && senderRegionId && recipientGovId &&
+      recipientRegionId && recipientName.trim() && recipientMobile.trim(),
+    );
+    if (hasPricingInputs && (calculatingPrice || pricingError || !pricingBreakdown)) {
+      setSubmitError(
+        pricingError
+          ? friendlyPricingError(pricingError, locale)
+          : t('انتظر حتى يكتمل احتساب السعر قبل إنشاء الشحنة.'),
+      );
       return;
     }
 
     if (isPtpOrder && exchangeItemDescription.trim().length < 2) {
-      setSubmitError('يرجى إدخال وصف طرد الاستبدال المرتجع عند اختيار طلب استبدال (PTP).');
+      setSubmitError(t('يرجى إدخال وصف طرد الاستبدال المرتجع عند اختيار طلب استبدال (PTP).'));
       return;
     }
 
@@ -430,7 +454,7 @@ export function CreateShipmentPage() {
   if (loadingRefs) {
     return (
       <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-600">
-        جاري تحميل بيانات العملاء والفروع وقوائم التسعير...
+        {t('جاري تحميل بيانات العملاء والفروع وقوائم الأسعار...')}
       </div>
     );
   }
@@ -444,11 +468,11 @@ export function CreateShipmentPage() {
             className="inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-900"
           >
             <ArrowRight className="h-3.5 w-3.5" />
-            العودة لقائمة الشحنات
+            {t('العودة لقائمة الشحنات')}
           </Link>
-          <h1 className="mt-1 text-xl font-bold text-slate-900">إنشاء شحنة جديدة</h1>
+          <h1 className="mt-1 text-xl font-bold text-slate-900">{t('إنشاء شحنة جديدة')}</h1>
           <p className="mt-1 text-sm text-slate-600">
-            إصدار بوليصة شحن بباركود غير قابل للتخمين مع احتساب خادمي فوري للتكلفة ولقطة سعر غير قابلة للتعديل.
+            {t('أدخل بيانات الشحنة والراسل والمستلم لمراجعة التكلفة قبل الحفظ.')}
           </p>
         </div>
       </div>
@@ -464,22 +488,22 @@ export function CreateShipmentPage() {
         <div className="space-y-6 lg:col-span-8">
           {/* Section 1: Shipment Details */}
           <section className="rounded-xl border border-slate-200 bg-white p-6">
-            <h2 className="text-base font-semibold text-slate-900">01. تفاصيل الشحنة والتسعير</h2>
+            <h2 className="text-base font-semibold text-slate-900">{t('01. تفاصيل الشحنة والتسعير')}</h2>
 
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <div>
-                <label className="block text-xs font-medium text-slate-700">رقم الشحنة</label>
+                <label className="block text-xs font-medium text-slate-700">{t('رقم الشحنة')}</label>
                 <input
                   type="text"
                   readOnly
-                  value="يُولّد تلقائيًا عند الحفظ"
+                  value={t('يُولّد تلقائيًا عند الحفظ')}
                   className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500"
                 />
               </div>
 
               <div>
                 <label htmlFor="shp-origin-branch" className="block text-xs font-medium text-slate-700">
-                  فرع المنشأ
+                  {t('فرع المنشأ')}
                 </label>
                 <select
                   id="shp-origin-branch"
@@ -498,7 +522,7 @@ export function CreateShipmentPage() {
 
               <div>
                 <label htmlFor="shp-movement-type" className="block text-xs font-medium text-slate-700">
-                  نوع الحركة
+                  {t('نوع الحركة')}
                 </label>
                 <select
                   id="shp-movement-type"
@@ -516,7 +540,7 @@ export function CreateShipmentPage() {
 
               <div>
                 <label htmlFor="shp-type" className="block text-xs font-medium text-slate-700">
-                  نوع الطلب
+                  {t('نوع الطلب')}
                 </label>
                 <select
                   id="shp-type"
@@ -535,7 +559,7 @@ export function CreateShipmentPage() {
 
               <div>
                 <label htmlFor="shp-service" className="block text-xs font-medium text-slate-700">
-                  الخدمة
+                  {t('الخدمة')}
                 </label>
                 <select
                   id="shp-service"
@@ -546,7 +570,7 @@ export function CreateShipmentPage() {
                 >
                   {services.map((s) => (
                     <option key={s.id} value={s.id}>
-                      {s.name} ({s.estimated_days_min}–{s.estimated_days_max} أيام)
+                      {s.name} ({s.estimated_days_min}–{s.estimated_days_max} {t('أيام')})
                     </option>
                   ))}
                 </select>
@@ -554,7 +578,7 @@ export function CreateShipmentPage() {
 
               <div>
                 <label htmlFor="shp-pickup-date" className="block text-xs font-medium text-slate-700">
-                  تاريخ الالتقاط
+                  {t('تاريخ الالتقاط')}
                 </label>
                 <input
                   id="shp-pickup-date"
@@ -568,21 +592,21 @@ export function CreateShipmentPage() {
 
               <div className="sm:col-span-2 lg:col-span-3">
                 <label htmlFor="shp-desc" className="block text-xs font-medium text-slate-700">
-                  وصف الطرد
+                  {t('وصف الطرد')}
                 </label>
                 <input
                   id="shp-desc"
                   type="text"
                   value={packageDescription}
                   onChange={(e) => setPackageDescription(e.target.value)}
-                  placeholder="مثال: ملابس قطنية - 3 قطع"
+                  placeholder={t('مثال: ملابس قطنية - 3 قطع')}
                   className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs"
                 />
               </div>
 
               <div>
                 <label htmlFor="shp-weight" className="block text-xs font-medium text-slate-700">
-                  الوزن الفعلي (كجم)
+                  {t('الوزن الفعلي (كجم)')}
                 </label>
                 <input
                   id="shp-weight"
@@ -598,7 +622,7 @@ export function CreateShipmentPage() {
 
               <div>
                 <label htmlFor="shp-pieces" className="block text-xs font-medium text-slate-700">
-                  عدد القطع
+                  {t('عدد القطع')}
                 </label>
                 <input
                   id="shp-pieces"
@@ -615,7 +639,7 @@ export function CreateShipmentPage() {
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label htmlFor="shp-len" className="block text-[11px] font-medium text-slate-700">
-                    طول (سم)
+                    {t('طول (سم)')}
                   </label>
                   <input
                     id="shp-len"
@@ -629,7 +653,7 @@ export function CreateShipmentPage() {
                 </div>
                 <div>
                   <label htmlFor="shp-wid" className="block text-[11px] font-medium text-slate-700">
-                    عرض (سم)
+                    {t('عرض (سم)')}
                   </label>
                   <input
                     id="shp-wid"
@@ -643,7 +667,7 @@ export function CreateShipmentPage() {
                 </div>
                 <div>
                   <label htmlFor="shp-hei" className="block text-[11px] font-medium text-slate-700">
-                    ارتفاع (سم)
+                    {t('ارتفاع (سم)')}
                   </label>
                   <input
                     id="shp-hei"
@@ -659,7 +683,7 @@ export function CreateShipmentPage() {
 
               <div>
                 <label htmlFor="shp-payment-term" className="block text-xs font-medium text-slate-700">
-                  نوع الدفع
+                  {t('نوع الدفع')}
                 </label>
                 <select
                   id="shp-payment-term"
@@ -670,7 +694,7 @@ export function CreateShipmentPage() {
                 >
                   {paymentTerms.map((t) => (
                     <option key={t.id} value={t.id}>
-                      {PAYMENT_TERM_LABELS[t.code as PaymentTermCode] ?? t.name}
+                      {translateUi(PAYMENT_TERM_LABELS[t.code as PaymentTermCode] ?? t.name, locale)}
                     </option>
                   ))}
                 </select>
@@ -679,7 +703,7 @@ export function CreateShipmentPage() {
               {showBalanceField && (
                 <div>
                   <label htmlFor="shp-balance" className="block text-xs font-medium text-slate-700">
-                    قيمة الرصيد / المبلغ (ج.م)
+                    {t('قيمة الرصيد / المبلغ (ج.م)')}
                   </label>
                   <input
                     id="shp-balance"
@@ -695,7 +719,7 @@ export function CreateShipmentPage() {
 
               <div>
                 <label htmlFor="shp-price-mode" className="block text-xs font-medium text-slate-700">
-                  نوع السعر
+                  {t('نوع السعر')}
                 </label>
                 <select
                   id="shp-price-mode"
@@ -703,28 +727,28 @@ export function CreateShipmentPage() {
                   onChange={(e) => setPriceMode(e.target.value as PriceMode)}
                   className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs"
                 >
-                  <option value="shipping_excluded">غير شامل مصاريف الشحن (يُضاف على المستلم)</option>
-                  <option value="shipping_included">شامل مصاريف الشحن (يُخصم من الإجمالي للتاجر)</option>
+                  <option value="shipping_excluded">{t('غير شامل مصاريف الشحن (يُضاف على المستلم)')}</option>
+                  <option value="shipping_included">{t('شامل مصاريف الشحن (يُخصم من الإجمالي للتاجر)')}</option>
                 </select>
               </div>
 
               <div>
                 <label htmlFor="shp-ref" className="block text-xs font-medium text-slate-700">
-                  الرقم المرجعي
+                  {t('الرقم المرجعي')}
                 </label>
                 <input
                   id="shp-ref"
                   type="text"
                   value={externalReference}
                   onChange={(e) => setExternalReference(e.target.value)}
-                  placeholder="رقم طلب المتجر أو الفاتورة"
+                  placeholder={t('رقم طلب المتجر أو الفاتورة')}
                   className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 font-mono-tabular text-xs"
                 />
               </div>
 
               <div>
                 <label htmlFor="shp-open" className="block text-xs font-medium text-slate-700">
-                  إمكانية فتح الطرد
+                  {t('إمكانية فتح الطرد')}
                 </label>
                 <select
                   id="shp-open"
@@ -732,14 +756,14 @@ export function CreateShipmentPage() {
                   onChange={(e) => setAllowPackageOpening(e.target.value === 'allowed')}
                   className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs"
                 >
-                  <option value="forbidden">غير مسموح</option>
-                  <option value="allowed">مسموح</option>
+                  <option value="forbidden">{t('غير مسموح')}</option>
+                  <option value="allowed">{t('مسموح')}</option>
                 </select>
               </div>
 
               <div className="sm:col-span-2 lg:col-span-3">
                 <label htmlFor="shp-notes" className="block text-xs font-medium text-slate-700">
-                  ملاحظات الشحنة
+                  {t('ملاحظات الشحنة')}
                 </label>
                 <textarea
                   id="shp-notes"
@@ -754,7 +778,7 @@ export function CreateShipmentPage() {
             {isPtpOrder && (
               <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50/70 p-4">
                 <label htmlFor="shp-exchange-desc" className="block text-xs font-semibold text-amber-900">
-                  وصف طرد الاستبدال المرتجع (إلزامي لطلبات الاستبدال)
+                  {t('وصف طرد الاستبدال المرتجع (إلزامي لطلبات الاستبدال)')}
                 </label>
                 <input
                   id="shp-exchange-desc"
@@ -762,7 +786,7 @@ export function CreateShipmentPage() {
                   required
                   value={exchangeItemDescription}
                   onChange={(e) => setExchangeItemDescription(e.target.value)}
-                  placeholder="مثال: استلام حذاء مقاس 42 مرتجع من المستلم وتسليمه للراسل"
+                  placeholder={t('مثال: استلام حذاء مقاس 42 مرتجع من المستلم وتسليمه للراسل')}
                   className="mt-1.5 w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs"
                 />
               </div>
@@ -770,7 +794,7 @@ export function CreateShipmentPage() {
 
             {isPdpOrder && (
               <p className="mt-3 text-xs text-slate-600">
-                طلب التسليم الجزئي: يُعالج عند التنفيذ على الشحنة بتحديد عدد القطع المسلمة والباقي المرتجع.
+                {t('طلب التسليم الجزئي: يُعالج عند التنفيذ على الشحنة بتحديد عدد القطع المسلمة والباقي المرتجع.')}
               </p>
             )}
 
@@ -778,7 +802,7 @@ export function CreateShipmentPage() {
               <div className="mt-4 grid grid-cols-1 gap-3 border-t border-slate-100 pt-4 sm:grid-cols-2">
                 <div>
                   <label htmlFor="shp-override-fee" className="block text-xs font-medium text-slate-700">
-                    تعديل يدوي لإجمالي الشحن (صلاحية إدارية)
+                    {t('تعديل يدوي لإجمالي الشحن (صلاحية إدارية)')}
                   </label>
                   <input
                     id="shp-override-fee"
@@ -787,13 +811,13 @@ export function CreateShipmentPage() {
                     step="0.01"
                     value={overrideTotalFee}
                     onChange={(e) => setOverrideTotalFee(e.target.value)}
-                    placeholder="اتركه فارغًا للتسعير التلقائي"
+                    placeholder={t('اتركه فارغًا للتسعير التلقائي')}
                     className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 font-mono-tabular text-xs"
                   />
                 </div>
                 <div>
                   <label htmlFor="shp-override-reason" className="block text-xs font-medium text-slate-700">
-                    سبب التعديل اليدوي للسعر
+                    {t('سبب التعديل اليدوي للسعر')}
                   </label>
                   <input
                     id="shp-override-reason"
@@ -801,7 +825,7 @@ export function CreateShipmentPage() {
                     required={overrideTotalFee.trim() !== ''}
                     value={overrideReason}
                     onChange={(e) => setOverrideReason(e.target.value)}
-                    placeholder="إلزامي عند إدخال سعر يدوي"
+                    placeholder={t('إلزامي عند إدخال سعر يدوي')}
                     className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs"
                   />
                 </div>
@@ -811,12 +835,12 @@ export function CreateShipmentPage() {
 
           {/* Section 2: Sender Data */}
           <section className="rounded-xl border border-slate-200 bg-white p-6">
-            <h2 className="text-base font-semibold text-slate-900">02. بيانات الراسل</h2>
+            <h2 className="text-base font-semibold text-slate-900">{t('02. بيانات الراسل')}</h2>
 
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="sm:col-span-2">
                 <label htmlFor="shp-client" className="block text-xs font-medium text-slate-700">
-                  العميل المسجل (تعبئة تلقائية لبيانات الراسل)
+                  {t('العميل المسجل (تعبئة تلقائية لبيانات الراسل)')}
                 </label>
                 <select
                   id="shp-client"
@@ -830,7 +854,7 @@ export function CreateShipmentPage() {
                   required
                   className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs disabled:bg-slate-50"
                 >
-                  <option value="">اختر العميل...</option>
+                  <option value="">{t('اختر العميل...')}</option>
                   {clients.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.code} · {c.name}
@@ -842,7 +866,7 @@ export function CreateShipmentPage() {
               {savedAddresses.length > 0 && (
                 <div className="sm:col-span-2">
                   <label htmlFor="shp-saved-address" className="block text-xs font-medium text-slate-700">
-                    اختيار من عناوين الالتقاط المحفوظة
+                    {t('اختيار من عناوين الالتقاط المحفوظة')}
                   </label>
                   <select
                     id="shp-saved-address"
@@ -860,7 +884,7 @@ export function CreateShipmentPage() {
                     }}
                     className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
                   >
-                    <option value="">العنوان الرئيسي المسجل بالملف</option>
+                    <option value="">{t('العنوان الرئيسي المسجل بالملف')}</option>
                     {savedAddresses.map((addr) => (
                       <option key={addr.id} value={addr.id}>
                         {addr.label} — {addr.address_line}
@@ -872,7 +896,7 @@ export function CreateShipmentPage() {
 
               <div>
                 <label htmlFor="shp-sender-name" className="block text-xs font-medium text-slate-700">
-                  اسم الراسل
+                  {t('اسم الراسل')}
                 </label>
                 <input
                   id="shp-sender-name"
@@ -886,7 +910,7 @@ export function CreateShipmentPage() {
 
               <div>
                 <label htmlFor="shp-sender-gov" className="block text-xs font-medium text-slate-700">
-                  محافظة / إقليم الراسل
+                  {t('محافظة / إقليم الراسل')}
                 </label>
                 <select
                   id="shp-sender-gov"
@@ -910,7 +934,7 @@ export function CreateShipmentPage() {
 
               <div>
                 <label htmlFor="shp-sender-reg" className="block text-xs font-medium text-slate-700">
-                  منطقة الراسل
+                  {t('منطقة الراسل')}
                 </label>
                 <select
                   id="shp-sender-reg"
@@ -929,7 +953,7 @@ export function CreateShipmentPage() {
 
               <div>
                 <label htmlFor="shp-sender-mobile" className="block text-xs font-medium text-slate-700">
-                  موبايل الراسل
+                  {t('موبايل الراسل')}
                 </label>
                 <input
                   id="shp-sender-mobile"
@@ -943,7 +967,7 @@ export function CreateShipmentPage() {
 
               <div>
                 <label htmlFor="shp-sender-phone" className="block text-xs font-medium text-slate-700">
-                  تليفون الراسل (اختياري)
+                  {t('تليفون الراسل (اختياري)')}
                 </label>
                 <input
                   id="shp-sender-phone"
@@ -956,7 +980,7 @@ export function CreateShipmentPage() {
 
               <div className="sm:col-span-2">
                 <label htmlFor="shp-sender-address" className="block text-xs font-medium text-slate-700">
-                  عنوان الراسل بالتفصيل
+                  {t('عنوان الراسل بالتفصيل')}
                 </label>
                 <input
                   id="shp-sender-address"
@@ -972,12 +996,12 @@ export function CreateShipmentPage() {
 
           {/* Section 3: Recipient Data */}
           <section className="rounded-xl border border-slate-200 bg-white p-6">
-            <h2 className="text-base font-semibold text-slate-900">03. بيانات المرسل إليه</h2>
+            <h2 className="text-base font-semibold text-slate-900">{t('03. بيانات المرسل إليه')}</h2>
 
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
                 <label htmlFor="shp-rec-name" className="block text-xs font-medium text-slate-700">
-                  اسم المرسل إليه
+                  {t('اسم المرسل إليه')}
                 </label>
                 <input
                   id="shp-rec-name"
@@ -991,7 +1015,7 @@ export function CreateShipmentPage() {
 
               <div>
                 <label htmlFor="shp-rec-gov" className="block text-xs font-medium text-slate-700">
-                  محافظة / إقليم المرسل إليه
+                  {t('محافظة / إقليم المرسل إليه')}
                 </label>
                 <select
                   id="shp-rec-gov"
@@ -1015,7 +1039,7 @@ export function CreateShipmentPage() {
 
               <div>
                 <label htmlFor="shp-rec-reg" className="block text-xs font-medium text-slate-700">
-                  منطقة المرسل إليه
+                  {t('منطقة المرسل إليه')}
                 </label>
                 <select
                   id="shp-rec-reg"
@@ -1034,7 +1058,7 @@ export function CreateShipmentPage() {
 
               <div>
                 <label htmlFor="shp-rec-mobile" className="block text-xs font-medium text-slate-700">
-                  موبايل المرسل إليه
+                  {t('موبايل المرسل إليه')}
                 </label>
                 <input
                   id="shp-rec-mobile"
@@ -1048,7 +1072,7 @@ export function CreateShipmentPage() {
 
               <div>
                 <label htmlFor="shp-rec-phone" className="block text-xs font-medium text-slate-700">
-                  تليفون المرسل إليه (اختياري)
+                  {t('تليفون المرسل إليه (اختياري)')}
                 </label>
                 <input
                   id="shp-rec-phone"
@@ -1061,7 +1085,7 @@ export function CreateShipmentPage() {
 
               <div className="sm:col-span-2">
                 <label htmlFor="shp-rec-address" className="block text-xs font-medium text-slate-700">
-                  عنوان المرسل إليه بالتفصيل
+                  {t('عنوان المرسل إليه بالتفصيل')}
                 </label>
                 <input
                   id="shp-rec-address"
@@ -1082,75 +1106,89 @@ export function CreateShipmentPage() {
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
                 <Calculator className="h-4 w-4 text-slate-700" />
-                <h2 className="text-sm font-semibold text-slate-900">ملخص التسعير الخادمي الفوري</h2>
+                <h2 className="text-sm font-semibold text-slate-900">{t('حساب تكلفة الشحنة')}</h2>
               </div>
-              {calculatingPrice && <span className="text-[11px] text-slate-500">جاري الاحتساب...</span>}
+              {calculatingPrice && <span className="text-[11px] text-slate-500">{t('جاري الاحتساب...')}</span>}
             </div>
 
             {pricingError && (
               <div role="alert" className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">
-                {pricingError}
+                {friendlyPricingError(pricingError, locale)}
+                {pricingError.includes('لم يتم العثور على قاعدة تسعير مطابقة') && (
+                  <p className="mt-2">
+                    {isAdmin ? (
+                      <Link
+                        to={`${basePath}/pricing/price-lists`}
+                        className="font-semibold underline underline-offset-2"
+                      >
+                        {t('الذهاب إلى قوائم أسعار الشحن')}
+                      </Link>
+                    ) : (
+                      t('اطلب من مدير الشركة إضافة قاعدة لهذا المسار في قوائم أسعار الشحن.')
+                    )}
+                  </p>
+                )}
               </div>
             )}
 
             {pricingBreakdown && effectiveSummary ? (
               <dl className="mt-4 space-y-2.5 text-xs">
                 <div className="flex justify-between text-slate-600">
-                  <dt>الوزن المفوتر (الحجمي {pricingBreakdown.volumetric_weight_kg})</dt>
+                  <dt>{t('الوزن المفوتر (الحجمي')} {pricingBreakdown.volumetric_weight_kg})</dt>
                   <dd className="font-mono-tabular font-semibold text-slate-900">
-                    {pricingBreakdown.chargeable_weight_kg} كجم
+                    {pricingBreakdown.chargeable_weight_kg} {t('كجم')}
                   </dd>
                 </div>
                 <div className="flex justify-between text-slate-600">
-                  <dt>سعر التوصيل الأساسي</dt>
-                  <dd className="font-mono-tabular">{Number(pricingBreakdown.base_delivery_fee).toFixed(2)} ج.م</dd>
+                  <dt>{t('سعر التوصيل الأساسي')}</dt>
+                  <dd className="font-mono-tabular">{Number(pricingBreakdown.base_delivery_fee).toFixed(2)} {t('ج.م')}</dd>
                 </div>
                 <div className="flex justify-between text-slate-600">
-                  <dt>سعر الوزن الإضافي</dt>
-                  <dd className="font-mono-tabular">{Number(pricingBreakdown.extra_weight_fee).toFixed(2)} ج.م</dd>
+                  <dt>{t('سعر الوزن الإضافي')}</dt>
+                  <dd className="font-mono-tabular">{Number(pricingBreakdown.extra_weight_fee).toFixed(2)} {t('ج.م')}</dd>
                 </div>
                 <div className="flex justify-between text-slate-600">
-                  <dt>عمولة التحصيل</dt>
-                  <dd className="font-mono-tabular">{Number(pricingBreakdown.collection_fee).toFixed(2)} ج.م</dd>
+                  <dt>{t('عمولة التحصيل')}</dt>
+                  <dd className="font-mono-tabular">{Number(pricingBreakdown.collection_fee).toFixed(2)} {t('ج.م')}</dd>
                 </div>
                 <div className="flex justify-between text-slate-600">
-                  <dt>الإضافات / الإعفاءات</dt>
+                  <dt>{t('الإضافات / الإعفاءات')}</dt>
                   <dd className="font-mono-tabular">
                     +{Number(pricingBreakdown.surcharges_total).toFixed(2)} / -{Number(pricingBreakdown.exemptions_total).toFixed(2)}
                   </dd>
                 </div>
                 <div className="flex justify-between text-slate-600">
-                  <dt>الضريبة ({pricingBreakdown.tax_rate_percent}%)</dt>
-                  <dd className="font-mono-tabular">{Number(pricingBreakdown.tax_amount).toFixed(2)} ج.م</dd>
+                  <dt>{t('الضريبة')} ({pricingBreakdown.tax_rate_percent}%)</dt>
+                  <dd className="font-mono-tabular">{Number(pricingBreakdown.tax_amount).toFixed(2)} {t('ج.م')}</dd>
                 </div>
                 <div className="flex justify-between text-slate-600">
-                  <dt>رسوم الإرجاع المتوقعة</dt>
-                  <dd className="font-mono-tabular">{Number(pricingBreakdown.return_fee).toFixed(2)} ج.م</dd>
+                  <dt>{t('رسوم الإرجاع المتوقعة')}</dt>
+                  <dd className="font-mono-tabular">{Number(pricingBreakdown.return_fee).toFixed(2)} {t('ج.م')}</dd>
                 </div>
 
                 <div className="border-t border-slate-200 pt-3">
                   <div className="flex justify-between text-sm font-bold text-slate-900">
-                    <dt>إجمالي مصاريف الشحن</dt>
-                    <dd className="font-mono-tabular">{Number(pricingBreakdown.total_shipping_fee).toFixed(2)} ج.م</dd>
+                    <dt>{t('إجمالي مصاريف الشحن')}</dt>
+                    <dd className="font-mono-tabular">{Number(pricingBreakdown.total_shipping_fee).toFixed(2)} {t('ج.م')}</dd>
                   </div>
                   <div className="mt-2 flex justify-between text-sm font-bold text-slate-900">
-                    <dt>المطلوب تحصيله من المستلم</dt>
-                    <dd className="font-mono-tabular">{effectiveSummary.collect.toFixed(2)} ج.م</dd>
+                    <dt>{t('المطلوب تحصيله من المستلم')}</dt>
+                    <dd className="font-mono-tabular">{effectiveSummary.collect.toFixed(2)} {t('ج.م')}</dd>
                   </div>
                   <div className="mt-2 flex justify-between text-sm font-semibold text-emerald-700">
-                    <dt>صافي مستحق / أثر التاجر</dt>
-                    <dd className="font-mono-tabular">{effectiveSummary.payout.toFixed(2)} ج.م</dd>
+                    <dt>{t('صافي مستحق / أثر التاجر')}</dt>
+                    <dd className="font-mono-tabular">{effectiveSummary.payout.toFixed(2)} {t('ج.م')}</dd>
                   </div>
                 </div>
 
                 <p className="border-t border-slate-100 pt-3 text-[11px] leading-relaxed text-slate-500">
-                  {effectiveSummary.note}
+                  {t(effectiveSummary.note)}
                 </p>
               </dl>
             ) : (
               !pricingError && (
                 <p className="mt-4 text-xs text-slate-500">
-                  اختر العميل والخدمة ومسار الالتقاط والتسليم لعرض الحساب التفصيلي من الخادم.
+                  {t('اختر العميل والخدمة ومسار الالتقاط والتسليم لعرض تكلفة الشحنة.')}
                 </p>
               )
             )}
@@ -1163,22 +1201,22 @@ export function CreateShipmentPage() {
 
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || (Boolean(clientId && serviceId && senderGovId && senderRegionId && recipientGovId && recipientRegionId && recipientName.trim() && recipientMobile.trim()) && (calculatingPrice || Boolean(pricingError) || !pricingBreakdown))}
               className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
             >
               {submitting ? (
-                'جاري إصدار البوليصة...'
+                t('جاري إصدار البوليصة...')
               ) : (
                 <>
                   <Save className="h-4 w-4" />
-                  إنشاء وحفظ الشحنة
+                  {t('إنشاء وحفظ الشحنة')}
                 </>
               )}
             </button>
 
             <div className="mt-3 flex items-center gap-1.5 text-[11px] text-slate-500">
               <PackageCheck className="h-3.5 w-3.5 shrink-0" />
-              <span>يتم تثبيت لقطة السعر وتوليد الباركود تلقائيًا داخل معاملة ذرية.</span>
+              <span>{t('يتم حفظ السعر ورمز التتبع تلقائيًا عند إنشاء الشحنة.')}</span>
             </div>
           </div>
         </aside>

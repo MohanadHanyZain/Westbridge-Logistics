@@ -57,7 +57,19 @@ export function TenantAdminShellPage() {
   const location = useLocation();
   const {memberships} = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [openSection, setOpenSection] = useState<string | null>(null);
+  const [openSection, setOpenSection] = useState<string | null>(() => {
+    const pathname = location.pathname;
+    if (pathname.includes('/definitions/')) return 'definitions';
+    if (pathname.includes('/shipments')) return 'shipments';
+    if (pathname.includes('/operations/') || pathname.includes('/operations')) return 'operations';
+    if (pathname.includes('/clients')) return 'clients';
+    if (pathname.includes('/couriers')) return 'couriers';
+    if (pathname.includes('/finance') || pathname.includes('/accounting')) return pathname.includes('/finance') ? 'finance' : 'accounting';
+    if (pathname.includes('/security')) return 'security';
+    if (pathname.includes('/messaging') || pathname.includes('/notifications') || pathname.includes('/settings')) return 'messages';
+    if (pathname.includes('/pricing') || pathname.includes('/reports')) return 'accounting';
+    return null;
+  });
   const locale = useLocale();
   const t = (text: string) => translateUi(text, locale);
   const [permBundle, setPermBundle] = useState<MyTenantPermissionsBundle>({
@@ -77,6 +89,19 @@ export function TenantAdminShellPage() {
       document.body.style.overflow = previousOverflow;
     };
   }, [sidebarOpen]);
+
+  useEffect(() => {
+    const pathname = location.pathname;
+    if (pathname.includes('/definitions/')) setOpenSection('definitions');
+    else if (pathname.includes('/shipments')) setOpenSection('shipments');
+    else if (pathname.includes('/operations/')) setOpenSection('operations');
+    else if (pathname.includes('/clients')) setOpenSection('clients');
+    else if (pathname.includes('/couriers')) setOpenSection('couriers');
+    else if (pathname.includes('/finance')) setOpenSection('finance');
+    else if (pathname.includes('/accounting') || pathname.includes('/pricing') || pathname.includes('/reports')) setOpenSection('accounting');
+    else if (pathname.includes('/security')) setOpenSection('security');
+    else if (pathname.includes('/messaging') || pathname.includes('/notifications') || pathname.includes('/settings')) setOpenSection('messages');
+  }, [location.pathname]);
 
   const activeMembership = memberships.find(
     (m) => m.tenants?.slug === companySlug.trim().toLowerCase() && m.is_active,
@@ -136,6 +161,7 @@ export function TenantAdminShellPage() {
   const isAdmin =
     !isCourierAccount &&
     !isClientAccount &&
+    activeMembership?.account_subject_type === AccountSubjectType.STAFF &&
     (roleKey === 'company_owner' || roleKey === 'company_admin');
 
   const toggleSection = (section: string) => {
@@ -772,15 +798,6 @@ export function TenantAdminShellPage() {
         </nav>
       </div>
 
-      <div className="shrink-0 border-t border-slate-200 p-4">
-        <Link
-          to={`${basePath}/settings`}
-          aria-label={t('إعدادات الشركة والملفات')}
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-slate-500 hover:border-orange-200 hover:bg-orange-50 hover:text-[#d95537]"
-        >
-          <UserRound className="h-5 w-5" />
-        </Link>
-      </div>
     </div>
   );
 
@@ -839,7 +856,7 @@ export function TenantAdminShellPage() {
                 <Link
                   to={`${basePath}/settings`}
                   aria-label={t('إعدادات الشركة والملفات')}
-                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:border-orange-200 hover:bg-orange-50 hover:text-[#d95537]"
+                  className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-600 hover:border-orange-200 hover:bg-orange-50 hover:text-[#d95537]"
                 >
                   <UserRound className="h-5 w-5" />
                 </Link>

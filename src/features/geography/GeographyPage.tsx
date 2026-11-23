@@ -244,8 +244,8 @@ export function GeographyPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-xs font-medium text-slate-500">التعريفات الأساسية · الأقاليم والجغرافيا</p>
-          <h1 className="mt-1 text-xl font-bold text-slate-900">المحافظات والمدن والمناطق</h1>
+          <p className="text-xs font-medium text-slate-500">{t('التعريفات الأساسية')} · {t('الأقاليم والجغرافيا')}</p>
+          <h1 className="mt-1 text-xl font-bold text-slate-900">{t('المحافظات والمدن والمناطق')}</h1>
         </div>
         {isAdmin && (
           <button
@@ -254,7 +254,7 @@ export function GeographyPage() {
             className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-xs font-medium text-white hover:bg-slate-800"
           >
             <Plus className="h-3.5 w-3.5" />
-            إضافة محافظة
+            {t('إضافة محافظة')}
           </button>
         )}
       </div>
@@ -269,11 +269,11 @@ export function GeographyPage() {
         <div role="dialog" aria-modal="true" aria-labelledby="gov-form-title" className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm">
         <section className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
           <h2 id="gov-form-title" className="text-sm font-semibold text-slate-900">
-            {editingGov ? `تعديل محافظة: ${editingGov.name}` : 'إضافة محافظة جديدة'}
+            {editingGov ? `${t('تعديل محافظة')}: ${editingGov.name}` : t('إضافة محافظة جديدة')}
           </h2>
           <form onSubmit={handleSaveGov} className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-4">
             <div>
-              <label htmlFor="gov-code" className="block text-xs font-medium text-slate-700">الكود</label>
+              <label htmlFor="gov-code" className="block text-xs font-medium text-slate-700">{t('الكود')}</label>
               <input
                 id="gov-code"
                 type="text"
@@ -285,7 +285,7 @@ export function GeographyPage() {
               />
             </div>
             <div>
-              <label htmlFor="gov-name" className="block text-xs font-medium text-slate-700">اسم المحافظة</label>
+              <label htmlFor="gov-name" className="block text-xs font-medium text-slate-700">{t('اسم المحافظة')}</label>
               <input
                 id="gov-name"
                 type="text"
@@ -296,29 +296,29 @@ export function GeographyPage() {
               />
             </div>
             <div>
-              <label htmlFor="gov-branch" className="block text-xs font-medium text-slate-700">الفرع الافتراضي</label>
+              <label htmlFor="gov-branch" className="block text-xs font-medium text-slate-700">{t('الفرع الافتراضي')}</label>
               <select
                 id="gov-branch"
                 value={govBranchId}
                 onChange={(e) => setGovBranchId(e.target.value)}
                 className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
               >
-                <option value="">بدون فرع محدد</option>
+                <option value="">{t('بدون فرع محدد')}</option>
                 {branches.map((b) => (
                   <option key={b.id} value={b.id}>{b.name}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label htmlFor="gov-active" className="block text-xs font-medium text-slate-700">الحالة</label>
+              <label htmlFor="gov-active" className="block text-xs font-medium text-slate-700">{t('الحالة')}</label>
               <select
                 id="gov-active"
                 value={govActive ? '1' : '0'}
                 onChange={(e) => setGovActive(e.target.value === '1')}
                 className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
               >
-                <option value="1">فعال</option>
-                <option value="0">غير فعال</option>
+                <option value="1">{t('فعال')}</option>
+                <option value="0">{t('غير فعال')}</option>
               </select>
             </div>
             <div className="flex justify-end gap-2 md:col-span-4">
@@ -327,14 +327,14 @@ export function GeographyPage() {
                 onClick={() => setShowGovForm(false)}
                 className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-medium text-slate-700"
               >
-                إلغاء
+                {t('إلغاء')}
               </button>
               <button
                 type="submit"
                 disabled={saving}
                 className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-medium text-white"
               >
-                حفظ المحافظة
+                {t('حفظ المحافظة')}
               </button>
             </div>
           </form>
@@ -351,17 +351,17 @@ export function GeographyPage() {
               type="search"
               value={govSearch}
               onChange={(e) => setGovSearch(e.target.value)}
-              placeholder="ابحث في المحافظات (27 محافظة)..."
-              aria-label="بحث في المحافظات"
+              placeholder={`${t('ابحث في المحافظات')}...`}
+              aria-label={t('بحث في المحافظات')}
               className="w-full rounded-lg border border-slate-200 bg-white py-2 pr-9 pl-3 text-sm focus:border-slate-400 focus:outline-none"
             />
           </div>
 
           <div className="max-h-[34rem] overflow-y-auto rounded-xl border border-slate-200 bg-white divide-y divide-slate-100">
             {loading ? (
-              <p className="p-4 text-center text-xs text-slate-500">جاري التحميل...</p>
+              <p className="p-4 text-center text-xs text-slate-500">{t('جاري التحميل...')}</p>
             ) : filteredGovernorates.length === 0 ? (
-              <p className="p-4 text-center text-xs text-slate-500">لا توجد محافظات مطابقة.</p>
+              <p className="p-4 text-center text-xs text-slate-500">{t('لا توجد محافظات مطابقة.')}</p>
             ) : (
               filteredGovernorates.map((gov) => {
                 const selected = gov.id === selectedGovId;
@@ -380,7 +380,7 @@ export function GeographyPage() {
                     <div>
                       <p className="text-sm font-medium">{gov.name}</p>
                       <p className={`mt-0.5 font-mono-tabular text-xs ${selected ? 'text-slate-300' : 'text-slate-500'}`}>
-                        {gov.code} · {gov.default_branch_id ? branchMap.get(gov.default_branch_id) : 'بدون فرع'}
+                        {gov.code} · {gov.default_branch_id ? branchMap.get(gov.default_branch_id) : t('بدون فرع')}
                       </p>
                     </div>
                     <span
@@ -394,7 +394,7 @@ export function GeographyPage() {
                             : 'text-slate-400'
                       }`}
                     >
-                      {gov.is_active ? 'فعال' : 'معطل'}
+                      {t(gov.is_active ? 'فعال' : 'معطل')}
                     </span>
                   </button>
                 );
@@ -421,14 +421,14 @@ export function GeographyPage() {
                     <div className="flex items-center gap-2">
                       <MapPin className="h-4 w-4 text-slate-500" />
                       <h2 className="text-base font-bold text-slate-900">
-                        محافظة {selectedGov.name}
+                        {t('محافظة')} {selectedGov.name}
                       </h2>
                       <span className="font-mono-tabular text-xs text-slate-500">({selectedGov.code})</span>
                     </div>
                     <p className="mt-1 text-xs text-slate-600">
-                      الفرع الافتراضي: {selectedGov.default_branch_id ? branchMap.get(selectedGov.default_branch_id) : 'غير محدد'} ·
-                      عدد المدن: <span className="font-mono-tabular">{govCities.length}</span> ·
-                      عدد المناطق: <span className="font-mono-tabular">{govRegions.length}</span>
+                      {t('الفرع الافتراضي')}: {selectedGov.default_branch_id ? branchMap.get(selectedGov.default_branch_id) : t('غير محدد')} ·
+                      {t('عدد المدن')}: <span className="font-mono-tabular">{govCities.length}</span> ·
+                      {t('عدد المناطق')}: <span className="font-mono-tabular">{govRegions.length}</span>
                     </p>
                   </div>
 
@@ -440,7 +440,7 @@ export function GeographyPage() {
                         className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
                       >
                         <Edit3 className="h-3.5 w-3.5" />
-                        تعديل المحافظة
+                        {t('تعديل المحافظة')}
                       </button>
                       <button
                         type="button"
@@ -448,7 +448,7 @@ export function GeographyPage() {
                         className="inline-flex items-center gap-1 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800"
                       >
                         <Plus className="h-3.5 w-3.5" />
-                        إضافة منطقة
+                        {t('إضافة منطقة')}
                       </button>
                     </div>
                   )}
@@ -460,8 +460,8 @@ export function GeographyPage() {
                       type="text"
                       value={newCityName}
                       onChange={(e) => setNewCityName(e.target.value)}
-                      placeholder="أضف مدينة سريعة داخل المحافظة..."
-                      aria-label="اسم المدينة الجديدة"
+                      placeholder={t('أضف مدينة داخل المحافظة')}
+                      aria-label={t('اسم المدينة الجديدة')}
                       className="w-60 rounded-lg border border-slate-200 px-3 py-1.5 text-xs focus:border-slate-400 focus:outline-none"
                     />
                     <button
@@ -469,7 +469,7 @@ export function GeographyPage() {
                       disabled={saving || !newCityName.trim()}
                       className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
                     >
-                      + إضافة مدينة
+                      + {t('إضافة مدينة')}
                     </button>
                   </form>
                 )}
@@ -479,11 +479,13 @@ export function GeographyPage() {
                 <div role="dialog" aria-modal="true" aria-labelledby="region-form-title" className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 p-4 backdrop-blur-sm">
                 <section className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
                   <h3 id="region-form-title" className="text-sm font-semibold text-slate-900">
-                    {editingRegion ? `تعديل منطقة: ${editingRegion.name}` : `إضافة منطقة داخل ${selectedGov.name}`}
+                    {editingRegion
+                      ? `${t('تعديل منطقة')}: ${editingRegion.name}`
+                      : `${t('إضافة منطقة داخل')} ${selectedGov.name}`}
                   </h3>
                   <form onSubmit={handleSaveRegion} className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-3">
                     <div>
-                      <label htmlFor="reg-code" className="block text-xs font-medium text-slate-700">كود المنطقة</label>
+                      <label htmlFor="reg-code" className="block text-xs font-medium text-slate-700">{t('كود المنطقة')}</label>
                       <input
                         id="reg-code"
                         type="text"
@@ -495,7 +497,7 @@ export function GeographyPage() {
                       />
                     </div>
                     <div>
-                      <label htmlFor="reg-name" className="block text-xs font-medium text-slate-700">اسم المنطقة</label>
+                      <label htmlFor="reg-name" className="block text-xs font-medium text-slate-700">{t('اسم المنطقة')}</label>
                       <input
                         id="reg-name"
                         type="text"
@@ -506,43 +508,43 @@ export function GeographyPage() {
                       />
                     </div>
                     <div>
-                      <label htmlFor="reg-city" className="block text-xs font-medium text-slate-700">المدينة</label>
+                      <label htmlFor="reg-city" className="block text-xs font-medium text-slate-700">{t('المدينة')}</label>
                       <select
                         id="reg-city"
                         value={regCityId}
                         onChange={(e) => setRegCityId(e.target.value)}
                         className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
                       >
-                        <option value="">غير محددة</option>
+                        <option value="">{t('غير محددة')}</option>
                         {govCities.map((c) => (
                           <option key={c.id} value={c.id}>{c.name}</option>
                         ))}
                       </select>
                     </div>
                     <div>
-                      <label htmlFor="reg-branch" className="block text-xs font-medium text-slate-700">الفرع المختص</label>
+                      <label htmlFor="reg-branch" className="block text-xs font-medium text-slate-700">{t('الفرع المختص')}</label>
                       <select
                         id="reg-branch"
                         value={regBranchId}
                         onChange={(e) => setRegBranchId(e.target.value)}
                         className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
                       >
-                        <option value="">نفس فرع المحافظة</option>
+                        <option value="">{t('نفس فرع المحافظة')}</option>
                         {branches.map((b) => (
                           <option key={b.id} value={b.id}>{b.name}</option>
                         ))}
                       </select>
                     </div>
                     <div>
-                      <label htmlFor="reg-active" className="block text-xs font-medium text-slate-700">الحالة</label>
+                      <label htmlFor="reg-active" className="block text-xs font-medium text-slate-700">{t('الحالة')}</label>
                       <select
                         id="reg-active"
                         value={regActive ? '1' : '0'}
                         onChange={(e) => setRegActive(e.target.value === '1')}
                         className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
                       >
-                        <option value="1">فعال</option>
-                        <option value="0">غير فعال</option>
+                        <option value="1">{t('فعال')}</option>
+                        <option value="0">{t('غير فعال')}</option>
                       </select>
                     </div>
                     <div className="flex items-end justify-end gap-2">
@@ -551,14 +553,14 @@ export function GeographyPage() {
                         onClick={() => setShowRegionForm(false)}
                         className="rounded-lg border border-slate-200 px-4 py-2 text-xs font-medium text-slate-700"
                       >
-                        إلغاء
+                        {t('إلغاء')}
                       </button>
                       <button
                         type="submit"
                         disabled={saving}
                         className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-medium text-white"
                       >
-                        حفظ المنطقة
+                        {t('حفظ المنطقة')}
                       </button>
                     </div>
                   </form>
@@ -573,8 +575,8 @@ export function GeographyPage() {
                     type="search"
                     value={regionSearch}
                     onChange={(e) => setRegionSearch(e.target.value)}
-                    placeholder="ابحث داخل مناطق المحافظة..."
-                    aria-label="بحث في مناطق المحافظة"
+                    placeholder={`${t('بحث')} ${t('داخل مناطق المحافظة')}...`}
+                    aria-label={`${t('بحث')} ${t('داخل مناطق المحافظة')}`}
                     className="w-full rounded-lg border border-slate-200 bg-white py-2 pr-9 pl-3 text-sm focus:border-slate-400 focus:outline-none"
                   />
                 </div>
@@ -583,18 +585,18 @@ export function GeographyPage() {
                   <table className="w-full border-collapse text-right text-sm">
                     <thead>
                       <tr className="border-b border-slate-200 bg-slate-50 text-xs font-medium text-slate-500">
-                        <th className="px-4 py-3">الكود</th>
-                        <th className="px-4 py-3">المنطقة</th>
-                        <th className="px-4 py-3">الفرع</th>
-                        <th className="px-4 py-3">الحالة</th>
-                        <th className="px-4 py-3">الإجراءات</th>
+                        <th className="px-4 py-3">{t('الكود')}</th>
+                        <th className="px-4 py-3">{t('المنطقة')}</th>
+                        <th className="px-4 py-3">{t('الفرع')}</th>
+                        <th className="px-4 py-3">{t('الحالة')}</th>
+                        <th className="px-4 py-3">{t('الإجراءات')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {govRegions.length === 0 ? (
                         <tr>
                           <td colSpan={5} className="px-4 py-8 text-center text-sm text-slate-500">
-                            لا توجد مناطق مسجلة مطابقة في هذه المحافظة.
+                            {t('لا توجد مناطق مسجلة مطابقة في هذه المحافظة.')}
                           </td>
                         </tr>
                       ) : (
@@ -618,7 +620,7 @@ export function GeographyPage() {
                                 ) : (
                                   <XCircle className="h-3.5 w-3.5" />
                                 )}
-                                {reg.is_active ? 'فعال' : 'غير فعال'}
+                                {t(reg.is_active ? 'فعال' : 'غير فعال')}
                               </span>
                             </td>
                             <td data-label="الإجراءات" className="px-4 py-3">
@@ -629,16 +631,16 @@ export function GeographyPage() {
                                     onClick={() => openEditRegion(reg)}
                                     className="text-xs font-medium text-slate-700 hover:text-slate-900"
                                   >
-                                    تعديل
+                                    {t('تعديل')}
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => void handleToggleRegionActive(reg)}
                                     className="text-xs font-medium text-slate-600 underline underline-offset-4 hover:text-slate-900"
                                   >
-                                    {reg.is_active ? 'تعطيل' : 'تفعيل'}
+                                    {t(reg.is_active ? 'تعطيل' : 'تفعيل')}
                                   </button>
-                                </div>}
+                                </div>
                               )}
                             </td>
                           </tr>
@@ -651,10 +653,10 @@ export function GeographyPage() {
             </>
           ) : (
             <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
-              اختر محافظة من القائمة لعرض المدن والمناطق التابعة لها.
+              {t('اختر محافظة من القائمة لعرض المدن والمناطق التابعة لها.')}
             </div>
           )}
-        </div>
+        </div>}
       </div>
     </div>
   );

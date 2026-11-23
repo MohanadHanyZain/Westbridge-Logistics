@@ -94,7 +94,7 @@ export function CourierPortalPage() {
     if (!isBoundCourierAccount) return;
     setLoading(true);
     try {
-      const data = await listCourierMyTasks(tenant.id, boundCourierId);
+      const data = await listCourierMyTasks(tenant.id, null);
       setFeed(data);
       const targetCourierId = data?.courier?.id ?? null;
       if (targetCourierId) {
