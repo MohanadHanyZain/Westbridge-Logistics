@@ -89,21 +89,9 @@ function StaffTenantOverviewInner() {
     {label: 'المرتجعات', value: shipmentCounts?.returnsCount ?? (dashboardError ? null : 0), to: `${basePath}/shipments/returns`, icon: AlertCircle},
   ];
 
-  const distribution = cards.slice(1).map((card, index) => ({
-    label: card.label,
-    value: card.value ?? 0,
-    color: ['#38bdf8', '#a78bfa', '#34d399', '#fb7185'][index],
-  }));
-  const distributionTotal = distribution.reduce((sum, item) => sum + item.value, 0);
-  let chartOffset = 0;
-  const chartSegments = distribution.map((item) => {
-    const start = chartOffset;
-    chartOffset += distributionTotal === 0 ? 0 : (item.value / distributionTotal) * 100;
-    return `${item.color} ${start}% ${chartOffset}%`;
-  });
-  const chartBackground = distributionTotal > 0
-    ? `conic-gradient(${chartSegments.join(', ')})`
-    : 'conic-gradient(#e5e7eb 0% 100%)';
+  const chartValues = cards.map((card) => card.value ?? 0);
+  const maxChartValue = Math.max(1, ...chartValues);
+  const chartColors = ['bg-orange-400', 'bg-sky-400', 'bg-violet-400', 'bg-emerald-400', 'bg-rose-400'];
 
   return (
     <div className="space-y-5">
@@ -187,37 +175,28 @@ function StaffTenantOverviewInner() {
         </div>
 
         {loading ? (
-          <div className="mt-6 flex h-52 items-center justify-center">
-            <Skeleton className="h-40 w-40 rounded-full" />
+          <div className="mt-6 flex h-52 items-end gap-3">
+            {[45, 72, 58, 84, 38].map((height, index) => (
+              <Skeleton key={index} className="flex-1 rounded-t-xl" style={{height: `${height}%`}} />
+            ))}
           </div>
         ) : (
-          <div className="mt-6 flex flex-col items-center justify-center gap-6 sm:flex-row">
-            <div
-              role="img"
-              aria-label={t('حركة الشحنات')}
-              className="relative h-44 w-44 shrink-0 rounded-full"
-              style={{background: chartBackground}}
-            >
-              <div className="absolute inset-5 flex flex-col items-center justify-center rounded-full bg-white text-center">
-                <span className="text-xs font-medium text-slate-500">{t('إجمالي الشحنات')}</span>
-                <span className="mt-1 font-mono-tabular text-2xl font-extrabold text-slate-900">
-                  {dashboardError ? '—' : (shipmentCounts?.totalCount ?? 0).toLocaleString(locale === 'ar' ? 'ar-EG' : 'en-US')}
-                </span>
-              </div>
-            </div>
-            <div className="grid w-full max-w-sm grid-cols-1 gap-3">
-              {distribution.map((item) => (
-                <div key={item.label} className="flex items-center justify-between gap-4 rounded-xl bg-slate-50 px-3 py-2.5">
-                  <span className="flex items-center gap-2 text-xs font-semibold text-slate-600">
-                    <span className="h-2.5 w-2.5 rounded-full" style={{backgroundColor: item.color}} />
-                    {t(item.label)}
-                  </span>
-                  <span className="font-mono-tabular text-sm font-bold text-slate-900">
-                    {dashboardError ? '—' : item.value.toLocaleString(locale === 'ar' ? 'ar-EG' : 'en-US')}
-                  </span>
+          <div className="mt-6 flex h-52 items-end gap-2 sm:gap-4" dir="ltr">
+            {cards.map((card, index) => {
+              const height = dashboardError ? 0 : Math.max(8, (chartValues[index] / maxChartValue) * 100);
+              return (
+                <div key={card.label} className="flex h-full min-w-0 flex-1 flex-col justify-end text-center">
+                  <div
+                    className={`mx-auto w-full max-w-14 rounded-t-xl transition-all duration-500 ${chartColors[index]}`}
+                    style={{height: `${height}%`}}
+                    title={`${t(card.label)}: ${card.value ?? '—'}`}
+                  />
+                  <p className="mt-2 truncate text-[10px] font-medium text-slate-500 sm:text-xs" dir={locale === 'ar' ? 'rtl' : 'ltr'}>
+                    {t(card.label)}
+                  </p>
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </div>
         )}
       </section>
