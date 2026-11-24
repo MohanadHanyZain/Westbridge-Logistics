@@ -56,7 +56,6 @@ export function TenantSettingsPage() {
   const changeTheme = (nextTheme: 'light' | 'dark') => {
     setTheme(nextTheme);
     localStorage.setItem('shipflow_theme', nextTheme);
-    document.documentElement.dataset.theme = nextTheme;
     window.dispatchEvent(new Event('shipflow-theme-change'));
   };
 

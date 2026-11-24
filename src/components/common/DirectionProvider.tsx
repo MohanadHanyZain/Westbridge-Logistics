@@ -25,15 +25,9 @@ export function DirectionProvider({children}: DirectionProviderProps) {
         ? `${BRAND_CONFIG.appName} | منصة إدارة عمليات الشحن`
         : `${BRAND_CONFIG.appName} | Shipping Operations Platform`;
     };
-    const syncTheme = () => {
-      document.documentElement.dataset.theme = localStorage.getItem('shipflow_theme') === 'dark' ? 'dark' : 'light';
-    };
-    syncTheme();
     window.addEventListener('shipflow-language-change', syncLocale);
-    window.addEventListener('shipflow-theme-change', syncTheme);
     return () => {
       window.removeEventListener('shipflow-language-change', syncLocale);
-      window.removeEventListener('shipflow-theme-change', syncTheme);
     };
   }, []);
 

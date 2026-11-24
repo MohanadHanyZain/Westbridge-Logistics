@@ -52,24 +52,29 @@ import {
   X,
 } from 'lucide-react';
 
+function getOpenSection(pathname: string): string | null {
+  if (pathname.includes('/definitions/')) return 'definitions';
+  if (pathname.includes('/shipments')) return 'shipments';
+  if (pathname.includes('/operations')) return 'operations';
+  if (pathname.includes('/pricing')) return 'clients';
+  if (pathname.includes('/clients')) return 'clients';
+  if (pathname.includes('/couriers')) return 'couriers';
+  if (pathname.includes('/finance')) return 'finance';
+  if (pathname.includes('/accounting') || pathname.includes('/reports')) return 'accounting';
+  if (pathname.includes('/security')) return 'security';
+  if (pathname.includes('/messaging') || pathname.includes('/notifications') || pathname.includes('/settings')) return 'messages';
+  return null;
+}
+
 export function TenantAdminShellPage() {
   const {companySlug = ''} = useParams();
   const location = useLocation();
   const {memberships} = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [openSection, setOpenSection] = useState<string | null>(() => {
-    const pathname = location.pathname;
-    if (pathname.includes('/definitions/')) return 'definitions';
-    if (pathname.includes('/shipments')) return 'shipments';
-    if (pathname.includes('/operations/') || pathname.includes('/operations')) return 'operations';
-    if (pathname.includes('/clients')) return 'clients';
-    if (pathname.includes('/couriers')) return 'couriers';
-    if (pathname.includes('/finance') || pathname.includes('/accounting')) return pathname.includes('/finance') ? 'finance' : 'accounting';
-    if (pathname.includes('/security')) return 'security';
-    if (pathname.includes('/messaging') || pathname.includes('/notifications') || pathname.includes('/settings')) return 'messages';
-    if (pathname.includes('/pricing') || pathname.includes('/reports')) return 'accounting';
-    return null;
-  });
+  const [openSection, setOpenSection] = useState<string | null>(() => getOpenSection(location.pathname));
+  const [theme, setTheme] = useState<'light' | 'dark'>(
+    () => (typeof localStorage !== 'undefined' && localStorage.getItem('shipflow_theme') === 'dark' ? 'dark' : 'light'),
+  );
   const locale = useLocale();
   const t = (text: string) => translateUi(text, locale);
   const [permBundle, setPermBundle] = useState<MyTenantPermissionsBundle>({
@@ -91,17 +96,16 @@ export function TenantAdminShellPage() {
   }, [sidebarOpen]);
 
   useEffect(() => {
-    const pathname = location.pathname;
-    if (pathname.includes('/definitions/')) setOpenSection('definitions');
-    else if (pathname.includes('/shipments')) setOpenSection('shipments');
-    else if (pathname.includes('/operations/')) setOpenSection('operations');
-    else if (pathname.includes('/clients')) setOpenSection('clients');
-    else if (pathname.includes('/couriers')) setOpenSection('couriers');
-    else if (pathname.includes('/finance')) setOpenSection('finance');
-    else if (pathname.includes('/accounting') || pathname.includes('/pricing') || pathname.includes('/reports')) setOpenSection('accounting');
-    else if (pathname.includes('/security')) setOpenSection('security');
-    else if (pathname.includes('/messaging') || pathname.includes('/notifications') || pathname.includes('/settings')) setOpenSection('messages');
+    setOpenSection(getOpenSection(location.pathname));
   }, [location.pathname]);
+
+  useEffect(() => {
+    const syncTheme = () => {
+      setTheme(localStorage.getItem('shipflow_theme') === 'dark' ? 'dark' : 'light');
+    };
+    window.addEventListener('shipflow-theme-change', syncTheme);
+    return () => window.removeEventListener('shipflow-theme-change', syncTheme);
+  }, []);
 
   const activeMembership = memberships.find(
     (m) => m.tenants?.slug === companySlug.trim().toLowerCase() && m.is_active,
@@ -361,7 +365,7 @@ export function TenantAdminShellPage() {
           </Link>
         </div>
 
-        <nav aria-label={isClientAccount ? 'القائمة الجانبية لبوابة العميل' : isCourierAccount ? 'القائمة الجانبية للمندوب' : 'القائمة الجانبية للشركة'} className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain p-3">
+        <nav aria-label={isClientAccount ? 'القائمة الجانبية لبوابة العميل' : isCourierAccount ? 'القائمة الجانبية للمندوب' : 'القائمة الجانبية للشركة'} className="app-sidebar-scroll min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain p-3">
           {isClientAccount ? (
             <div className="space-y-1">
               {clientPortalLinks.map((item) => {
@@ -815,7 +819,7 @@ export function TenantAdminShellPage() {
 
   return (
     <TenantWorkspaceProvider value={workspaceValue}>
-      <div className="flex min-h-screen bg-slate-50 text-slate-900">
+      <div data-app-theme={theme} className="tenant-app-shell flex min-h-screen bg-slate-50 text-slate-900">
         {/* Desktop Sidebar */}
         <aside className="sticky top-0 hidden h-screen w-64 shrink-0 border-l border-slate-200 bg-white lg:block print:hidden">
           {renderSidebarContent()}

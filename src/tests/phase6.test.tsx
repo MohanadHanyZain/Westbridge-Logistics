@@ -346,6 +346,7 @@ const sampleDetail: ShipmentFullDetail = {
 describe('Phase 6: Shipments, Barcode, Lifecycle (ADR-013 & ADR-014) & Public Tracking', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localStorage.removeItem('shipflow_theme');
 
     mockUseAuth.mockReturnValue({
       session: {user: {id: 'user-alpha-1'}},
@@ -526,6 +527,30 @@ describe('Phase 6: Shipments, Barcode, Lifecycle (ADR-013 & ADR-014) & Public Tr
       outForDeliveryCount: 4,
       deliveredCount: 4,
       returnsCount: 1,
+    });
+  });
+
+  it('keeps company dark mode scoped to its workspace and opens the clients section for pricing routes', async () => {
+    localStorage.setItem('shipflow_theme', 'dark');
+    render(
+      <MemoryRouter initialEntries={['/c/alpha-express/app/pricing/price-lists']}>
+        <AppRoutes />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('link', {name: 'قائمة العملاء'})).toBeInTheDocument();
+    });
+
+    expect(document.querySelector('.tenant-app-shell')).toHaveAttribute('data-app-theme', 'dark');
+    expect(document.documentElement).not.toHaveAttribute('data-theme');
+    expect(screen.getByRole('link', {name: 'قوائم أسعار الشحن'})).toBeInTheDocument();
+    expect(screen.queryByRole('link', {name: 'قيود اليومية العامة'})).not.toBeInTheDocument();
+
+    localStorage.setItem('shipflow_theme', 'light');
+    window.dispatchEvent(new Event('shipflow-theme-change'));
+    await waitFor(() => {
+      expect(document.querySelector('.tenant-app-shell')).toHaveAttribute('data-app-theme', 'light');
     });
   });
 
