@@ -97,33 +97,39 @@ export function CommissionListsPage() {
       setGovernorates(gRows);
       setRegions(rRows);
 
-      const targetList = selectedListId && lRows.some((l) => l.id === selectedListId)
-        ? selectedListId
-        : (lRows[0]?.id ?? '');
-      setSelectedListId(targetList);
-      if (targetList) {
-        await loadRules(targetList);
-      }
-
-      if (!simCourierId && cRows.length > 0) {
-        setSimCourierId(cRows[0].id);
-      }
-      if (!simGovId && gRows.length > 0) {
-        setSimGovId(gRows[0].id);
-      }
-      if (!ruleGovId && gRows.length > 0) {
-        setRuleGovId(gRows[0].id);
-      }
+      setSelectedListId((current) =>
+        current && lRows.some((list) => list.id === current) ? current : (lRows[0]?.id ?? ''),
+      );
+      setSimCourierId((current) => current || cRows[0]?.id || '');
+      setSimGovId((current) => current || gRows[0]?.id || '');
+      setRuleGovId((current) => current || gRows[0]?.id || '');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'تعذر تحميل قوائم العمولات.');
     } finally {
       setLoading(false);
     }
-  }, [tenant.id, selectedListId, loadRules, simCourierId, simGovId, ruleGovId]);
+  }, [tenant.id]);
 
   useEffect(() => {
     void loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    let active = true;
+    setRules([]);
+    if (selectedListId) {
+      void listCommissionRules(tenant.id, selectedListId)
+        .then((rows) => {
+          if (active) setRules(rows);
+        })
+        .catch((err: unknown) => {
+          if (active) setError(err instanceof Error ? err.message : 'تعذر تحميل بنود قائمة العمولات.');
+        });
+    }
+    return () => {
+      active = false;
+    };
+  }, [tenant.id, selectedListId]);
 
   const selectedList = useMemo(
     () => lists.find((l) => l.id === selectedListId) ?? null,
@@ -334,10 +340,7 @@ export function CommissionListsPage() {
                 <button
                   key={item.id}
                   type="button"
-                  onClick={() => {
-                    setSelectedListId(item.id);
-                    void loadRules(item.id);
-                  }}
+                  onClick={() => setSelectedListId(item.id)}
                   className={`flex w-full items-center justify-between rounded-lg border p-3 text-right text-xs transition-colors ${
                     active ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 hover:bg-slate-50'
                   }`}

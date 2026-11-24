@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useMemo, useState, type FormEvent} from 'react';
+import {useCallback, useEffect, useMemo, useRef, useState, type FormEvent} from 'react';
 import {Link, useNavigate} from 'react-router-dom';
 import {buildTenantBasePath} from '@/config/brand';
 import * as clientsService from '@/features/clients/clientsService';
@@ -35,9 +35,17 @@ function newIdempotencyKey(): string {
   return `shp-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+const MISSING_PRICING_ROUTE_ERROR =
+  'لم يتم العثور على قاعدة تسعير مطابقة للخدمة ومسار الالتقاط والتسليم المحدد.';
+
 function friendlyPricingError(message: string, locale: 'ar' | 'en'): string {
-  const missingRouteRule = 'لم يتم العثور على قاعدة تسعير مطابقة للخدمة ومسار الالتقاط والتسليم المحدد.';
-  return message.includes(missingRouteRule) ? translateUi(missingRouteRule, locale) : message;
+  return message.includes(MISSING_PRICING_ROUTE_ERROR)
+    ? translateUi(MISSING_PRICING_ROUTE_ERROR, locale)
+    : message;
+}
+
+function isMissingPricingRouteError(error: unknown): boolean {
+  return error instanceof Error && error.message.includes(MISSING_PRICING_ROUTE_ERROR);
 }
 
 export function CreateShipmentPage() {
@@ -109,6 +117,7 @@ export function CreateShipmentPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [idempotencyKey] = useState<string>(() => newIdempotencyKey());
+  const serviceWasManuallySelected = useRef(false);
 
   const applyClientDefaults = useCallback(
     (selected: ClientRecord, fallbackBranchId: string) => {
@@ -285,26 +294,56 @@ export function CreateShipmentPage() {
       const enteredForEngine = paymentTermCode === 'COD' ? Math.max(0, Number(prepaidBalanceAmount) || 0) : 0;
       const overrideVal = overrideTotalFee.trim() !== '' ? Number(overrideTotalFee) : null;
 
-      void calculateShipmentPrice({
-        tenantId: tenant.id,
-        clientId,
-        serviceId,
-        pickupGovernorateId: senderGovId,
-        pickupRegionId: senderRegionId || null,
-        deliveryGovernorateId: recipientGovId,
-        deliveryRegionId: recipientRegionId || null,
-        actualWeightKg: Math.max(0, Number(actualWeightKg) || 0),
-        lengthCm: Math.max(0, Number(lengthCm) || 0),
-        widthCm: Math.max(0, Number(widthCm) || 0),
-        heightCm: Math.max(0, Number(heightCm) || 0),
-        enteredAmount: enteredForEngine,
-        priceMode,
-        overrideTotalFee: overrideVal,
-        overrideReason: overrideVal !== null ? overrideReason : null,
-        persistSnapshot: false,
-      })
-        .then((res) => {
-          if (!cancelled) setPricingBreakdown(res);
+      const calculateForService = (candidateServiceId: string) =>
+        calculateShipmentPrice({
+          tenantId: tenant.id,
+          clientId,
+          serviceId: candidateServiceId,
+          pickupGovernorateId: senderGovId,
+          pickupRegionId: senderRegionId || null,
+          deliveryGovernorateId: recipientGovId,
+          deliveryRegionId: recipientRegionId || null,
+          actualWeightKg: Math.max(0, Number(actualWeightKg) || 0),
+          lengthCm: Math.max(0, Number(lengthCm) || 0),
+          widthCm: Math.max(0, Number(widthCm) || 0),
+          heightCm: Math.max(0, Number(heightCm) || 0),
+          enteredAmount: enteredForEngine,
+          priceMode,
+          overrideTotalFee: overrideVal,
+          overrideReason: overrideVal !== null ? overrideReason : null,
+          persistSnapshot: false,
+        });
+
+      const calculateWithAvailableService = async () => {
+        try {
+          return {serviceId, breakdown: await calculateForService(serviceId)};
+        } catch (error) {
+          if (serviceWasManuallySelected.current || !isMissingPricingRouteError(error)) {
+            throw error;
+          }
+
+          for (const candidate of services) {
+            if (candidate.id === serviceId) continue;
+            try {
+              return {
+                serviceId: candidate.id,
+                breakdown: await calculateForService(candidate.id),
+              };
+            } catch (candidateError) {
+              if (!isMissingPricingRouteError(candidateError)) throw candidateError;
+            }
+          }
+
+          throw error;
+        }
+      };
+
+      void calculateWithAvailableService()
+        .then(({serviceId: pricedServiceId, breakdown}) => {
+          if (!cancelled) {
+            if (pricedServiceId !== serviceId) setServiceId(pricedServiceId);
+            setPricingBreakdown(breakdown);
+          }
         })
         .catch((err) => {
           if (!cancelled) {
@@ -328,6 +367,7 @@ export function CreateShipmentPage() {
     loadingRefs,
     tenant.id,
     clientId,
+    services,
     serviceId,
     senderGovId,
     senderRegionId,
@@ -564,7 +604,10 @@ export function CreateShipmentPage() {
                 <select
                   id="shp-service"
                   value={serviceId}
-                  onChange={(e) => setServiceId(e.target.value)}
+                  onChange={(e) => {
+                    serviceWasManuallySelected.current = true;
+                    setServiceId(e.target.value);
+                  }}
                   required
                   className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs"
                 >

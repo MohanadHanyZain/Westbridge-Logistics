@@ -659,6 +659,61 @@ describe('Phase 6: Shipments, Barcode, Lifecycle (ADR-013 & ADR-014) & Public Tr
     );
   });
 
+  it('selects a service with a matching route when the default service has no price rule', async () => {
+    mockListShippingServices.mockResolvedValue([
+      {id: 'srv-1', tenant_id: tenantAlpha.id, code: 'SRV-001', name: 'التوصيل القياسي', estimated_days_min: 1, estimated_days_max: 2, is_active: true},
+      {id: 'srv-2', tenant_id: tenantAlpha.id, code: 'SRV-002', name: 'التوصيل السريع', estimated_days_min: 1, estimated_days_max: 1, is_active: true},
+    ]);
+    mockCalculateShipmentPrice.mockImplementation(({serviceId}: {serviceId: string}) => {
+      if (serviceId === 'srv-1') {
+        return Promise.reject(
+          new Error('لم يتم العثور على قاعدة تسعير مطابقة للخدمة ومسار الالتقاط والتسليم المحدد.'),
+        );
+      }
+      return Promise.resolve({
+        snapshot_id: null,
+        version_number: 1,
+        actual_weight_kg: 1,
+        volumetric_weight_kg: 0,
+        chargeable_weight_kg: 1,
+        base_delivery_fee: 55,
+        extra_weight_fee: 0,
+        collection_fee: 0,
+        surcharges_total: 0,
+        exemptions_total: 0,
+        tax_mode: 'none',
+        tax_rate_percent: 0,
+        tax_amount: 0,
+        total_shipping_fee: 55,
+        return_fee: 35,
+        recipient_collect_amount: 555,
+        client_net_payout: 500,
+        is_manual_override: false,
+        override_reason: null,
+      });
+    });
+
+    render(
+      <MemoryRouter initialEntries={['/c/alpha-express/app/shipments/new']}>
+        <AppRoutes />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', {name: 'إنشاء شحنة جديدة'})).toBeInTheDocument();
+    });
+    fireEvent.change(screen.getByLabelText('اسم المرسل إليه'), {target: {value: 'عماد محمود'}});
+    fireEvent.change(screen.getByLabelText('موبايل المرسل إليه'), {target: {value: '01299887766'}});
+
+    await waitFor(() => {
+      expect(screen.getByLabelText('الخدمة')).toHaveValue('srv-2');
+      expect(screen.getAllByText('55.00 ج.م').length).toBeGreaterThan(0);
+    });
+    expect(mockCalculateShipmentPrice).toHaveBeenCalledWith(
+      expect.objectContaining({serviceId: 'srv-2'}),
+    );
+  });
+
   it('renders ShipmentDetailPage 4 flags, 4-stage track, PDP transition, ADR-010 reprice, and detail tabs', async () => {
     mockTransitionShipmentStatus.mockResolvedValue({
       shipment_id: 'shp-1',

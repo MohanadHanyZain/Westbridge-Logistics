@@ -1,5 +1,5 @@
 import {beforeEach, describe, expect, it, vi} from 'vitest';
-import {fireEvent, render, screen, waitFor, within} from '@testing-library/react';
+import {act, fireEvent, render, screen, waitFor, within} from '@testing-library/react';
 import {MemoryRouter} from 'react-router-dom';
 import {AppRoutes} from '@/App';
 import {AccountSubjectType, PermissionScope} from '@/types/common';
@@ -23,6 +23,7 @@ const mockListVehicles = vi.fn();
 const mockListDrivers = vi.fn();
 const mockListCommissionLists = vi.fn();
 const mockListCommissionRules = vi.fn();
+const mockSaveCommissionList = vi.fn();
 const mockCalculateCourierCommission = vi.fn();
 
 vi.mock('@/lib/auth', () => ({
@@ -66,6 +67,7 @@ vi.mock('@/features/couriers/couriersService', async (importOriginal) => {
     listDrivers: (...args: unknown[]) => mockListDrivers(...args),
     listCommissionLists: (...args: unknown[]) => mockListCommissionLists(...args),
     listCommissionRules: (...args: unknown[]) => mockListCommissionRules(...args),
+    saveCommissionList: (...args: unknown[]) => mockSaveCommissionList(...args),
     calculateCourierCommission: (...args: unknown[]) => mockCalculateCourierCommission(...args),
   };
 });
@@ -343,6 +345,9 @@ describe('Phase 5: Couriers, Commission Rules (ADR-012) & Routes', () => {
     await waitFor(() => {
       expect(screen.getByText('قائمة العمولات الافتراضية للمناديب')).toBeInTheDocument();
     });
+    await waitFor(() => {
+      expect(screen.getByRole('table')).toBeInTheDocument();
+    });
     expect(within(screen.getByRole('table')).getByText('مدينة نصر')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', {name: 'احتساب العمولة من الخادم'}));
@@ -352,6 +357,37 @@ describe('Phase 5: Couriers, Commission Rules (ADR-012) & Routes', () => {
     });
     expect(screen.getByText('المستوى 1: قاعدة المنطقة المحددة')).toBeInTheDocument();
     expect(screen.getByText('14.00 ج.م')).toBeInTheDocument();
+  });
+
+  it('creates a commission list without restarting the data-loading effect', async () => {
+    mockSaveCommissionList.mockResolvedValue('ccl-new');
+
+    render(
+      <MemoryRouter initialEntries={['/c/alpha-express/app/couriers/commissions']}>
+        <AppRoutes />
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('قائمة العمولات الافتراضية للمناديب')).toBeInTheDocument();
+      expect(mockListCommissionLists).toHaveBeenCalledTimes(1);
+    });
+
+    fireEvent.click(screen.getByRole('button', {name: 'إنشاء قائمة عمولات جديدة'}));
+    fireEvent.change(screen.getByLabelText(/^اسم قائمة العمولات/), {
+      target: {value: 'عمولات القاهرة'},
+    });
+    fireEvent.click(screen.getByRole('button', {name: 'حفظ القائمة'}));
+
+    await waitFor(() => {
+      expect(mockSaveCommissionList).toHaveBeenCalledTimes(1);
+      expect(mockListCommissionLists).toHaveBeenCalledTimes(2);
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(mockListCommissionLists).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole('status')).toHaveTextContent('تم إنشاء قائمة العمولات بنجاح.');
   });
 
   it('renders CourierRoutesPage with stops, vehicles, and drivers tabs', async () => {
