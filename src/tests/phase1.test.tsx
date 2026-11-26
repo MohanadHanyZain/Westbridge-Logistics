@@ -116,7 +116,7 @@ describe('Phase 1: Multi-Tenant Route Guards & Isolation', () => {
     expect(screen.queryByText(/بوابة الشركة المعزولة/)).not.toBeInTheDocument();
   });
 
-  it('allows an active Tenant A member into /c/alpha-express/app and shows password prompt', () => {
+  it('allows an active Tenant A member into /c/alpha-express/app without a staff password prompt', () => {
     mockUseAuth.mockReturnValue({
       session: {user: {id: 'user-alpha-1'}},
       user: {id: 'user-alpha-1'},
@@ -136,8 +136,8 @@ describe('Phase 1: Multi-Tenant Route Guards & Isolation', () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByRole('heading', {name: /مرحبًا، مالك ألفا/})).toBeInTheDocument();
-    expect(screen.getByText(/يُرجى تعيين كلمة مرور شخصية جديدة/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', {name: 'نظرة عامة على العمليات'})).toBeInTheDocument();
+    expect(screen.queryByText(/يُرجى تعيين كلمة مرور شخصية جديدة/)).not.toBeInTheDocument();
   });
 
   it('shows Platform Super Admin tenant list and idempotent onboarding form', async () => {

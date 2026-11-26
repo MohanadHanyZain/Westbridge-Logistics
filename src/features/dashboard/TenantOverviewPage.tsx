@@ -10,7 +10,6 @@ import {translateUi, useLocale} from '@/lib/i18n';
 import type {ShipmentDashboardCounts} from '@/types/shipments';
 import {AlertCircle, ArrowLeft, Package, PackageCheck, Truck} from 'lucide-react';
 import {Skeleton} from '@/components/ui/Skeleton';
-import {useAuth} from '@/lib/auth';
 
 const cardStyles = [
   {icon: 'text-orange-600', surface: 'bg-orange-50/80 border-orange-100'},
@@ -29,8 +28,7 @@ export function TenantOverviewPage() {
 }
 
 function StaffTenantOverviewInner() {
-  const {tenant, membership} = useTenantWorkspace();
-  const {profile} = useAuth();
+  const {tenant} = useTenantWorkspace();
   const locale = useLocale();
   const t = (text: string) => translateUi(text, locale);
   const basePath = `${buildTenantBasePath(tenant.slug)}/app`;
@@ -97,19 +95,6 @@ function StaffTenantOverviewInner() {
 
   return (
     <div className="space-y-5">
-      {membership.must_change_password && (
-        <section
-          role="alert"
-          className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4"
-        >
-          <h1 className="text-lg font-extrabold text-slate-900">
-            مرحبًا، {profile?.display_name ?? membership.username}
-          </h1>
-          <p className="mt-1 text-sm leading-7 text-amber-800">
-            يُرجى تعيين كلمة مرور شخصية جديدة لاستكمال تفعيل حسابك.
-          </p>
-        </section>
-      )}
       <section className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-xs font-medium text-slate-500">{t('لوحة الإدارة')}</p>
