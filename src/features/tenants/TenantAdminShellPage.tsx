@@ -1,5 +1,6 @@
 import {useCallback, useEffect, useMemo, useState} from 'react';
-import {Link, Navigate, NavLink, Outlet, useLocation, useParams} from 'react-router-dom';
+import {Link, Navigate, NavLink, Outlet, useLocation} from 'react-router-dom';
+import {useTenantSlug} from '@/lib/tenant/TenantRuntimeContext';
 import {BRAND_CONFIG, buildTenantBasePath} from '@/config/brand';
 import {getMyTenantPermissions} from '@/features/security/securityService';
 import {TenantWorkspaceProvider} from '@/features/tenants/TenantWorkspaceContext';
@@ -67,7 +68,7 @@ function getOpenSection(pathname: string): string | null {
 }
 
 export function TenantAdminShellPage() {
-  const {companySlug = ''} = useParams();
+  const companySlug = useTenantSlug();
   const location = useLocation();
   const {memberships} = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);

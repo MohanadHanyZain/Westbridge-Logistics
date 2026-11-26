@@ -9,6 +9,7 @@ export interface PublicEnvConfig {
   readonly googleMapsApiKey: string | null;
   readonly isSupabaseConfigured: boolean;
   readonly mapboxAccessToken: string | null;
+  readonly platformBaseDomain: string | null;
   readonly isMapsConfigured: boolean;
 }
 
@@ -32,17 +33,41 @@ function readPublicEnv(key: string): string | null {
   return trimmed;
 }
 
+/**
+ * Accepts either a bare domain or a pasted URL and returns a lowercase host.
+ */
+function sanitizePlatformBaseDomain(raw: string | null): string | null {
+  if (!raw) {
+    return null;
+  }
+  const cleaned = raw
+    .trim()
+    .toLowerCase()
+    .replace(/^[a-z][a-z0-9+.-]*:\/\//, '')
+    .replace(/\/.*$/, '')
+    .replace(/:\d+$/, '')
+    .replace(/\.+$/, '');
+  if (!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/.test(cleaned)) {
+    return null;
+  }
+  return cleaned;
+}
+
 export function getPublicEnvConfig(): PublicEnvConfig {
   const supabaseUrl = readPublicEnv('VITE_SUPABASE_URL');
   const supabaseAnonKey = readPublicEnv('VITE_SUPABASE_ANON_KEY');
   const googleMapsApiKey = readPublicEnv('VITE_GOOGLE_MAPS_API_KEY');
   const mapboxAccessToken = readPublicEnv('VITE_MAPBOX_ACCESS_TOKEN');
+  const platformBaseDomain = sanitizePlatformBaseDomain(
+    readPublicEnv('VITE_PLATFORM_BASE_DOMAIN'),
+  );
 
   return {
     supabaseUrl,
     supabaseAnonKey,
     googleMapsApiKey,
     mapboxAccessToken,
+    platformBaseDomain,
     isSupabaseConfigured: Boolean(supabaseUrl && supabaseAnonKey),
     isMapsConfigured: Boolean(googleMapsApiKey || mapboxAccessToken),
   };

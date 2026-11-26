@@ -1,5 +1,6 @@
 import {useEffect, useState, type FormEvent} from 'react';
 import {Link, useNavigate, useParams} from 'react-router-dom';
+import {useTenantSlug} from '@/lib/tenant/TenantRuntimeContext';
 import {BRAND_CONFIG, buildTenantBasePath} from '@/config/brand';
 import {trackPublicShipment} from '@/features/shipments/shipmentsService';
 import {fetchPublicTenantBySlug} from '@/features/tenants/tenantService';
@@ -9,7 +10,8 @@ import type {PublicTenantInfo} from '@/types/tenant';
 import {ArrowRight, LogIn, PackageSearch} from 'lucide-react';
 
 export function PublicTrackingPage() {
-  const {companySlug = '', token = ''} = useParams();
+  const {token = ''} = useParams();
+  const companySlug = useTenantSlug();
   const navigate = useNavigate();
   const basePath = buildTenantBasePath(companySlug);
 

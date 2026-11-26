@@ -1,5 +1,6 @@
 import {useEffect, useMemo, useState, type FormEvent} from 'react';
-import {Link, useNavigate, useParams} from 'react-router-dom';
+import {Link, useNavigate} from 'react-router-dom';
+import {useTenantSlug} from '@/lib/tenant/TenantRuntimeContext';
 import {BRAND_CONFIG, buildTenantBasePath} from '@/config/brand';
 import * as tenantService from '@/features/tenants/tenantService';
 import {EGYPTIAN_BANKS, type PayoutMethod} from '@/types/pricing';
@@ -23,7 +24,7 @@ import {
 } from 'lucide-react';
 
 export function TenantPublicPage() {
-  const {companySlug = ''} = useParams();
+  const companySlug = useTenantSlug();
   const navigate = useNavigate();
   const [tenant, setTenant] = useState<PublicTenantInfo | null>(null);
   const [services, setServices] = useState<readonly PublicStorefrontService[]>([]);

@@ -1,5 +1,6 @@
 import {useEffect, useState, type FormEvent, type ReactNode} from 'react';
-import {Link, Navigate, useNavigate, useParams} from 'react-router-dom';
+import {Link, Navigate, useNavigate} from 'react-router-dom';
+import {useTenantSlug} from '@/lib/tenant/TenantRuntimeContext';
 import {BRAND_CONFIG, buildTenantBasePath} from '@/config/brand';
 import {useAuth} from '@/lib/auth';
 import {getSupabaseClient} from '@/lib/supabase/client';
@@ -112,7 +113,7 @@ export function PlatformLoginPage() {
 }
 
 export function TenantLoginPage() {
-  const {companySlug = ''} = useParams();
+  const companySlug = useTenantSlug();
   const navigate = useNavigate();
   const {signIn, memberships, loading, isConfigured} = useAuth();
   const [tenant, setTenant] = useState<PublicTenantInfo | null>(null);
@@ -405,7 +406,7 @@ export function RequirePlatformAdmin({children}: {children: ReactNode}) {
 }
 
 export function RequireTenantMember({children}: {children: ReactNode}) {
-  const {companySlug = ''} = useParams();
+  const companySlug = useTenantSlug();
   const {memberships, loading} = useAuth();
   const cleanSlug = companySlug.trim().toLowerCase();
 

@@ -3,6 +3,8 @@
  * Never hardcode the platform name across UI components or pages;
  * import BRAND_CONFIG instead so renaming the product requires a single edit.
  */
+import {getActiveTenantSlug} from '@/lib/tenant/runtimeState';
+
 export interface BrandConfig {
   readonly appName: string;
   readonly appTagline: string;
@@ -85,5 +87,9 @@ export const BRAND_CONFIG: BrandConfig = {
 
 export function buildTenantBasePath(companySlug: string): string {
   const cleanSlug = companySlug.trim().toLowerCase().replace(/^\/+|\/+$/g, '');
+  // Host mode: the tenant owns the root of its own domain, so no prefix is used.
+  if (cleanSlug && cleanSlug === getActiveTenantSlug()) {
+    return '';
+  }
   return `${BRAND_CONFIG.tenantRoutePrefix}/${cleanSlug}`;
 }
