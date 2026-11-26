@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Tajawal:wght@400;500;700;800&family=Almarai:wght@400;700;800&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap");
 @import "tailwindcss";
 
 @layer base {
@@ -355,4 +355,13 @@ html[dir="ltr"] .mr-auto {
   body {
     overflow-x: hidden;
   }
+}
+
+/* Tenant storefront surface (Phase 2): scoped brand variables from tenant_branding */
+[data-tenant-surface] {
+  --brand: var(--tenant-brand, #ef6a47);
+  --brand-dark: var(--tenant-brand-dark, #cf4f31);
+  --brand-soft: var(--tenant-brand-soft, #fff1ec);
+  --font-display: var(--tenant-font, "Cairo", system-ui, sans-serif);
+  --font-sans: var(--tenant-font, "Cairo", system-ui, sans-serif);
 }

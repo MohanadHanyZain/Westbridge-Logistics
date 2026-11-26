@@ -1,4 +1,5 @@
 import type {AccountSubjectType, TimestampUtc} from '@/types/common';
+import type {PublicTenantBranding, StorefrontStats} from '@/types/tenantBranding';
 
 export type TenantStatus = 'active' | 'suspended' | 'archived';
 
@@ -77,6 +78,8 @@ export interface PublicStorefrontPayload {
   readonly services: readonly PublicStorefrontService[];
   readonly governorates: readonly PublicStorefrontGov[];
   readonly regions: readonly PublicStorefrontRegion[];
+  readonly branding?: PublicTenantBranding | null;
+  readonly stats?: StorefrontStats | null;
 }
 
 export interface SubmitClientRegistrationInput {

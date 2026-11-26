@@ -12,6 +12,13 @@ import type {
   SubmitClientRegistrationResult,
 } from '@/types/tenant';
 import {
+  brandCssVars,
+  fontStack,
+  normalizePublicBranding,
+  resolveSections,
+} from '@/features/tenants/brandingService';
+import type {PublicTenantBranding, StorefrontSectionId, StorefrontStats} from '@/types/tenantBranding';
+import {
   CheckCircle2,
   Globe,
   LogIn,
@@ -50,6 +57,8 @@ export function TenantPublicPage() {
   const [submittingReg, setSubmittingReg] = useState(false);
   const [regError, setRegError] = useState<string | null>(null);
   const [regResult, setRegResult] = useState<SubmitClientRegistrationResult | null>(null);
+  const [branding, setBranding] = useState<PublicTenantBranding>(() => normalizePublicBranding(null));
+  const [stats, setStats] = useState<StorefrontStats | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -69,6 +78,8 @@ export function TenantPublicPage() {
             const regs = payload.regions ?? [];
             setGovernorates(govs);
             setRegions(regs);
+            setBranding(normalizePublicBranding(payload.branding ?? null));
+            setStats(payload.stats ?? null);
             if (govs[0]) {
               setGovernorateId(govs[0].id);
               const firstReg = regs.find((r) => r.governorate_id === govs[0].id);
@@ -83,6 +94,8 @@ export function TenantPublicPage() {
           setServices([]);
           setGovernorates([]);
           setRegions([]);
+          setBranding(normalizePublicBranding(null));
+          setStats(null);
         }
       } finally {
         if (active) {
@@ -104,6 +117,16 @@ export function TenantPublicPage() {
   );
 
   const basePath = buildTenantBasePath(companySlug);
+
+  const sectionList = useMemo(() => resolveSections(branding), [branding]);
+  const orderOf = (id: StorefrontSectionId) => sectionList.find((item) => item.id === id)?.order ?? 99;
+  const isVisible = (id: StorefrontSectionId) =>
+    sectionList.some((item) => item.id === id && item.visible);
+  const sectionText = (id: StorefrontSectionId) =>
+    sectionList.find((item) => item.id === id)?.text?.trim() ?? '';
+  const themeVars = useMemo(() => brandCssVars(branding), [branding]);
+  const surfaceFont = fontStack(branding.font_family);
+  const isDarkSurface = branding.theme_mode === 'dark';
 
   const handleRegistrationSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -176,8 +199,20 @@ export function TenantPublicPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      <header className="border-b border-slate-200 bg-white">
+    <div
+      data-tenant-surface
+      dir="rtl"
+      style={{...themeVars, fontFamily: surfaceFont}}
+      className={
+        isDarkSurface
+          ? 'min-h-screen bg-slate-950 text-slate-100'
+          : 'min-h-screen bg-slate-50 text-slate-900'
+      }
+    >
+      <header
+        className="border-b bg-white"
+        style={{borderBottomColor: branding.primary_color}}
+      >
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-8 px-6 py-4">
           <div className="flex items-center gap-3 shrink-0">
             <span className="text-lg font-bold text-slate-900 whitespace-nowrap">{tenant.name}</span>
@@ -190,7 +225,7 @@ export function TenantPublicPage() {
             <a href="#services" className="hover:text-slate-900 whitespace-nowrap shrink-0">
               الخدمات والتغطية
             </a>
-            {tenant.allow_client_self_registration && (
+            {isVisible('registration') && tenant.allow_client_self_registration && (
               <a href="#merchant-registration" className="hover:text-slate-900 whitespace-nowrap shrink-0">
                 سجّل كتاجر
               </a>
@@ -199,7 +234,8 @@ export function TenantPublicPage() {
 
           <Link
             to={`${basePath}/login`}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-4 py-2 text-xs font-medium text-white hover:bg-slate-800 whitespace-nowrap shrink-0"
+            className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-medium hover:bg-slate-800 whitespace-nowrap shrink-0"
+            style={{backgroundColor: branding.primary_color, color: 'var(--tenant-brand-contrast)'}}
           >
             <LogIn className="h-3.5 w-3.5" />
             تسجيل الدخول
@@ -207,83 +243,139 @@ export function TenantPublicPage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl space-y-10 px-6 py-10">
-        {/* Hero & Instant Public Tracking */}
-        <section id="tracking" className="rounded-xl border border-slate-200 bg-white p-8">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <p className="text-xs font-medium text-slate-500">
-              الموقع العام للشركة · {BRAND_CONFIG.appName}
-            </p>
-            {(tenant.public_support_phone || tenant.public_support_email) && (
-              <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600">
-                {tenant.public_support_phone && (
-                  <span className="inline-flex items-center gap-1.5 font-mono-tabular">
-                    <Phone className="h-3.5 w-3.5 text-slate-400" />
-                    {tenant.public_support_phone}
-                  </span>
-                )}
-                {tenant.public_support_email && (
-                  <span className="inline-flex items-center gap-1.5 font-mono-tabular" dir="ltr">
-                    <Mail className="h-3.5 w-3.5 text-slate-400" />
-                    {tenant.public_support_email}
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
-
-          <h1 className="mt-2 text-2xl font-bold text-slate-900">مرحبًا بكم في {tenant.name}</h1>
-          <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">
-            {tenant.public_tagline?.trim()
-              ? tenant.public_tagline
-              : 'بوابة التتبع العام وخدمات الشحن والتوصيل الخاصة بالشركة. يمكن للتجار الجدد التقديم إلكترونيًا، ويمكن للمستخدمين المسجلين الدخول إلى لوحة المتابعة والعمليات.'}
-          </p>
-
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              const cleaned = trackingCode.trim();
-              if (!cleaned) {
-                setTrackingNotice('يرجى إدخال رقم الشحنة أو البوليصة أولًا.');
-                return;
-              }
-              navigate(`${basePath}/track/${encodeURIComponent(cleaned)}`);
+      <main className="mx-auto flex max-w-6xl flex-col space-y-10 px-6 py-10">
+        {/* Hero */}
+        {isVisible('hero') && (
+          <section
+            id="hero"
+            style={{
+              order: orderOf('hero'),
+              backgroundImage: branding.hero_image_path
+                ? 'url(' + branding.hero_image_path + ')'
+                : undefined,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
             }}
-            className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center"
+            className="rounded-xl border border-slate-200 bg-white p-8"
           >
-            <div className="relative flex-1 max-w-md">
-              <PackageSearch className="pointer-events-none absolute top-2.5 right-3 h-4 w-4 text-slate-400" />
-              <input
-                type="text"
-                value={trackingCode}
-                onChange={(e) => setTrackingCode(e.target.value)}
-                placeholder="أدخل رقم الشحنة أو البوليصة أو رمز التتبع..."
-                aria-label="رقم الشحنة للتتبع"
-                className="w-full rounded-lg border border-slate-200 bg-white py-2 pr-9 pl-3 text-sm focus:border-slate-400 focus:outline-none"
-              />
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <p className="text-xs font-medium text-slate-500">
+                الموقع العام للشركة · {BRAND_CONFIG.appName}
+              </p>
+              {branding.logo_path && (
+                <img
+                  src={branding.logo_path}
+                  alt={'شعار ' + tenant.name}
+                  className="h-10 w-auto"
+                />
+              )}
             </div>
-            <button
-              type="submit"
-              className="rounded-lg bg-slate-900 px-5 py-2 text-sm font-medium text-white hover:bg-slate-800 whitespace-nowrap"
-            >
-              تتبع الشحنة
-            </button>
-          </form>
 
-          {trackingNotice && (
-            <p role="status" className="mt-3 text-xs font-medium text-slate-600">
-              {trackingNotice}
+            <h1 className="mt-2 text-2xl font-bold" style={{color: branding.secondary_color}}>
+              {branding.hero_title?.trim() || 'مرحبًا بكم في ' + tenant.name}
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">
+              {branding.hero_subtitle?.trim() ||
+                tenant.public_tagline?.trim() ||
+                'بوابة التتبع العام وخدمات الشحن والتوصيل الخاصة بالشركة. يمكن للتجار الجدد التقديم إلكترونيًا، ويمكن للمستخدمين المسجلين الدخول إلى لوحة المتابعة والعمليات.'}
             </p>
-          )}
-        </section>
+          </section>
+        )}
+
+        {/* Instant public tracking */}
+        {isVisible('tracking') && (
+          <section
+            id="tracking"
+            style={{order: orderOf('tracking')}}
+            className="rounded-xl border border-slate-200 bg-white p-8"
+          >
+            <h2 className="text-base font-bold text-slate-900">تتبع الشحنة</h2>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const cleaned = trackingCode.trim();
+                if (!cleaned) {
+                  setTrackingNotice('يرجى إدخال رقم الشحنة أو البوليصة أولًا.');
+                  return;
+                }
+                navigate(`${basePath}/track/${encodeURIComponent(cleaned)}`);
+              }}
+              className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center"
+            >
+              <div className="relative flex-1 max-w-md">
+                <PackageSearch className="pointer-events-none absolute top-2.5 right-3 h-4 w-4 text-slate-400" />
+                <input
+                  type="text"
+                  value={trackingCode}
+                  onChange={(e) => setTrackingCode(e.target.value)}
+                  placeholder="أدخل رقم الشحنة أو البوليصة أو رمز التتبع..."
+                  aria-label="رقم الشحنة للتتبع"
+                  className="w-full rounded-lg border border-slate-200 bg-white py-2 pr-9 pl-3 text-sm focus:border-slate-400 focus:outline-none"
+                />
+              </div>
+              <button
+                type="submit"
+                className="rounded-lg px-5 py-2 text-sm font-medium whitespace-nowrap"
+                style={{
+                  backgroundColor: branding.primary_color,
+                  color: 'var(--tenant-brand-contrast)',
+                }}
+              >
+                تتبع الشحنة
+              </button>
+            </form>
+
+            {trackingNotice && (
+              <p role="status" className="mt-3 text-xs font-medium text-slate-600">
+                {trackingNotice}
+              </p>
+            )}
+          </section>
+        )}
+
+        {/* Contact */}
+        {isVisible('contact') && (tenant.public_support_phone || tenant.public_support_email) && (
+          <section
+            id="contact"
+            style={{order: orderOf('contact')}}
+            className="rounded-xl border border-slate-200 bg-white p-5"
+          >
+            <h2 className="text-sm font-semibold text-slate-900">بيانات التواصل</h2>
+            <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-slate-600">
+              {tenant.public_support_phone && (
+                <span className="inline-flex items-center gap-1.5 font-mono-tabular">
+                  <Phone className="h-3.5 w-3.5 text-slate-400" />
+                  {tenant.public_support_phone}
+                </span>
+              )}
+              {tenant.public_support_email && (
+                <span className="inline-flex items-center gap-1.5 font-mono-tabular" dir="ltr">
+                  <Mail className="h-3.5 w-3.5 text-slate-400" />
+                  {tenant.public_support_email}
+                </span>
+              )}
+            </div>
+          </section>
+        )}
 
         {/* Overview KPIs & Access Cards */}
-        <section id="services" className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        {isVisible('stats') && (
+        <section
+          id="stats"
+          style={{order: orderOf('stats')}}
+          className="grid grid-cols-1 gap-4 md:grid-cols-3"
+        >
           <div className="rounded-xl border border-slate-200 bg-white p-5">
             <h2 className="text-sm font-semibold text-slate-900">التوقيت والعملة المعتمدة</h2>
             <p className="mt-2 font-mono-tabular text-sm text-slate-700">
               {tenant.default_currency} · {tenant.default_timezone}
             </p>
+            {stats && (
+              <p className="mt-1 text-xs text-slate-500">
+                {stats.services_count} خدمة · {stats.governorates_count} محافظة ·{' '}
+                {stats.regions_count} منطقة
+              </p>
+            )}
           </div>
 
           <div className="rounded-xl border border-slate-200 bg-white p-5">
@@ -307,11 +399,21 @@ export function TenantPublicPage() {
             </Link>
           </div>
         </section>
+        )}
 
         {/* Live Shipping Services & Geographic Coverage */}
-        {(services.length > 0 || governorates.length > 0) && (
-          <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            {services.length > 0 && (
+        {(isVisible('services') || isVisible('coverage')) &&
+          (services.length > 0 || governorates.length > 0) && (
+          <section
+            style={{
+              order: Math.min(
+                isVisible('services') ? orderOf('services') : 99,
+                isVisible('coverage') ? orderOf('coverage') : 99,
+              ),
+            }}
+            className="grid grid-cols-1 gap-6 lg:grid-cols-2"
+          >
+            {isVisible('services') && services.length > 0 && (
               <div className="rounded-xl border border-slate-200 bg-white p-6">
                 <div className="flex items-center gap-2">
                   <PackageCheck className="h-4 w-4 text-slate-700" />
@@ -333,7 +435,7 @@ export function TenantPublicPage() {
               </div>
             )}
 
-            {governorates.length > 0 && (
+            {isVisible('coverage') && governorates.length > 0 && (
               <div className="rounded-xl border border-slate-200 bg-white p-6">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
@@ -364,6 +466,7 @@ export function TenantPublicPage() {
         {tenant.allow_client_self_registration && (
           <section
             id="merchant-registration"
+            style={{order: orderOf('registration')}}
             className="rounded-xl border border-slate-200 bg-white p-6 md:p-8"
           >
             <div className="flex items-center gap-2 border-b border-slate-100 pb-4">
@@ -614,6 +717,42 @@ export function TenantPublicPage() {
                 </button>
               </div>
             </form>
+          </section>
+        )}
+        {isVisible('about') && sectionText('about') && (
+          <section
+            id="about"
+            style={{order: orderOf('about')}}
+            className="rounded-xl border border-slate-200 bg-white p-6"
+          >
+            <h2 className="text-base font-bold text-slate-900">عن {tenant.name}</h2>
+            <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-600">
+              {sectionText('about')}
+            </p>
+          </section>
+        )}
+
+        {isVisible('faq') && sectionText('faq') && (
+          <section
+            id="faq"
+            style={{order: orderOf('faq')}}
+            className="rounded-xl border border-slate-200 bg-white p-6"
+          >
+            <h2 className="text-base font-bold text-slate-900">الأسئلة الشائعة</h2>
+            <ul className="mt-3 space-y-2 text-sm text-slate-600">
+              {sectionText('faq')
+                .split('\n')
+                .filter((line) => line.trim().length > 0)
+                .map((line) => (
+                  <li
+                    key={line}
+                    className="border-s-2 ps-3"
+                    style={{borderColor: branding.accent_color}}
+                  >
+                    {line}
+                  </li>
+                ))}
+            </ul>
           </section>
         )}
       </main>

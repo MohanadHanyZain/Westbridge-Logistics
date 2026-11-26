@@ -41,6 +41,14 @@ describe('host routing (phase 0 & 1)', () => {
     });
   });
 
+  it('keeps host mode usable when no platform base domain is configured', () => {
+    // Path-only deployments (no domain purchased yet) must still resolve client
+    // custom domains, and must never treat a random host as the platform host.
+    expect(isPlatformHost('track.cairo-express.com', null)).toBe(false);
+    expect(isPlatformHost('westbridge-logistics.vercel.app', null)).toBe(true);
+    expect(classifyHost('track.cairo-express.com', '', null).kind).toBe('tenant-domain');
+  });
+
   it('supports local slug previews through the host parameter and *.localhost', () => {
     expect(classifyHost('localhost', '?host=cairo-express', sessionStorage)).toEqual({
       kind: 'tenant-slug',
