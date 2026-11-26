@@ -1,7 +1,7 @@
 import {useEffect, useMemo, useState, type FormEvent} from 'react';
 import {Link, useNavigate} from 'react-router-dom';
 import {useTenantSlug} from '@/lib/tenant/TenantRuntimeContext';
-import {BRAND_CONFIG, buildTenantBasePath} from '@/config/brand';
+import {buildTenantBasePath} from '@/config/brand';
 import * as tenantService from '@/features/tenants/tenantService';
 import {EGYPTIAN_BANKS, type PayoutMethod} from '@/types/pricing';
 import type {
@@ -17,18 +17,51 @@ import {
   normalizePublicBranding,
   resolveSections,
 } from '@/features/tenants/brandingService';
-import type {PublicTenantBranding, StorefrontSectionId, StorefrontStats} from '@/types/tenantBranding';
+import type {
+  StorefrontFeature,
+  StorefrontSectionId,
+  PublicTenantBranding,
+  StorefrontSocialLink,
+  StorefrontLocale,
+  StorefrontPricingRow,
+  StorefrontStats,
+} from '@/types/tenantBranding';
 import {
   CheckCircle2,
+  Facebook,
   Globe,
+  Instagram,
+  Linkedin,
   LogIn,
   Mail,
   MapPin,
+  Menu,
   PackageCheck,
   PackageSearch,
   Phone,
-  Store,
+  ShieldCheck,
+  Truck,
+  Wallet,
+  Youtube,
+  X,
 } from 'lucide-react';
+
+function featureIcon(feature: StorefrontFeature) {
+  if (feature.icon_key === 'wallet') return Wallet;
+  if (feature.icon_key === 'shield') return ShieldCheck;
+  if (feature.icon_key === 'map') return MapPin;
+  if (feature.icon_key === 'support') return Phone;
+  if (feature.icon_key === 'package') return PackageCheck;
+  return Truck;
+}
+
+function socialIcon(platform: StorefrontSocialLink['platform']) {
+  if (platform === 'facebook') return Facebook;
+  if (platform === 'instagram') return Instagram;
+  if (platform === 'linkedin') return Linkedin;
+  if (platform === 'youtube') return Youtube;
+  return Globe;
+}
 
 export function TenantPublicPage() {
   const companySlug = useTenantSlug();
@@ -37,11 +70,14 @@ export function TenantPublicPage() {
   const [services, setServices] = useState<readonly PublicStorefrontService[]>([]);
   const [governorates, setGovernorates] = useState<readonly PublicStorefrontGov[]>([]);
   const [regions, setRegions] = useState<readonly PublicStorefrontRegion[]>([]);
+  const [stats, setStats] = useState<StorefrontStats | null>(null);
+  const [branding, setBranding] = useState<PublicTenantBranding>(() => normalizePublicBranding(null));
   const [loading, setLoading] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [locale, setLocale] = useState<StorefrontLocale>('ar');
   const [trackingCode, setTrackingCode] = useState('');
   const [trackingNotice, setTrackingNotice] = useState<string | null>(null);
 
-  // Client Self-Registration Form State
   const [companyName, setCompanyName] = useState('');
   const [contactName, setContactName] = useState('');
   const [email, setEmail] = useState('');
@@ -57,91 +93,89 @@ export function TenantPublicPage() {
   const [submittingReg, setSubmittingReg] = useState(false);
   const [regError, setRegError] = useState<string | null>(null);
   const [regResult, setRegResult] = useState<SubmitClientRegistrationResult | null>(null);
-  const [branding, setBranding] = useState<PublicTenantBranding>(() => normalizePublicBranding(null));
-  const [stats, setStats] = useState<StorefrontStats | null>(null);
 
   useEffect(() => {
     let active = true;
     setLoading(true);
-    const loadStorefront = async () => {
+    void (async () => {
       try {
-        if (
-          Object.keys(tenantService).includes('fetchPublicTenantStorefront') &&
-          typeof tenantService.fetchPublicTenantStorefront === 'function'
-        ) {
-          const payload = await tenantService.fetchPublicTenantStorefront(companySlug);
-          if (!active) return;
-          if (payload?.tenant) {
-            setTenant(payload.tenant);
-            setServices(payload.services ?? []);
-            const govs = payload.governorates ?? [];
-            const regs = payload.regions ?? [];
-            setGovernorates(govs);
-            setRegions(regs);
-            setBranding(normalizePublicBranding(payload.branding ?? null));
-            setStats(payload.stats ?? null);
-            if (govs[0]) {
-              setGovernorateId(govs[0].id);
-              const firstReg = regs.find((r) => r.governorate_id === govs[0].id);
-              setRegionId(firstReg?.id ?? '');
-            }
-            return;
-          }
+        const payload = await tenantService.fetchPublicTenantStorefront(companySlug);
+        if (!active) return;
+        if (!payload?.tenant) {
+          setTenant(null);
+          return;
         }
-        const basic = await tenantService.fetchPublicTenantBySlug(companySlug);
-        if (active) {
-          setTenant(basic);
-          setServices([]);
-          setGovernorates([]);
-          setRegions([]);
-          setBranding(normalizePublicBranding(null));
-          setStats(null);
+        setTenant(payload.tenant);
+        setServices(payload.services ?? []);
+        setGovernorates(payload.governorates ?? []);
+        setRegions(payload.regions ?? []);
+        setStats(payload.stats ?? null);
+        const normalized = normalizePublicBranding(payload.branding ?? null);
+        setBranding(normalized);
+        const saved = localStorage.getItem(`storefront_locale_${companySlug}`);
+        setLocale(saved === 'en' ? 'en' : saved === 'ar' ? 'ar' : normalized.storefront_config.default_locale);
+        if ((payload.governorates ?? []).length > 0) {
+          const firstGov = payload.governorates[0];
+          setGovernorateId(firstGov.id);
+          const firstRegion = (payload.regions ?? []).find((region) => region.governorate_id === firstGov.id);
+          setRegionId(firstRegion?.id ?? '');
         }
+      } catch {
+        if (active) setTenant(null);
       } finally {
-        if (active) {
-          setLoading(false);
-        }
+        if (active) setLoading(false);
       }
-    };
-
-    void loadStorefront();
-
+    })();
     return () => {
       active = false;
     };
   }, [companySlug]);
 
+  useEffect(() => {
+    document.documentElement.dir = locale === 'ar' ? 'rtl' : 'ltr';
+    document.documentElement.lang = locale;
+  }, [locale]);
+
   const filteredRegions = useMemo(
-    () => (governorateId ? regions.filter((r) => r.governorate_id === governorateId) : regions),
+    () => governorateId ? regions.filter((region) => region.governorate_id === governorateId) : regions,
     [regions, governorateId],
   );
 
   const basePath = buildTenantBasePath(companySlug);
-
+  const config = branding.storefront_config;
   const sectionList = useMemo(() => resolveSections(branding), [branding]);
-  const orderOf = (id: StorefrontSectionId) => sectionList.find((item) => item.id === id)?.order ?? 99;
+  const orderOf = (id: StorefrontSectionId) =>
+    sectionList.find((section) => section.id === id)?.order ?? 99;
   const isVisible = (id: StorefrontSectionId) =>
-    sectionList.some((item) => item.id === id && item.visible);
+    sectionList.some((section) => section.id === id && section.visible);
   const sectionText = (id: StorefrontSectionId) =>
-    sectionList.find((item) => item.id === id)?.text?.trim() ?? '';
+    sectionList.find((section) => section.id === id)?.text?.trim() ?? '';
   const themeVars = useMemo(() => brandCssVars(branding), [branding]);
-  const surfaceFont = fontStack(branding.font_family);
-  const isDarkSurface = branding.theme_mode === 'dark';
+  const text = (ar: string, en: string) => locale === 'ar' ? ar : en;
 
-  const handleRegistrationSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    if (
-      !tenant ||
-      !Object.keys(tenantService).includes('submitClientRegistrationRequest') ||
-      typeof tenantService.submitClientRegistrationRequest !== 'function'
-    ) {
+  const changeLocale = (nextLocale: StorefrontLocale) => {
+    setLocale(nextLocale);
+    localStorage.setItem(`storefront_locale_${companySlug}`, nextLocale);
+  };
+
+  const handleTrack = (event: FormEvent) => {
+    event.preventDefault();
+    const cleaned = trackingCode.trim();
+    if (!cleaned) {
+      setTrackingNotice(text('يرجى إدخال رقم الشحنة أولًا.', 'Enter a shipment number first.'));
       return;
     }
+    navigate(`${basePath}/track/${encodeURIComponent(cleaned)}`);
+  };
+
+  const handleRegistration = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!tenant) return;
     setRegError(null);
     setRegResult(null);
     setSubmittingReg(true);
     try {
-      const res = await tenantService.submitClientRegistrationRequest(tenant.slug, {
+      const result = await tenantService.submitClientRegistrationRequest(tenant.slug, {
         company_name: companyName,
         contact_name: contactName || undefined,
         email,
@@ -155,7 +189,7 @@ export function TenantPublicPage() {
         bank_account_number: payoutMethod === 'bank_transfer' ? bankAccountNumber : undefined,
         wallet_phone: payoutMethod === 'vodafone_cash' ? walletPhone : undefined,
       });
-      setRegResult(res);
+      setRegResult(result);
       setCompanyName('');
       setContactName('');
       setEmail('');
@@ -164,8 +198,8 @@ export function TenantPublicPage() {
       setAddressLine('');
       setBankAccountNumber('');
       setWalletPhone('');
-    } catch (err) {
-      setRegError(err instanceof Error ? err.message : 'تعذر إرسال طلب التسجيل.');
+    } catch (error) {
+      setRegError(error instanceof Error ? error.message : text('تعذر إرسال الطلب.', 'Unable to submit the request.'));
     } finally {
       setSubmittingReg(false);
     }
@@ -174,7 +208,7 @@ export function TenantPublicPage() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 px-6 text-sm text-slate-600">
-        جاري تحميل بوابة الشركة...
+        {text('جاري تحميل موقع الشركة...', 'Loading company website...')}
       </div>
     );
   }
@@ -182,580 +216,526 @@ export function TenantPublicPage() {
   if (!tenant) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 px-6 py-12">
-        <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 text-right">
-          <h1 className="text-lg font-bold text-slate-900">الشركة غير متاحة</h1>
-          <p className="mt-2 text-sm leading-relaxed text-slate-600">
-            تعذر العثور على شركة شحن نشطة بالمسار المطلوب، أو أن حساب الشركة موقوف مؤقتًا.
+        <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6">
+          <h1 className="text-lg font-bold text-slate-900">{text('الشركة غير متاحة', 'Company unavailable')}</h1>
+          <p className="mt-2 text-sm leading-7 text-slate-600">
+            {text('تعذر العثور على شركة نشطة بالعنوان المطلوب.', 'No active company was found for this address.')}
           </p>
-          <Link
-            to="/"
-            className="mt-4 inline-flex items-center justify-center rounded-lg bg-slate-900 px-4 py-2 text-xs font-medium text-white hover:bg-slate-800"
-          >
-            العودة للرئيسية
+          <Link to="/" className="mt-4 inline-flex rounded-lg bg-slate-900 px-4 py-2 text-xs font-medium text-white">
+            {text('العودة للرئيسية', 'Back to home')}
           </Link>
         </div>
       </div>
     );
   }
 
+  const heroTitle =
+    text(config.hero_title_ar, config.hero_title_en) ||
+    text(branding.hero_title ?? '', branding.hero_title ?? '') ||
+    text(`مرحبًا بكم في ${tenant.name}`, `Welcome to ${tenant.name}`);
+  const heroSubtitle =
+    text(config.hero_subtitle_ar, config.hero_subtitle_en) ||
+    branding.hero_subtitle ||
+    tenant.public_tagline ||
+    text('حلول شحن موثوقة وتتبع واضح من الاستلام حتى التسليم.', 'Reliable shipping and clear tracking from pickup to delivery.');
+
   return (
     <div
-      data-tenant-surface
-      dir="rtl"
-      style={{...themeVars, fontFamily: surfaceFont}}
-      className={
-        isDarkSurface
-          ? 'min-h-screen bg-slate-950 text-slate-100'
-          : 'min-h-screen bg-slate-50 text-slate-900'
-      }
+      dir={locale === 'ar' ? 'rtl' : 'ltr'}
+      lang={locale}
+      style={{...themeVars, fontFamily: fontStack(branding.font_family)}}
+      className="min-h-screen bg-white text-slate-900"
     >
       <header
-        className="border-b bg-white"
-        style={{borderBottomColor: branding.primary_color}}
+        className="sticky top-0 z-50 border-b border-slate-200/80 bg-white/95 backdrop-blur"
+        style={{boxShadow: `0 8px 28px ${config.header_shadow_color}${Math.round(config.header_shadow_opacity * 255).toString(16).padStart(2, '0')}`}}
       >
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-8 px-6 py-4">
-          <div className="flex items-center gap-3 shrink-0">
-            <span className="text-lg font-bold text-slate-900 whitespace-nowrap">{tenant.name}</span>
-          </div>
-
-          <nav className="hidden items-center gap-6 text-sm font-medium text-slate-600 md:flex">
-            <a href="#tracking" className="hover:text-slate-900 whitespace-nowrap shrink-0">
-              تتبع الشحنة
-            </a>
-            <a href="#services" className="hover:text-slate-900 whitespace-nowrap shrink-0">
-              الخدمات والتغطية
-            </a>
-            {isVisible('registration') && tenant.allow_client_self_registration && (
-              <a href="#merchant-registration" className="hover:text-slate-900 whitespace-nowrap shrink-0">
-                سجّل كتاجر
-              </a>
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
+          <Link to={basePath || '/'} className="flex min-w-0 items-center gap-3">
+            {branding.logo_path ? (
+              <img src={branding.logo_path} alt={tenant.name} className="h-9 max-w-36 w-auto object-contain" />
+            ) : (
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg text-sm font-black" style={{backgroundColor: branding.primary_color, color: 'var(--tenant-brand-contrast)'}}>
+                {tenant.name.slice(0, 2).toUpperCase()}
+              </span>
             )}
+            <span className="truncate text-sm font-extrabold sm:text-base">{tenant.name}</span>
+          </Link>
+
+          <nav className="hidden items-center gap-1 md:flex" aria-label={text('القائمة الرئيسية', 'Main navigation')}>
+            {config.nav_links.filter((link) => link.visible).map((link) => (
+              <a key={link.id} href={link.url} className="rounded-lg px-3 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-950">
+                {text(link.label_ar, link.label_en)}
+              </a>
+            ))}
           </nav>
 
-          <Link
-            to={`${basePath}/login`}
-            className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-medium hover:bg-slate-800 whitespace-nowrap shrink-0"
-            style={{backgroundColor: branding.primary_color, color: 'var(--tenant-brand-contrast)'}}
-          >
-            <LogIn className="h-3.5 w-3.5" />
-            تسجيل الدخول
-          </Link>
+          <div className="flex shrink-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => changeLocale(locale === 'ar' ? 'en' : 'ar')}
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-xs font-bold text-slate-700"
+              aria-label={locale === 'ar' ? 'Switch to English' : 'التبديل للعربية'}
+            >
+              <span aria-hidden="true">{locale === 'ar' ? '🇺🇸' : '🇪🇬'}</span>
+              <span>{locale === 'ar' ? 'EN' : 'AR'}</span>
+            </button>
+            <Link
+              to={`${basePath}/login`}
+              className="hidden items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-bold sm:inline-flex"
+              style={{backgroundColor: branding.primary_color, color: 'var(--tenant-brand-contrast)'}}
+            >
+              <LogIn className="h-3.5 w-3.5" />
+              {text(config.header_login_label_ar, config.header_login_label_en)}
+            </Link>
+            <button type="button" onClick={() => setMenuOpen((open) => !open)} className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 md:hidden" aria-label={text('القائمة', 'Menu')}>
+              {menuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+            </button>
+          </div>
         </div>
+        {menuOpen && (
+          <nav className="border-t border-slate-100 bg-white px-4 py-3 md:hidden">
+            <div className="mx-auto grid max-w-7xl gap-1">
+              {config.nav_links.filter((link) => link.visible).map((link) => (
+                <a key={link.id} href={link.url} onClick={() => setMenuOpen(false)} className="rounded-lg px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                  {text(link.label_ar, link.label_en)}
+                </a>
+              ))}
+              <Link to={`${basePath}/login`} className="mt-1 rounded-lg px-3 py-2.5 text-sm font-bold" style={{color: branding.primary_color}}>
+                {text(config.header_login_label_ar, config.header_login_label_en)}
+              </Link>
+            </div>
+          </nav>
+        )}
       </header>
 
-      <main className="mx-auto flex max-w-6xl flex-col space-y-10 px-6 py-10">
-        {/* Hero */}
+      <main className="flex flex-col">
         {isVisible('hero') && (
           <section
             id="hero"
-            style={{
-              order: orderOf('hero'),
-              backgroundImage: branding.hero_image_path
-                ? 'url(' + branding.hero_image_path + ')'
-                : undefined,
-              backgroundSize: 'cover',
-              backgroundPosition: 'center',
-            }}
-            className="rounded-xl border border-slate-200 bg-white p-8"
+            style={{order: orderOf('hero')}}
+            className={config.hero_layout === 'background'
+              ? 'relative isolate overflow-hidden'
+              : 'border-b border-slate-100 bg-slate-50'}
           >
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <p className="text-xs font-medium text-slate-500">
-                الموقع العام للشركة · {BRAND_CONFIG.appName}
-              </p>
-              {branding.logo_path && (
-                <img
-                  src={branding.logo_path}
-                  alt={'شعار ' + tenant.name}
-                  className="h-10 w-auto"
-                />
-              )}
-            </div>
-
-            <h1 className="mt-2 text-2xl font-bold" style={{color: branding.secondary_color}}>
-              {branding.hero_title?.trim() || 'مرحبًا بكم في ' + tenant.name}
-            </h1>
-            <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-600">
-              {branding.hero_subtitle?.trim() ||
-                tenant.public_tagline?.trim() ||
-                'بوابة التتبع العام وخدمات الشحن والتوصيل الخاصة بالشركة. يمكن للتجار الجدد التقديم إلكترونيًا، ويمكن للمستخدمين المسجلين الدخول إلى لوحة المتابعة والعمليات.'}
-            </p>
-          </section>
-        )}
-
-        {/* Instant public tracking */}
-        {isVisible('tracking') && (
-          <section
-            id="tracking"
-            style={{order: orderOf('tracking')}}
-            className="rounded-xl border border-slate-200 bg-white p-8"
-          >
-            <h2 className="text-base font-bold text-slate-900">تتبع الشحنة</h2>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const cleaned = trackingCode.trim();
-                if (!cleaned) {
-                  setTrackingNotice('يرجى إدخال رقم الشحنة أو البوليصة أولًا.');
-                  return;
-                }
-                navigate(`${basePath}/track/${encodeURIComponent(cleaned)}`);
-              }}
-              className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center"
-            >
-              <div className="relative flex-1 max-w-md">
-                <PackageSearch className="pointer-events-none absolute top-2.5 right-3 h-4 w-4 text-slate-400" />
-                <input
-                  type="text"
-                  value={trackingCode}
-                  onChange={(e) => setTrackingCode(e.target.value)}
-                  placeholder="أدخل رقم الشحنة أو البوليصة أو رمز التتبع..."
-                  aria-label="رقم الشحنة للتتبع"
-                  className="w-full rounded-lg border border-slate-200 bg-white py-2 pr-9 pl-3 text-sm focus:border-slate-400 focus:outline-none"
-                />
-              </div>
-              <button
-                type="submit"
-                className="rounded-lg px-5 py-2 text-sm font-medium whitespace-nowrap"
+            {config.hero_layout === 'background' ? (
+              <div
+                className="relative min-h-[520px]"
                 style={{
-                  backgroundColor: branding.primary_color,
-                  color: 'var(--tenant-brand-contrast)',
+                  backgroundColor: config.hero_overlay_color,
+                  backgroundImage: branding.hero_image_path
+                    ? `linear-gradient(rgba(11,18,32,${config.hero_overlay_opacity}),rgba(11,18,32,${config.hero_overlay_opacity})), url(${branding.hero_image_path})`
+                    : undefined,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
                 }}
               >
-                تتبع الشحنة
-              </button>
-            </form>
-
-            {trackingNotice && (
-              <p role="status" className="mt-3 text-xs font-medium text-slate-600">
-                {trackingNotice}
-              </p>
-            )}
-          </section>
-        )}
-
-        {/* Contact */}
-        {isVisible('contact') && (tenant.public_support_phone || tenant.public_support_email) && (
-          <section
-            id="contact"
-            style={{order: orderOf('contact')}}
-            className="rounded-xl border border-slate-200 bg-white p-5"
-          >
-            <h2 className="text-sm font-semibold text-slate-900">بيانات التواصل</h2>
-            <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-slate-600">
-              {tenant.public_support_phone && (
-                <span className="inline-flex items-center gap-1.5 font-mono-tabular">
-                  <Phone className="h-3.5 w-3.5 text-slate-400" />
-                  {tenant.public_support_phone}
-                </span>
-              )}
-              {tenant.public_support_email && (
-                <span className="inline-flex items-center gap-1.5 font-mono-tabular" dir="ltr">
-                  <Mail className="h-3.5 w-3.5 text-slate-400" />
-                  {tenant.public_support_email}
-                </span>
-              )}
-            </div>
-          </section>
-        )}
-
-        {/* Overview KPIs & Access Cards */}
-        {isVisible('stats') && (
-        <section
-          id="stats"
-          style={{order: orderOf('stats')}}
-          className="grid grid-cols-1 gap-4 md:grid-cols-3"
-        >
-          <div className="rounded-xl border border-slate-200 bg-white p-5">
-            <h2 className="text-sm font-semibold text-slate-900">التوقيت والعملة المعتمدة</h2>
-            <p className="mt-2 font-mono-tabular text-sm text-slate-700">
-              {tenant.default_currency} · {tenant.default_timezone}
-            </p>
-            {stats && (
-              <p className="mt-1 text-xs text-slate-500">
-                {stats.services_count} خدمة · {stats.governorates_count} محافظة ·{' '}
-                {stats.regions_count} منطقة
-              </p>
-            )}
-          </div>
-
-          <div className="rounded-xl border border-slate-200 bg-white p-5">
-            <h2 className="text-sm font-semibold text-slate-900">تسجيل التجار الجدد</h2>
-            <p className="mt-2 text-sm text-slate-600">
-              {tenant.allow_client_self_registration
-                ? tenant.auto_approve_clients
-                  ? 'التسجيل الذاتي مفعّل مع تفعيل تلقائي فوري لملف التاجر.'
-                  : 'التسجيل الذاتي للتجار مفعّل من إدارة الشركة عبر النموذج أدناه.'
-                : 'تسجيل التجار يتم عبر إدارة الشركة حاليًا.'}
-            </p>
-          </div>
-
-          <div className="rounded-xl border border-slate-200 bg-white p-5">
-            <h2 className="text-sm font-semibold text-slate-900">دخول التاجر والموظفين</h2>
-            <Link
-              to={`${basePath}/login`}
-              className="mt-2 inline-block text-sm font-medium text-slate-900 underline underline-offset-4"
-            >
-              الانتقال إلى صفحة تسجيل الدخول
-            </Link>
-          </div>
-        </section>
-        )}
-
-        {/* Live Shipping Services & Geographic Coverage */}
-        {(isVisible('services') || isVisible('coverage')) &&
-          (services.length > 0 || governorates.length > 0) && (
-          <section
-            style={{
-              order: Math.min(
-                isVisible('services') ? orderOf('services') : 99,
-                isVisible('coverage') ? orderOf('coverage') : 99,
-              ),
-            }}
-            className="grid grid-cols-1 gap-6 lg:grid-cols-2"
-          >
-            {isVisible('services') && services.length > 0 && (
-              <div className="rounded-xl border border-slate-200 bg-white p-6">
-                <div className="flex items-center gap-2">
-                  <PackageCheck className="h-4 w-4 text-slate-700" />
-                  <h2 className="text-base font-bold text-slate-900">خدمات الشحن والتوصيل المتاحة</h2>
+                <div className="mx-auto flex min-h-[520px] max-w-7xl items-center px-4 py-16 text-white sm:px-6">
+                  <div className="max-w-2xl">
+                    <p className="text-xs font-bold" style={{color: branding.accent_color}}>
+                      {tenant.name}
+                    </p>
+                    <h1 className="mt-4 text-4xl font-extrabold leading-[1.15] sm:text-5xl lg:text-6xl">{heroTitle}</h1>
+                    <p className="mt-5 max-w-xl text-base leading-8 text-white/85 sm:text-lg">{heroSubtitle}</p>
+                    <div className="mt-8 flex flex-wrap gap-3">
+                      <a href="#tracking" className="inline-flex rounded-lg px-5 py-3 text-sm font-bold" style={{backgroundColor: branding.primary_color, color: 'var(--tenant-brand-contrast)'}}>
+                        {text(config.tracking_button_ar, config.tracking_button_en)}
+                      </a>
+                      {config.cta_primary.visible && (
+                        <a href={config.cta_primary.button_url || '#contact'} className="inline-flex rounded-lg border border-white/30 bg-white/10 px-5 py-3 text-sm font-bold text-white">
+                          {text(config.cta_primary.button_label_ar, config.cta_primary.button_label_en)}
+                        </a>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div className="mt-4 divide-y divide-slate-100">
-                  {services.map((srv) => (
-                    <div key={srv.id} className="flex items-center justify-between py-3 text-sm">
-                      <div>
-                        <p className="font-semibold text-slate-900">{srv.name}</p>
-                        <p className="font-mono-tabular text-xs text-slate-500">{srv.code}</p>
-                      </div>
-                      <span className="font-mono-tabular text-xs font-medium text-slate-700">
-                        {srv.estimated_days_min}–{srv.estimated_days_max} أيام عمل
+              </div>
+            ) : (
+              <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-12 sm:px-6 lg:min-h-[520px] lg:grid-cols-2 lg:py-16">
+                <div className={config.hero_layout === 'split-left' ? 'lg:order-2' : ''}>
+                  <p className="text-xs font-bold" style={{color: branding.accent_color}}>{tenant.name}</p>
+                  <h1 className="mt-4 text-4xl font-extrabold leading-[1.15] sm:text-5xl" style={{color: branding.secondary_color}}>{heroTitle}</h1>
+                  <p className="mt-5 max-w-xl text-base leading-8 text-slate-600">{heroSubtitle}</p>
+                  <div className="mt-8 flex flex-wrap gap-3">
+                    <a href="#tracking" className="inline-flex rounded-lg px-5 py-3 text-sm font-bold" style={{backgroundColor: branding.primary_color, color: 'var(--tenant-brand-contrast)'}}>
+                      {text(config.tracking_button_ar, config.tracking_button_en)}
+                    </a>
+                  </div>
+                </div>
+                {branding.hero_image_path ? (
+                  <img src={branding.hero_image_path} alt="" className={`h-72 w-full rounded-2xl object-cover shadow-[0_24px_55px_-35px_${config.hero_shadow_color}] sm:h-96 ${config.hero_layout === 'split-left' ? 'lg:order-1' : ''}`} />
+                ) : (
+                  <div className={`flex h-72 items-center justify-center rounded-2xl border border-slate-200 bg-white sm:h-96 ${config.hero_layout === 'split-left' ? 'lg:order-1' : ''}`}>
+                    <Truck className="h-16 w-16" style={{color: branding.accent_color}} />
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
+        )}
+
+        {config.features_visible && config.features.some((feature) => feature.visible) && (
+          <section id="features" className="border-b border-slate-100 bg-white py-16 sm:py-20">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6">
+              <p className="text-xs font-bold" style={{color: branding.primary_color}}>
+                {text('لماذا نحن', 'Why choose us')}
+              </p>
+              <h2 className="mt-2 text-3xl font-extrabold" style={{color: branding.secondary_color}}>
+                {text('مميزات تشغيل واضحة', 'Clear operational advantages')}
+              </h2>
+              <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {config.features.filter((feature) => feature.visible).map((feature) => {
+                  const Icon = featureIcon(feature);
+                  return (
+                    <article key={feature.id} className="rounded-xl border border-slate-200 p-5">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-lg" style={{backgroundColor: branding.primary_color, color: 'var(--tenant-brand-contrast)'}}>
+                        <Icon className="h-5 w-5" />
                       </span>
-                    </div>
-                  ))}
-                </div>
+                      <h3 className="mt-4 text-base font-extrabold text-slate-900">{text(feature.title_ar, feature.title_en)}</h3>
+                      <p className="mt-2 text-sm leading-7 text-slate-600">{text(feature.text_ar, feature.text_en)}</p>
+                    </article>
+                  );
+                })}
               </div>
-            )}
-
-            {isVisible('coverage') && governorates.length > 0 && (
-              <div className="rounded-xl border border-slate-200 bg-white p-6">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <Globe className="h-4 w-4 text-slate-700" />
-                    <h2 className="text-base font-bold text-slate-900">نطاق التغطية الجغرافية</h2>
-                  </div>
-                  <span className="font-mono-tabular text-xs font-semibold text-slate-600">
-                    {governorates.length} محافظة · {regions.length} منطقة
-                  </span>
-                </div>
-                <div className="mt-4 grid grid-cols-2 gap-2 text-xs sm:grid-cols-3">
-                  {governorates.slice(0, 18).map((gov) => (
-                    <div
-                      key={gov.id}
-                      className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-slate-700"
-                    >
-                      <MapPin className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                      <span className="truncate">{gov.name}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
+            </div>
           </section>
         )}
 
-        {/* Self-Registration Form (When Enabled) */}
-        {tenant.allow_client_self_registration && (
-          <section
-            id="merchant-registration"
-            style={{order: orderOf('registration')}}
-            className="rounded-xl border border-slate-200 bg-white p-6 md:p-8"
-          >
-            <div className="flex items-center gap-2 border-b border-slate-100 pb-4">
-              <Store className="h-5 w-5 text-slate-900" />
-              <div>
-                <h2 className="text-lg font-bold text-slate-900">التسجيل الذاتي للتجار والمتاجر</h2>
-                <p className="mt-0.5 text-xs text-slate-600">
-                  سجّل بيانات متجرك ومقر الالتقاط ووسيلة استلام مستحقاتك للانضمام إلى شبكة {tenant.name}.
-                </p>
+        {isVisible('stats') && stats && (
+          <section id="stats" style={{order: orderOf('stats')}} className="border-b border-slate-100 bg-slate-50 py-10">
+            <div className="mx-auto grid max-w-7xl grid-cols-1 gap-3 px-4 sm:grid-cols-3 sm:px-6">
+              {[
+                [stats.services_count, text('خدمة شحن', 'Shipping services')],
+                [stats.governorates_count, text('محافظة مغطاة', 'Covered governorates')],
+                [stats.regions_count, text('منطقة خدمة', 'Service regions')],
+              ].map(([value, label]) => (
+                <div key={String(label)} className="rounded-xl border border-slate-200 bg-white p-5 text-center">
+                  <p className="text-3xl font-extrabold" style={{color: branding.primary_color}}>{String(value)}</p>
+                  <p className="mt-1 text-xs font-semibold text-slate-500">{String(label)}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {config.cta_primary.visible && (
+          <section id="cta-primary" className="bg-white py-12 sm:py-16">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6">
+              <div className="grid items-center gap-8 rounded-2xl border border-slate-200 bg-slate-50 p-6 sm:p-8 lg:grid-cols-2">
+                <div className={config.cta_primary.image_side === 'left' ? 'lg:order-2' : ''}>
+                  <h2 className="text-3xl font-extrabold" style={{color: branding.secondary_color}}>
+                    {text(config.cta_primary.title_ar, config.cta_primary.title_en)}
+                  </h2>
+                  <p className="mt-3 max-w-xl text-sm leading-7 text-slate-600">
+                    {text(config.cta_primary.text_ar, config.cta_primary.text_en)}
+                  </p>
+                  <a href={config.cta_primary.button_url || '#tracking'} className="mt-5 inline-flex rounded-lg px-5 py-3 text-sm font-bold" style={{backgroundColor: branding.primary_color, color: 'var(--tenant-brand-contrast)'}}>
+                    {text(config.cta_primary.button_label_ar, config.cta_primary.button_label_en)}
+                  </a>
+                </div>
+                {config.cta_primary.image_path ? (
+                  <img src={config.cta_primary.image_path} alt="" className={`h-64 w-full rounded-xl object-cover sm:h-72 ${config.cta_primary.image_side === 'left' ? 'lg:order-1' : ''}`} />
+                ) : (
+                  <div className={`flex h-64 items-center justify-center rounded-xl border border-slate-200 bg-white sm:h-72 ${config.cta_primary.image_side === 'left' ? 'lg:order-1' : ''}`}>
+                    <Truck className="h-16 w-16" style={{color: branding.accent_color}} />
+                  </div>
+                )}
               </div>
             </div>
+          </section>
+        )}
 
-            {regResult && (
-              <div
-                role="status"
-                className="mt-5 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900"
-              >
-                <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" />
-                <div>
-                  <p className="font-semibold">
-                    {regResult.auto_approved
-                      ? `تم قبول وتفعيل ملف التاجر تلقائيًا بكود (${regResult.client_code ?? '—'}).`
-                      : 'تم استلام طلب التسجيل بنجاح وهو قيد المراجعة من إدارة الشركة.'}
-                  </p>
-                  <p className="mt-1 text-xs text-emerald-800">
-                    {regResult.auto_approved
-                      ? 'سيقوم فريق الشركة بإصدار اسم المستخدم وكلمة المرور للدخول إلى بوابة التاجر على البريد المسجل.'
-                      : 'ستقوم الإدارة بمراجعة الطلب واعتماد ملف المتجر وإبلاغك ببيانات الدخول لبوابة العميل.'}
-                  </p>
+        {config.pricing_visible && (
+          <section id="services-pricing" className="border-y border-slate-100 bg-slate-50 py-16 sm:py-20">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6">
+              <p className="text-xs font-bold" style={{color: branding.primary_color}}>{text('الخدمات والأسعار', 'Services & pricing')}</p>
+              <h2 className="mt-2 text-3xl font-extrabold" style={{color: branding.secondary_color}}>{text('أسعار الشحن حسب المحافظة', 'Shipping rates by governorate')}</h2>
+              {config.pricing.filter((row) => row.visible).length > 0 ? (
+                <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  {config.pricing.filter((row: StorefrontPricingRow) => row.visible).map((row) => (
+                    <article key={row.id} className="rounded-xl border border-slate-200 bg-white p-5">
+                      <p className="text-sm font-extrabold text-slate-900">{text(row.governorate_name_ar, row.governorate_name_en)}</p>
+                      <p className="mt-4 text-2xl font-extrabold" style={{color: branding.primary_color}}>{row.price.toLocaleString(locale === 'ar' ? 'ar-EG' : 'en-US')} EGP</p>
+                      <p className="mt-2 text-xs text-slate-500">{text('مدة التوصيل', 'Delivery time')}: {row.delivery_days} {text('يوم', 'days')}</p>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  {governorates.slice(0, 8).map((gov) => (
+                    <article key={gov.id} className="rounded-xl border border-slate-200 bg-white p-5">
+                      <p className="text-sm font-extrabold text-slate-900">{gov.name}</p>
+                      <p className="mt-3 text-xs text-slate-500">{text('يرجى التواصل للاستفسار عن السعر', 'Contact us for the delivery rate')}</p>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {config.cta_secondary.visible && (
+          <section id="cta-secondary" className="bg-white py-12 sm:py-16">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6">
+              <div className="grid items-center gap-8 rounded-2xl px-6 py-10 sm:px-10" style={{backgroundColor: branding.primary_color, color: 'var(--tenant-brand-contrast)'}}>
+                <div className={config.cta_secondary.image_path ? 'grid gap-8 lg:grid-cols-2 lg:items-center' : ''}>
+                  <div>
+                    <h2 className="text-3xl font-extrabold">{text(config.cta_secondary.title_ar, config.cta_secondary.title_en)}</h2>
+                    <p className="mt-3 max-w-xl text-sm leading-7 opacity-90">{text(config.cta_secondary.text_ar, config.cta_secondary.text_en)}</p>
+                    <a href={config.cta_secondary.button_url || '#merchant-registration'} className="mt-5 inline-flex rounded-lg bg-white px-5 py-3 text-sm font-bold" style={{color: branding.primary_color}}>
+                      {text(config.cta_secondary.button_label_ar, config.cta_secondary.button_label_en)}
+                    </a>
+                  </div>
+                  {config.cta_secondary.image_path && (
+                    <img src={config.cta_secondary.image_path} alt="" className="h-64 w-full rounded-xl object-cover" />
+                  )}
                 </div>
               </div>
-            )}
+            </div>
+          </section>
+        )}
 
-            {regError && (
-              <div
-                role="alert"
-                className="mt-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs font-medium text-red-800"
-              >
-                {regError}
-              </div>
-            )}
-
-            <form onSubmit={handleRegistrationSubmit} className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <div>
-                <label htmlFor="reg-company" className="block text-xs font-medium text-slate-700">
-                  اسم المتجر / النشاط *
-                </label>
-                <input
-                  id="reg-company"
-                  type="text"
-                  required
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="reg-contact" className="block text-xs font-medium text-slate-700">
-                  اسم المسؤول
-                </label>
-                <input
-                  id="reg-contact"
-                  type="text"
-                  value={contactName}
-                  onChange={(e) => setContactName(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="reg-email" className="block text-xs font-medium text-slate-700">
-                  البريد الإلكتروني *
-                </label>
-                <input
-                  id="reg-email"
-                  type="email"
-                  required
-                  dir="ltr"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="reg-phone" className="block text-xs font-medium text-slate-700">
-                  رقم الهاتف / الموبايل *
-                </label>
-                <input
-                  id="reg-phone"
-                  type="text"
-                  required
-                  dir="ltr"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 font-mono-tabular text-sm focus:border-slate-400 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="reg-mobile" className="block text-xs font-medium text-slate-700">
-                  رقم موبايل إضافي (اختياري)
-                </label>
-                <input
-                  id="reg-mobile"
-                  type="text"
-                  dir="ltr"
-                  value={mobile}
-                  onChange={(e) => setMobile(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 font-mono-tabular text-sm focus:border-slate-400 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="reg-gov" className="block text-xs font-medium text-slate-700">
-                  المحافظة *
-                </label>
-                <select
-                  id="reg-gov"
-                  required
-                  value={governorateId}
-                  onChange={(e) => {
-                    const nextGov = e.target.value;
-                    setGovernorateId(nextGov);
-                    const firstReg = regions.find((r) => r.governorate_id === nextGov);
-                    setRegionId(firstReg?.id ?? '');
-                  }}
-                  className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-                >
-                  {governorates.map((g) => (
-                    <option key={g.id} value={g.id}>
-                      {g.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="reg-region" className="block text-xs font-medium text-slate-700">
-                  المنطقة *
-                </label>
-                <select
-                  id="reg-region"
-                  required
-                  value={regionId}
-                  onChange={(e) => setRegionId(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-                >
-                  {filteredRegions.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="sm:col-span-2">
-                <label htmlFor="reg-address" className="block text-xs font-medium text-slate-700">
-                  عنوان الالتقاط بالتفصيل *
-                </label>
-                <input
-                  id="reg-address"
-                  type="text"
-                  required
-                  value={addressLine}
-                  onChange={(e) => setAddressLine(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="reg-payout" className="block text-xs font-medium text-slate-700">
-                  طريقة استلام المستحقات *
-                </label>
-                <select
-                  id="reg-payout"
-                  value={payoutMethod}
-                  onChange={(e) => setPayoutMethod(e.target.value as PayoutMethod)}
-                  className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-                >
-                  <option value="cash">نقدي</option>
-                  <option value="bank_transfer">تحويل بنكي</option>
-                  <option value="vodafone_cash">فودافون كاش</option>
-                </select>
-              </div>
-
-              {payoutMethod === 'bank_transfer' && (
-                <>
-                  <div>
-                    <label htmlFor="reg-bank" className="block text-xs font-medium text-slate-700">
-                      اسم البنك *
-                    </label>
-                    <select
-                      id="reg-bank"
-                      value={bankName}
-                      onChange={(e) => setBankName(e.target.value)}
-                      className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
-                    >
-                      {EGYPTIAN_BANKS.map((bank) => (
-                        <option key={bank} value={bank}>
-                          {bank}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label htmlFor="reg-iban" className="block text-xs font-medium text-slate-700">
-                      رقم الحساب / IBAN *
-                    </label>
-                    <input
-                      id="reg-iban"
-                      type="text"
-                      required
-                      dir="ltr"
-                      value={bankAccountNumber}
-                      onChange={(e) => setBankAccountNumber(e.target.value)}
-                      className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 font-mono-tabular text-sm"
-                    />
-                  </div>
-                </>
-              )}
-
-              {payoutMethod === 'vodafone_cash' && (
-                <div>
-                  <label htmlFor="reg-wallet" className="block text-xs font-medium text-slate-700">
-                    رقم محفظة فودافون كاش *
-                  </label>
+        {isVisible('tracking') && (
+          <section id="tracking" style={{order: orderOf('tracking')}} className="border-y border-slate-100 bg-slate-50 py-14 sm:py-16">
+            <div className="mx-auto max-w-4xl px-4 text-center sm:px-6">
+              <h2 className="text-3xl font-extrabold" style={{color: branding.secondary_color}}>{text('تتبع الشحنة', 'Track shipment')}</h2>
+              <p className="mt-2 text-sm text-slate-600">{text('أدخل رقم الشحنة أو البوليصة لعرض آخر حالة.', 'Enter your shipment or waybill number to view the latest status.')}</p>
+              <form onSubmit={handleTrack} className="mx-auto mt-6 flex max-w-2xl flex-col gap-2 sm:flex-row">
+                <div className="relative flex-1">
+                  <PackageSearch className="pointer-events-none absolute top-3.5 right-3 h-4 w-4 text-slate-400" />
                   <input
-                    id="reg-wallet"
-                    type="text"
-                    required
+                    value={trackingCode}
+                    onChange={(event) => setTrackingCode(event.target.value)}
+                    placeholder={text(config.tracking_placeholder_ar, config.tracking_placeholder_en)}
                     dir="ltr"
-                    value={walletPhone}
-                    onChange={(e) => setWalletPhone(e.target.value)}
-                    className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 font-mono-tabular text-sm"
+                    className="h-11 w-full rounded-lg border border-slate-200 bg-white pr-10 pl-3 text-sm outline-none focus:border-slate-400"
                   />
                 </div>
-              )}
-
-              <div className="sm:col-span-2 lg:col-span-3 pt-2">
-                <button
-                  type="submit"
-                  disabled={submittingReg || governorates.length === 0}
-                  className="rounded-lg bg-slate-900 px-6 py-2.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
-                >
-                  {submittingReg ? 'جاري إرسال الطلب...' : 'إرسال طلب تسجيل التاجر'}
+                <button type="submit" className="h-11 rounded-lg px-6 text-sm font-bold" style={{backgroundColor: branding.primary_color, color: 'var(--tenant-brand-contrast)'}}>
+                  {text(config.tracking_button_ar, config.tracking_button_en)}
                 </button>
-              </div>
-            </form>
+              </form>
+              {trackingNotice && <p role="status" className="mt-3 text-xs font-semibold text-slate-600">{trackingNotice}</p>}
+            </div>
           </section>
         )}
+
+        {isVisible('services') && services.length > 0 && (
+          <section id="services" style={{order: orderOf('services')}} className="bg-white py-14">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6">
+              <h2 className="text-2xl font-extrabold" style={{color: branding.secondary_color}}>{text('خدمات الشحن', 'Shipping services')}</h2>
+              <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {services.map((service) => (
+                  <article key={service.id} className="rounded-xl border border-slate-200 p-5">
+                    <p className="text-sm font-bold text-slate-900">{service.name}</p>
+                    <p className="mt-2 text-xs text-slate-500">{service.estimated_days_min}–{service.estimated_days_max} {text('يوم عمل', 'working days')}</p>
+                  </article>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {isVisible('coverage') && governorates.length > 0 && (
+          <section id="coverage" style={{order: orderOf('coverage')}} className="bg-slate-50 py-14">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6">
+              <h2 className="text-2xl font-extrabold" style={{color: branding.secondary_color}}>{text('نطاق التغطية', 'Coverage area')}</h2>
+              <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+                {governorates.map((gov) => (
+                  <div key={gov.id} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-700">
+                    <MapPin className="h-3.5 w-3.5" style={{color: branding.accent_color}} />
+                    <span className="truncate">{gov.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {isVisible('registration') && tenant.allow_client_self_registration && (
+          <section id="merchant-registration" style={{order: orderOf('registration')}} className="bg-white py-16 sm:py-20">
+            <div className="mx-auto max-w-5xl px-4 sm:px-6">
+              <h2 className="text-3xl font-extrabold" style={{color: branding.secondary_color}}>{text('تسجيل التاجر', 'Merchant registration')}</h2>
+              {regResult && (
+                <div role="status" className="mt-5 flex gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+                  <CheckCircle2 className="h-5 w-5 shrink-0" />
+                  {regResult.auto_approved
+                    ? text(`تم قبول وتفعيل ملف التاجر تلقائيًا بكود (${regResult.client_code ?? '—'}).`, `The merchant account was approved automatically with code (${regResult.client_code ?? '—'}).`)
+                    : text('تم استلام طلب التسجيل وقيد المراجعة.', 'Your registration request was received and is under review.')}
+                </div>
+              )}
+              {regError && <p role="alert" className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{regError}</p>}
+              <form onSubmit={handleRegistration} className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                <StoreInput label={text('اسم المتجر / النشاط *', 'Store name *')} value={companyName} onChange={setCompanyName} required />
+                <StoreInput label={text('اسم المسؤول', 'Contact name')} value={contactName} onChange={setContactName} />
+                <StoreInput label={text('البريد الإلكتروني *', 'Email *')} value={email} onChange={setEmail} required type="email" dir="ltr" />
+                <StoreInput label={text('رقم الهاتف / الموبايل *', 'Phone *')} value={phone} onChange={setPhone} required dir="ltr" />
+                <StoreInput label={text('موبايل إضافي', 'Additional mobile')} value={mobile} onChange={setMobile} dir="ltr" />
+                <label className="store-label">
+                  {text('المحافظة *', 'Governorate *')}
+                  <select required value={governorateId} onChange={(event) => {
+                    setGovernorateId(event.target.value);
+                    const firstRegion = regions.find((region) => region.governorate_id === event.target.value);
+                    setRegionId(firstRegion?.id ?? '');
+                  }} className="store-field">
+                    {governorates.map((gov) => <option key={gov.id} value={gov.id}>{gov.name}</option>)}
+                  </select>
+                </label>
+                <label className="store-label">
+                  {text('المنطقة *', 'Region *')}
+                  <select required value={regionId} onChange={(event) => setRegionId(event.target.value)} className="store-field">
+                    {filteredRegions.map((region) => <option key={region.id} value={region.id}>{region.name}</option>)}
+                  </select>
+                </label>
+                <StoreInput label={text('عنوان الالتقاط بالتفصيل *', 'Pickup address *')} value={addressLine} onChange={setAddressLine} required className="sm:col-span-2" />
+                <label className="store-label">
+                  {text('طريقة استلام المستحقات *', 'Payout method *')}
+                  <select value={payoutMethod} onChange={(event) => setPayoutMethod(event.target.value as PayoutMethod)} className="store-field">
+                    <option value="cash">{text('نقدي', 'Cash')}</option>
+                    <option value="bank_transfer">{text('تحويل بنكي', 'Bank transfer')}</option>
+                    <option value="vodafone_cash">Vodafone Cash</option>
+                  </select>
+                </label>
+                {payoutMethod === 'bank_transfer' && (
+                  <>
+                    <label className="store-label">{text('اسم البنك', 'Bank')}
+                      <select value={bankName} onChange={(event) => setBankName(event.target.value)} className="store-field">
+                        {EGYPTIAN_BANKS.map((bank) => <option key={bank} value={bank}>{bank}</option>)}
+                      </select>
+                    </label>
+                    <StoreInput label={text('رقم الحساب / IBAN', 'Account / IBAN')} value={bankAccountNumber} onChange={setBankAccountNumber} required dir="ltr" />
+                  </>
+                )}
+                {payoutMethod === 'vodafone_cash' && (
+                  <StoreInput label={text('رقم المحفظة', 'Wallet number')} value={walletPhone} onChange={setWalletPhone} required dir="ltr" />
+                )}
+                <div className="sm:col-span-2 lg:col-span-3">
+                  <button type="submit" disabled={submittingReg} className="rounded-lg px-6 py-3 text-sm font-bold disabled:opacity-60" style={{backgroundColor: branding.primary_color, color: 'var(--tenant-brand-contrast)'}}>
+                    {submittingReg ? text('جاري الإرسال...', 'Submitting...') : text('إرسال طلب تسجيل التاجر', 'Submit merchant registration')}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </section>
+        )}
+
         {isVisible('about') && sectionText('about') && (
-          <section
-            id="about"
-            style={{order: orderOf('about')}}
-            className="rounded-xl border border-slate-200 bg-white p-6"
-          >
-            <h2 className="text-base font-bold text-slate-900">عن {tenant.name}</h2>
-            <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-slate-600">
-              {sectionText('about')}
-            </p>
+          <section id="about" style={{order: orderOf('about')}} className="bg-slate-50 py-14">
+            <div className="mx-auto max-w-5xl px-4 sm:px-6">
+              <h2 className="text-2xl font-extrabold" style={{color: branding.secondary_color}}>{text('عن الشركة', 'About us')}</h2>
+              <p className="mt-4 whitespace-pre-line text-sm leading-8 text-slate-600">{sectionText('about')}</p>
+            </div>
           </section>
         )}
 
         {isVisible('faq') && sectionText('faq') && (
-          <section
-            id="faq"
-            style={{order: orderOf('faq')}}
-            className="rounded-xl border border-slate-200 bg-white p-6"
-          >
-            <h2 className="text-base font-bold text-slate-900">الأسئلة الشائعة</h2>
-            <ul className="mt-3 space-y-2 text-sm text-slate-600">
-              {sectionText('faq')
-                .split('\n')
-                .filter((line) => line.trim().length > 0)
-                .map((line) => (
-                  <li
-                    key={line}
-                    className="border-s-2 ps-3"
-                    style={{borderColor: branding.accent_color}}
-                  >
-                    {line}
-                  </li>
+          <section id="faq" style={{order: orderOf('faq')}} className="bg-white py-14">
+            <div className="mx-auto max-w-5xl px-4 sm:px-6">
+              <h2 className="text-2xl font-extrabold" style={{color: branding.secondary_color}}>{text('الأسئلة الشائعة', 'Frequently asked questions')}</h2>
+              <div className="mt-5 divide-y divide-slate-200 rounded-xl border border-slate-200">
+                {sectionText('faq').split('\n').filter((line) => line.trim()).map((line) => (
+                  <details key={line} className="px-5 py-4">
+                    <summary className="cursor-pointer text-sm font-bold text-slate-900">{line}</summary>
+                  </details>
                 ))}
-            </ul>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {config.custom_sections.filter((section) => section.visible).map((section) => (
+          <section key={section.id} className="border-b border-slate-100 bg-white py-14 sm:py-16">
+            <div className="mx-auto grid max-w-7xl items-center gap-8 px-4 sm:px-6 lg:grid-cols-2">
+              <div className={section.image_side === 'left' ? 'lg:order-2' : ''}>
+                <h2 className="text-3xl font-extrabold" style={{color: branding.secondary_color}}>{text(section.title_ar, section.title_en)}</h2>
+                <p className="mt-4 whitespace-pre-line text-sm leading-8 text-slate-600">{text(section.text_ar, section.text_en)}</p>
+                {section.button_url && (
+                  <a href={section.button_url} className="mt-5 inline-flex rounded-lg px-5 py-3 text-sm font-bold" style={{backgroundColor: branding.primary_color, color: 'var(--tenant-brand-contrast)'}}>
+                    {text(section.button_label_ar, section.button_label_en)}
+                  </a>
+                )}
+              </div>
+              {section.image_path && (
+                <img src={section.image_path} alt="" className={`h-72 w-full rounded-xl object-cover ${section.image_side === 'left' ? 'lg:order-1' : ''}`} />
+              )}
+            </div>
+          </section>
+        ))}
+
+        {isVisible('contact') && (
+          <section id="contact" style={{order: orderOf('contact')}} className="bg-slate-50 py-10">
+            <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-5 px-4 text-sm text-slate-600 sm:px-6">
+              {config.contact_accounts.filter((account) => account.visible).map((account) => (
+                <span key={account.id} className="inline-flex items-center gap-2">
+                  {account.kind === 'email' ? <Mail className="h-4 w-4" /> : <Phone className="h-4 w-4" />}
+                  <span>{text(account.label_ar, account.label_en)}: <span dir="ltr">{account.value}</span></span>
+                </span>
+              ))}
+              {!config.contact_accounts.some((account) => account.visible) && tenant.public_support_phone && (
+                <span className="inline-flex items-center gap-2"><Phone className="h-4 w-4" /><span dir="ltr">{tenant.public_support_phone}</span></span>
+              )}
+              {!config.contact_accounts.some((account) => account.visible) && tenant.public_support_email && (
+                <span className="inline-flex items-center gap-2"><Mail className="h-4 w-4" /><span dir="ltr">{tenant.public_support_email}</span></span>
+              )}
+            </div>
           </section>
         )}
       </main>
+
+      {config.footer_visible && (
+        <footer className="border-t border-slate-200 bg-white">
+          <div className="mx-auto flex max-w-7xl flex-col gap-5 px-4 py-8 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+            <div>
+              <p className="text-sm font-extrabold text-slate-900">{tenant.name}</p>
+              <p className="mt-1 text-xs leading-6 text-slate-500">
+                {text(config.footer_text_ar, config.footer_text_en) || text('خدمات الشحن والتوصيل والتتبع.', 'Shipping, delivery and tracking services.')}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              {config.social_links.filter((link) => link.visible).map((link) => {
+                const Icon = socialIcon(link.platform);
+                return (
+                  <a key={link.id} href={link.url} target="_blank" rel="noreferrer" aria-label={link.platform} className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-600 hover:border-slate-300 hover:text-slate-900">
+                    <Icon className="h-4 w-4" />
+                  </a>
+                );
+              })}
+            </div>
+          </div>
+        </footer>
+      )}
     </div>
+  );
+}
+
+function StoreInput({
+  label,
+  value,
+  onChange,
+  required = false,
+  type = 'text',
+  dir,
+  className = '',
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  required?: boolean;
+  type?: 'text' | 'email';
+  dir?: 'ltr';
+  className?: string;
+}) {
+  return (
+    <label className={`store-label ${className}`}>
+      {label}
+      <input
+        type={type}
+        required={required}
+        dir={dir}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="store-field"
+      />
+    </label>
   );
 }

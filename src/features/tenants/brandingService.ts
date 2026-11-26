@@ -8,6 +8,7 @@ import type {
   TenantBrandingFont,
   TenantBrandingSection,
   TenantThemeMode,
+  TenantStorefrontConfig,
   UpdateTenantBrandingInput,
 } from '@/types/tenantBranding';
 
@@ -27,6 +28,70 @@ export const BRANDING_FONTS: readonly BrandingFontOption[] = [
     stack: '"IBM Plex Sans Arabic", system-ui, sans-serif',
   },
 ];
+
+export const DEFAULT_STOREFRONT_CONFIG: TenantStorefrontConfig = {
+  default_locale: 'ar',
+  features_visible: true,
+  pricing_visible: true,
+  footer_visible: true,
+  hero_layout: 'background',
+  hero_title_ar: '',
+  hero_title_en: '',
+  hero_subtitle_ar: '',
+  hero_subtitle_en: '',
+  hero_overlay_color: '#0b1220',
+  hero_overlay_opacity: 0.58,
+  hero_shadow_color: '#0b1220',
+  hero_shadow_opacity: 0.18,
+  header_shadow_color: '#0f172a',
+  header_shadow_opacity: 0.08,
+  nav_links: [
+    {id: 'tracking', label_ar: 'تتبع الشحنة', label_en: 'Track shipment', url: '#tracking', visible: true},
+    {id: 'services', label_ar: 'الخدمات والأسعار', label_en: 'Services & pricing', url: '#services-pricing', visible: true},
+    {id: 'contact', label_ar: 'تواصل معنا', label_en: 'Contact us', url: '#contact', visible: true},
+  ],
+  features: [
+    {id: 'feature-1', title_ar: 'توصيل موثوق', title_en: 'Reliable delivery', text_ar: 'تتبع واضح ومواعيد تنفيذ يمكن الاعتماد عليها.', text_en: 'Clear tracking and dependable delivery timelines.', icon_key: 'truck', visible: true},
+    {id: 'feature-2', title_ar: 'دعم تشغيلي', title_en: 'Operational support', text_ar: 'متابعة مستمرة لحالة الشحنات وطوارئ التوصيل.', text_en: 'Continuous follow-up for shipment status and delivery issues.', icon_key: 'support', visible: true},
+    {id: 'feature-3', title_ar: 'تغطية واسعة', title_en: 'Wide coverage', text_ar: 'خدمات تغطي المحافظات والمناطق المعتمدة للشركة.', text_en: 'Coverage across the company-approved governorates and regions.', icon_key: 'map', visible: true},
+  ],
+  pricing: [],
+  cta_primary: {
+    title_ar: 'شحن آمن يبدأ بخطوة واحدة',
+    title_en: 'Secure shipping starts with one step',
+    text_ar: 'ابدأ تتبع شحنتك أو تواصل مع فريق الشركة للاستفسار.',
+    text_en: 'Start tracking your shipment or contact the company team.',
+    button_label_ar: 'تتبع الشحنة',
+    button_label_en: 'Track shipment',
+    button_url: '#tracking',
+    image_path: null,
+    image_side: 'right',
+    visible: true,
+  },
+  cta_secondary: {
+    title_ar: 'انضم كتاجر إلى شبكة الشحن',
+    title_en: 'Join the shipping network as a merchant',
+    text_ar: 'سجّل متجرك واستلم بيانات التشغيل والدعم من فريق الشركة.',
+    text_en: 'Register your store and receive account and support details.',
+    button_label_ar: 'سجّل كتاجر',
+    button_label_en: 'Register',
+    button_url: '#merchant-registration',
+    image_path: null,
+    image_side: 'left',
+    visible: true,
+  },
+  social_links: [],
+  custom_sections: [],
+  footer_text_ar: '',
+  footer_text_en: '',
+  header_login_label_ar: 'تسجيل الدخول',
+  header_login_label_en: 'Sign in',
+  tracking_placeholder_ar: 'رقم الشحنة أو البوليصة',
+  tracking_placeholder_en: 'Shipment or waybill number',
+  tracking_button_ar: 'تتبع الشحنة',
+  tracking_button_en: 'Track',
+  contact_accounts: [],
+};
 
 export interface StorefrontSectionMeta {
   readonly id: StorefrontSectionId;
@@ -124,6 +189,7 @@ export const DEFAULT_BRANDING: PublicTenantBranding = {
   hero_title: null,
   hero_subtitle: null,
   theme_mode: 'light',
+  storefront_config: DEFAULT_STOREFRONT_CONFIG,
   sections: STOREFRONT_SECTION_CATALOG.map((section) => ({
     id: section.id,
     visible: section.defaultVisible,
@@ -165,6 +231,32 @@ function normalizeSections(
 }
 
 /** Fills gaps for payloads that predate the branding table (or a failed RPC). */
+export function normalizeStorefrontConfig(
+  input: Partial<TenantStorefrontConfig> | null | undefined,
+): TenantStorefrontConfig {
+  if (!input) {
+    return DEFAULT_STOREFRONT_CONFIG;
+  }
+  const d = DEFAULT_STOREFRONT_CONFIG;
+  return {
+    ...d,
+    ...input,
+    default_locale: input.default_locale === 'en' ? 'en' : 'ar',
+    hero_layout:
+      input.hero_layout === 'split-right' || input.hero_layout === 'split-left'
+        ? input.hero_layout
+        : 'background',
+    nav_links: Array.isArray(input.nav_links) ? input.nav_links : d.nav_links,
+    features: Array.isArray(input.features) ? input.features : d.features,
+    pricing: Array.isArray(input.pricing) ? input.pricing : d.pricing,
+    cta_primary: input.cta_primary ? {...d.cta_primary, ...input.cta_primary} : d.cta_primary,
+    cta_secondary: input.cta_secondary ? {...d.cta_secondary, ...input.cta_secondary} : d.cta_secondary,
+    social_links: Array.isArray(input.social_links) ? input.social_links : d.social_links,
+    custom_sections: Array.isArray(input.custom_sections) ? input.custom_sections : d.custom_sections,
+    contact_accounts: Array.isArray(input.contact_accounts) ? input.contact_accounts : d.contact_accounts,
+  };
+}
+
 export function normalizePublicBranding(
   input: PublicTenantBranding | null | undefined,
 ): PublicTenantBranding {
@@ -183,6 +275,7 @@ export function normalizePublicBranding(
     hero_subtitle: input.hero_subtitle ?? null,
     theme_mode: input.theme_mode === 'dark' ? 'dark' : 'light',
     sections: normalizeSections(input.sections),
+    storefront_config: normalizeStorefrontConfig(input.storefront_config),
     settings_version: input.settings_version ?? 1,
   };
 }
@@ -293,6 +386,7 @@ function toUpdateInput(branding: PublicTenantBranding): UpdateTenantBrandingInpu
     hero_subtitle: branding.hero_subtitle,
     theme_mode: branding.theme_mode,
     sections: branding.sections,
+    storefront_config: normalizeStorefrontConfig(branding.storefront_config),
   };
 }
 
@@ -320,6 +414,7 @@ export async function getTenantBranding(tenantId: string): Promise<TenantBrandin
   return {
     ...row,
     sections: normalizeSections(row.sections),
+    storefront_config: normalizeStorefrontConfig(row.storefront_config),
   };
 }
 
@@ -351,6 +446,7 @@ export async function updateTenantBranding(
       hero_title: input.hero_title,
       hero_subtitle: input.hero_subtitle,
       sections: input.sections,
+      storefront_config: normalizeStorefrontConfig(input.storefront_config),
     },
   });
 
@@ -359,7 +455,47 @@ export async function updateTenantBranding(
   }
 
   const row = (Array.isArray(data) ? data[0] : data) as TenantBranding;
-  return {...row, sections: normalizeSections(row.sections)};
+  return {
+    ...row,
+    sections: normalizeSections(row.sections),
+    storefront_config: normalizeStorefrontConfig(row.storefront_config),
+  };
+}
+
+export async function uploadTenantStorefrontAsset(
+  tenantId: string,
+  kind: 'logo' | 'hero' | 'cta' | 'custom',
+  file: File,
+): Promise<string> {
+  if (!['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml'].includes(file.type)) {
+    throw new Error('يجب رفع صورة بصيغة JPG أو PNG أو WEBP أو SVG.');
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    throw new Error('حجم الصورة يجب ألا يتجاوز 5 ميجابايت.');
+  }
+
+  const client = getSupabaseClient();
+  if (!client) {
+    throw new Error('إعدادات الاتصال بقاعدة البيانات غير مهيأة.');
+  }
+
+  const extension =
+    file.type === 'image/jpeg'
+      ? 'jpg'
+      : file.type === 'image/png'
+        ? 'png'
+        : file.type === 'image/webp'
+          ? 'webp'
+          : 'svg';
+  const objectPath = `${tenantId}/${kind}/${crypto.randomUUID()}.${extension}`;
+  const {error} = await client.storage
+    .from('tenant-storefront-assets')
+    .upload(objectPath, file, {cacheControl: '3600', upsert: false, contentType: file.type});
+  if (error) {
+    throw new Error(error.message || 'تعذر رفع صورة الموقع العام.');
+  }
+
+  return client.storage.from('tenant-storefront-assets').getPublicUrl(objectPath).data.publicUrl;
 }
 
 export function themeModeIsDark(mode: TenantThemeMode): boolean {

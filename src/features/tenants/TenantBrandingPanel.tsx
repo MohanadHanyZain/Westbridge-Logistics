@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useMemo, useState} from 'react';
+import {useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode} from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -7,7 +7,10 @@ import {
   Eye,
   EyeOff,
   Palette,
+  Plus,
   Save,
+  Trash2,
+  Upload,
 } from 'lucide-react';
 import {
   BRANDING_FONTS,
@@ -19,12 +22,19 @@ import {
   normalizePublicBranding,
   resolveSections,
   updateTenantBranding,
+  uploadTenantStorefrontAsset,
   validateBranding,
 } from '@/features/tenants/brandingService';
 import {contrastRatio, isValidHexColor, readableTextColor} from '@/lib/color/contrast';
 import type {
   PublicTenantBranding,
+  StorefrontCta,
+  StorefrontCustomSection,
+  StorefrontFeature,
+  StorefrontLink,
+  StorefrontPricingRow,
   StorefrontSectionId,
+  StorefrontSocialLink,
   TenantBrandingFont,
   TenantThemeMode,
 } from '@/types/tenantBranding';
@@ -35,33 +45,24 @@ interface TenantBrandingPanelProps {
   readonly canEdit: boolean;
 }
 
-type ColorKey = 'primary_color' | 'secondary_color' | 'accent_color';
 
-const COLOR_FIELDS: readonly {key: ColorKey; label: string; hint: string}[] = [
-  {key: 'primary_color', label: 'اللون الأساسي', hint: 'أزرار التتبع والدعوات الرئيسية'},
-  {key: 'secondary_color', label: 'اللون الثانوي', hint: 'العناوين والنصوص الأساسية'},
-  {key: 'accent_color', label: 'لون التمييز', hint: 'الشارات والحالات والتفاصيل'},
-];
-
-function toPublicBranding(branding: PublicTenantBranding): PublicTenantBranding {
-  return normalizePublicBranding(branding);
-}
+const uid = () => crypto.randomUUID();
 
 export function TenantBrandingPanel({tenantId, tenantName, canEdit}: TenantBrandingPanelProps) {
   const [draft, setDraft] = useState<PublicTenantBranding>(DEFAULT_BRANDING);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<{type: 'success' | 'error'; text: string} | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const branding = await getTenantBranding(tenantId);
-      setDraft(toPublicBranding(branding));
+      setDraft(normalizePublicBranding(await getTenantBranding(tenantId)));
     } catch (error) {
       setFeedback({
         type: 'error',
-        text: error instanceof Error ? error.message : 'تعذر تحميل هوية الشركة.',
+        text: error instanceof Error ? error.message : 'تعذر تحميل إعدادات الموقع.',
       });
     } finally {
       setLoading(false);
@@ -75,36 +76,34 @@ export function TenantBrandingPanel({tenantId, tenantName, canEdit}: TenantBrand
   const validation = useMemo(() => validateBranding(brandingToUpdateInput(draft)), [draft]);
   const sections = useMemo(() => resolveSections(draft), [draft]);
   const cssVars = useMemo(() => brandCssVars(draft), [draft]);
+  const config = draft.storefront_config;
 
-  const update = (patch: Partial<PublicTenantBranding>) => {
+  const update = (patch: Partial<PublicTenantBranding>) =>
     setDraft((current) => ({...current, ...patch}));
-    setFeedback(null);
-  };
 
-  const updateColor = (key: ColorKey, value: string) => {
-    update({[key]: value.toLowerCase()} as Partial<PublicTenantBranding>);
-  };
+  const updateConfig = (patch: Partial<typeof config>) =>
+    setDraft((current) => ({
+      ...current,
+      storefront_config: {...current.storefront_config, ...patch},
+    }));
 
   const moveSection = (index: number, delta: number) => {
     const next = [...sections];
     const target = index + delta;
-    if (target < 0 || target >= next.length) {
-      return;
-    }
+    if (target < 0 || target >= next.length) return;
     const [moved] = next.splice(index, 1);
     next.splice(target, 0, moved);
     update({sections: next.map(({id, visible, text}) => ({id, visible, text: text ?? null}))});
   };
 
-  const toggleSection = (id: StorefrontSectionId) => {
+  const toggleSection = (id: StorefrontSectionId) =>
     update({
       sections: sections.map((section) =>
         section.id === id ? {id, visible: !section.visible, text: section.text ?? null} : section,
       ),
     });
-  };
 
-  const setSectionText = (id: StorefrontSectionId, text: string) => {
+  const setSectionText = (id: StorefrontSectionId, text: string) =>
     update({
       sections: sections.map((section) =>
         section.id === id
@@ -112,23 +111,36 @@ export function TenantBrandingPanel({tenantId, tenantName, canEdit}: TenantBrand
           : section,
       ),
     });
+
+  const handleUpload = async (
+    kind: 'logo' | 'hero' | 'cta' | 'custom',
+    event: ChangeEvent<HTMLInputElement>,
+    onUploaded: (url: string) => void,
+  ) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setUploading(kind);
+    setFeedback(null);
+    try {
+      onUploaded(await uploadTenantStorefrontAsset(tenantId, kind, file));
+    } catch (error) {
+      setFeedback({type: 'error', text: error instanceof Error ? error.message : 'تعذر رفع الصورة.'});
+    } finally {
+      setUploading(null);
+    }
   };
 
   const save = async () => {
-    if (!canEdit || validation.errors.length > 0) {
-      return;
-    }
+    if (!canEdit || validation.errors.length > 0) return;
     setSaving(true);
     setFeedback(null);
     try {
       const saved = await updateTenantBranding(tenantId, brandingToUpdateInput(draft));
-      setDraft(toPublicBranding(saved));
-      setFeedback({type: 'success', text: 'تم حفظ هوية المتجر وتطبيقها على الموقع العام فورًا.'});
+      setDraft(normalizePublicBranding(saved));
+      setFeedback({type: 'success', text: 'تم نشر إعدادات الموقع العام للشركة بنجاح.'});
     } catch (error) {
-      setFeedback({
-        type: 'error',
-        text: error instanceof Error ? error.message : 'تعذر حفظ هوية الشركة.',
-      });
+      setFeedback({type: 'error', text: error instanceof Error ? error.message : 'تعذر حفظ إعدادات الموقع.'});
     } finally {
       setSaving(false);
     }
@@ -136,8 +148,8 @@ export function TenantBrandingPanel({tenantId, tenantName, canEdit}: TenantBrand
 
   if (loading) {
     return (
-      <section className="rounded-xl border border-slate-200 bg-white p-5 text-xs text-slate-500">
-        جاري تحميل هوية المتجر...
+      <section className="rounded-xl border border-slate-200 bg-white p-6 text-xs text-slate-500">
+        جاري تحميل مصمم الموقع...
       </section>
     );
   }
@@ -146,26 +158,21 @@ export function TenantBrandingPanel({tenantId, tenantName, canEdit}: TenantBrand
   const primaryContrast = contrastRatio(previewText, draft.primary_color);
 
   return (
-    <section
-      aria-label="هوية المتجر والأقسام"
-      className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6"
-    >
+    <section aria-label="مصمم الموقع العام للشركة" className="rounded-xl border border-slate-200 bg-white p-5 sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Palette className="h-4 w-4 text-slate-700" />
-          <h2 className="text-sm font-semibold text-slate-900">هوية المتجر والأقسام</h2>
+          <div>
+            <h2 className="text-sm font-semibold text-slate-900">مصمم موقع {tenantName}</h2>
+            <p className="mt-0.5 text-[11px] text-slate-500">قالب رسمي موحّد قابل للتحكم كاملًا لكل شركة.</p>
+          </div>
         </div>
-        <span className="font-mono-tabular text-[11px] text-slate-500">
-          إصدار الإعدادات: {draft.settings_version}
-        </span>
+        <span className="font-mono-tabular text-[11px] text-slate-500">الإصدار {draft.settings_version}</span>
       </div>
-      <p className="mt-1 text-xs text-slate-500">
-        تُطبَّق هذه الهوية على الموقع العام للشركة فقط، وتحتفظ لوحة العمل بألوان المنصة الموحّدة.
-      </p>
 
       {!canEdit && (
         <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900">
-          التعديل مقتصر على مدير الشركة أو مدير المنصة؛ يمكنك مراجعة القيم كما هي الآن.
+          تعديل مواقع الشركات متاح للمدير الأعلى للمنصة فقط.
         </p>
       )}
 
@@ -187,326 +194,666 @@ export function TenantBrandingPanel({tenantId, tenantName, canEdit}: TenantBrand
         </div>
       )}
 
-      <div className="mt-5 grid grid-cols-1 gap-6 lg:grid-cols-5">
-        <div className="space-y-6 lg:col-span-3">
-          {/* Colours */}
-          <div>
-            <h3 className="text-xs font-semibold text-slate-900">الهوية اللونية</h3>
-            <div className="mt-3 space-y-3">
-              {COLOR_FIELDS.map((field) => {
-                const value = draft[field.key];
-                const invalid = !isValidHexColor(value);
-                return (
-                  <div key={field.key} className="flex items-center gap-3">
-                    <input
-                      type="color"
-                      aria-label={field.label}
-                      value={isValidHexColor(value) ? value : '#000000'}
-                      onChange={(event) => updateColor(field.key, event.target.value)}
-                      disabled={!canEdit}
-                      className="h-9 w-12 cursor-pointer rounded-md border border-slate-200 bg-white p-0.5"
-                    />
-                    <div className="flex-1">
-                      <label className="block text-[11px] font-medium text-slate-700">
-                        {field.label}
-                        <span className="ms-1 font-normal text-slate-400">— {field.hint}</span>
-                      </label>
-                      <input
-                        type="text"
-                        dir="ltr"
-                        value={value}
-                        readOnly={!canEdit}
-                        onChange={(event) => updateColor(field.key, event.target.value)}
-                        aria-invalid={invalid}
-                        className={`mt-1 w-32 rounded-md border px-2 py-1 font-mono-tabular text-[11px] ${
-                          invalid ? 'border-red-300 text-red-700' : 'border-slate-200 text-slate-800'
-                        }`}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <p className="mt-2 text-[11px] text-slate-500">
-              تباين النص على اللون الأساسي: {Math.round(primaryContrast * 10) / 10}:1
-              {primaryContrast >= 4.5 ? ' — مطابق لمعيار AA' : ' — يراجع قبل النشر'}
-            </p>
-          </div>
+      {validation.errors.length > 0 && (
+        <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-[11px] text-red-800">
+          {validation.errors.map((error) => (
+            <p key={error}>• {error}</p>
+          ))}
+        </div>
+      )}
 
-          {/* Typography & theme */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label className="block text-xs font-semibold text-slate-900" htmlFor="branding-font">
-                خط المتجر
-              </label>
-              <select
-                id="branding-font"
-                value={draft.font_family}
-                disabled={!canEdit}
-                onChange={(event) =>
-                  update({font_family: event.target.value as TenantBrandingFont})
-                }
-                className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
-              >
-                {BRANDING_FONTS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <span className="block text-xs font-semibold text-slate-900">نمط المتجر</span>
-              <div className="mt-1.5 flex gap-2">
-                {(['light', 'dark'] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    disabled={!canEdit}
-                    onClick={() => update({theme_mode: mode as TenantThemeMode})}
-                    aria-pressed={draft.theme_mode === mode}
-                    className={`rounded-lg border px-3 py-2 text-[11px] font-medium ${
-                      draft.theme_mode === mode
-                        ? 'border-slate-900 bg-slate-900 text-white'
-                        : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
-                    }`}
-                  >
-                    {mode === 'light' ? 'فاتح' : 'داكن'}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Hero content */}
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-900" htmlFor="branding-hero-title">
-                العنوان الرئيسي
-                <span className="ms-1 font-normal text-slate-400">
-                  ({draft.hero_title?.length ?? 0}/80)
-                </span>
-              </label>
-              <input
-                id="branding-hero-title"
-                type="text"
-                maxLength={80}
-                readOnly={!canEdit}
-                value={draft.hero_title ?? ''}
-                onChange={(event) => update({hero_title: event.target.value || null})}
-                placeholder={`مرحبًا بكم في ${tenantName}`}
-                className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs"
-              />
-            </div>
-            <div>
-              <label
-                className="block text-xs font-semibold text-slate-900"
-                htmlFor="branding-hero-subtitle"
-              >
-                الوصف الرئيسي
-                <span className="ms-1 font-normal text-slate-400">
-                  ({draft.hero_subtitle?.length ?? 0}/240)
-                </span>
-              </label>
-              <textarea
-                id="branding-hero-subtitle"
-                rows={2}
-                maxLength={240}
-                readOnly={!canEdit}
-                value={draft.hero_subtitle ?? ''}
-                onChange={(event) => update({hero_subtitle: event.target.value || null})}
-                className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-900" htmlFor="branding-logo">
-                رابط الشعار
-                <span className="ms-1 font-normal text-slate-400">(https://... أو مسار داخل التخزين)</span>
-              </label>
-              <input
-                id="branding-logo"
-                type="text"
-                dir="ltr"
-                readOnly={!canEdit}
-                value={draft.logo_path ?? ''}
-                onChange={(event) => update({logo_path: event.target.value.trim() || null})}
-                placeholder="https://cdn.example.com/logo.png"
-                className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2 font-mono-tabular text-[11px]"
-              />
-            </div>
-          </div>
-
-          {/* Sections */}
-          <div>
-            <h3 className="text-xs font-semibold text-slate-900">أقسام الموقع العام وترتيبها</h3>
-            <p className="mt-0.5 text-[11px] text-slate-500">
-              الترتيب هنا هو ترتيب الظهور للزائر. القسم المخفي لا يُحذف، بل يتوقف عن العرض.
-            </p>
-            <ul className="mt-3 space-y-2">
-              {sections.map((section, index) => (
-                <li
-                  key={section.id}
-                  className="rounded-lg border border-slate-200 bg-slate-50/60 px-3 py-2"
+      <div className="mt-5 grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="space-y-6">
+          <EditorCard title="اللغة والإعدادات العامة">
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Field label="لغة الموقع الافتراضية">
+                <select
+                  value={config.default_locale}
+                  disabled={!canEdit}
+                  onChange={(event) => updateConfig({default_locale: event.target.value as 'ar' | 'en'})}
+                  className="field"
                 >
+                  <option value="ar">العربية</option>
+                  <option value="en">English</option>
+                </select>
+              </Field>
+              <Field label="الخط">
+                <select
+                  value={draft.font_family}
+                  disabled={!canEdit}
+                  onChange={(event) => update({font_family: event.target.value as TenantBrandingFont})}
+                  className="field"
+                >
+                  {BRANDING_FONTS.map((font) => (
+                    <option key={font.value} value={font.value}>{font.label}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="نمط الخلفية">
+                <select
+                  value={draft.theme_mode}
+                  disabled={!canEdit}
+                  onChange={(event) => update({theme_mode: event.target.value as TenantThemeMode})}
+                  className="field"
+                >
+                  <option value="light">فاتح</option>
+                  <option value="dark">داكن رسمي</option>
+                </select>
+              </Field>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-4 text-[11px] text-slate-700">
+              {([
+                ['features_visible', 'قسم المميزات'],
+                ['pricing_visible', 'قسم الأسعار'],
+                ['footer_visible', 'الفوتر'],
+              ] as const).map(([key, label]) => (
+                <label key={key} className="inline-flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={config[key]}
+                    disabled={!canEdit}
+                    onChange={(event) => updateConfig({[key]: event.target.checked} as Partial<typeof config>)}
+                  />
+                  {label}
+                </label>
+              ))}
+            </div>
+          </EditorCard>
+
+          <EditorCard title="الألوان والعلامة">
+            <div className="grid gap-4 sm:grid-cols-3">
+              {([
+                ['primary_color', 'اللون الأساسي'],
+                ['secondary_color', 'اللون الثانوي'],
+                ['accent_color', 'لون التمييز'],
+              ] as const).map(([key, label]) => (
+                <div key={key} className="flex items-center gap-3 rounded-lg border border-slate-200 p-3">
+                  <input
+                    type="color"
+                    aria-label={label}
+                    disabled={!canEdit}
+                    value={isValidHexColor(draft[key]) ? draft[key] : '#000000'}
+                    onChange={(event) => update({[key]: event.target.value.toLowerCase()} as Partial<PublicTenantBranding>)}
+                    className="h-10 w-12 rounded border border-slate-200 p-1"
+                  />
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold text-slate-700">{label}</p>
+                    <input
+                      dir="ltr"
+                      disabled={!canEdit}
+                      value={draft[key]}
+                      onChange={(event) => update({[key]: event.target.value.toLowerCase()} as Partial<PublicTenantBranding>)}
+                      className="mt-1 w-full rounded border border-slate-200 px-2 py-1 font-mono-tabular text-[10px]"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-[11px] text-slate-500">
+              تباين النص فوق اللون الأساسي: {Math.round(primaryContrast * 10) / 10}:1
+            </p>
+
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <AssetField
+                label="شعار الهيدر"
+                value={draft.logo_path}
+                uploading={uploading === 'logo'}
+                disabled={!canEdit}
+                onUrl={(value) => update({logo_path: value || null})}
+                onUpload={(event) => void handleUpload('logo', event, (url) => update({logo_path: url}))}
+              />
+              <AssetField
+                label="صورة الهيرو"
+                value={draft.hero_image_path}
+                uploading={uploading === 'hero'}
+                disabled={!canEdit}
+                onUrl={(value) => update({hero_image_path: value || null})}
+                onUpload={(event) => void handleUpload('hero', event, (url) => update({hero_image_path: url}))}
+              />
+            </div>
+          </EditorCard>
+
+          <EditorCard title="الهيرو والـ Header">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="نمط الهيرو">
+                <select
+                  value={config.hero_layout}
+                  disabled={!canEdit}
+                  onChange={(event) => updateConfig({hero_layout: event.target.value as 'background' | 'split-right' | 'split-left'})}
+                  className="field"
+                >
+                  <option value="background">صورة خلفية بكامل العرض</option>
+                  <option value="split-right">صورة يمين والنص يسار</option>
+                  <option value="split-left">صورة يسار والنص يمين</option>
+                </select>
+              </Field>
+              <Field label="لون ظلال الهيدر">
+                <input
+                  type="color"
+                  disabled={!canEdit}
+                  value={isValidHexColor(config.header_shadow_color) ? config.header_shadow_color : '#0f172a'}
+                  onChange={(event) => updateConfig({header_shadow_color: event.target.value})}
+                  className="h-10 w-full rounded border border-slate-200 p-1"
+                />
+              </Field>
+              <Field label="العنوان الرئيسي بالعربية">
+                <input
+                  maxLength={80}
+                  disabled={!canEdit}
+                  value={config.hero_title_ar}
+                  onChange={(event) => updateConfig({hero_title_ar: event.target.value})}
+                  className="field"
+                />
+              </Field>
+              <Field label="Hero title in English">
+                <input
+                  maxLength={80}
+                  disabled={!canEdit}
+                  dir="ltr"
+                  value={config.hero_title_en}
+                  onChange={(event) => updateConfig({hero_title_en: event.target.value})}
+                  className="field"
+                />
+              </Field>
+              <Field label="الوصف بالعربية">
+                <textarea
+                  maxLength={240}
+                  rows={3}
+                  disabled={!canEdit}
+                  value={config.hero_subtitle_ar}
+                  onChange={(event) => updateConfig({hero_subtitle_ar: event.target.value})}
+                  className="field"
+                />
+              </Field>
+              <Field label="Subtitle in English">
+                <textarea
+                  maxLength={240}
+                  rows={3}
+                  disabled={!canEdit}
+                  dir="ltr"
+                  value={config.hero_subtitle_en}
+                  onChange={(event) => updateConfig({hero_subtitle_en: event.target.value})}
+                  className="field"
+                />
+              </Field>
+              <RangeField
+                label="شفافية طبقة الهيرو"
+                value={config.hero_overlay_opacity}
+                min={0}
+                max={0.95}
+                step={0.05}
+                disabled={!canEdit}
+                onChange={(value) => updateConfig({hero_overlay_opacity: value})}
+              />
+              <RangeField
+                label="قوة الظل"
+                value={config.header_shadow_opacity}
+                min={0}
+                max={0.5}
+                step={0.01}
+                disabled={!canEdit}
+                onChange={(value) => updateConfig({header_shadow_opacity: value})}
+              />
+            </div>
+          </EditorCard>
+
+          <EditorCard title="روابط الهيدر وتسجيل الدخول">
+            <ArrayEditor
+              items={config.nav_links}
+              disabled={!canEdit}
+              addLabel="إضافة رابط هيدر"
+              onAdd={() => updateConfig({nav_links: [...config.nav_links, {id: uid(), label_ar: 'رابط جديد', label_en: 'New link', url: '#', visible: true}]})}
+              render={(item: StorefrontLink, index) => (
+                <div className="grid gap-2 sm:grid-cols-[1fr_1fr_1fr_90px_auto]">
+                  <input className="field" value={item.label_ar} disabled={!canEdit} onChange={(event) => updateConfig({nav_links: config.nav_links.map((row, i) => i === index ? {...row, label_ar: event.target.value} : row)})} placeholder="الاسم بالعربية" />
+                  <input className="field" dir="ltr" value={item.label_en} disabled={!canEdit} onChange={(event) => updateConfig({nav_links: config.nav_links.map((row, i) => i === index ? {...row, label_en: event.target.value} : row)})} placeholder="English name" />
+                  <input className="field" dir="ltr" value={item.url} disabled={!canEdit} onChange={(event) => updateConfig({nav_links: config.nav_links.map((row, i) => i === index ? {...row, url: event.target.value} : row)})} placeholder="#tracking" />
+                  <button type="button" disabled={!canEdit} onClick={() => updateConfig({nav_links: config.nav_links.map((row, i) => i === index ? {...row, visible: !row.visible} : row)})} className="field inline-flex items-center justify-center gap-1">
+                    {item.visible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
+                    {item.visible ? 'ظاهر' : 'مخفي'}
+                  </button>
+                  <button type="button" disabled={!canEdit} onClick={() => updateConfig({nav_links: config.nav_links.filter((_, i) => i !== index)})} className="rounded-lg border border-red-200 p-2 text-red-700">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+            />
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <Field label="زر تسجيل الدخول بالعربية">
+                <input className="field" disabled={!canEdit} value={config.header_login_label_ar} onChange={(event) => updateConfig({header_login_label_ar: event.target.value})} />
+              </Field>
+              <Field label="Sign in label">
+                <input className="field" dir="ltr" disabled={!canEdit} value={config.header_login_label_en} onChange={(event) => updateConfig({header_login_label_en: event.target.value})} />
+              </Field>
+            </div>
+          </EditorCard>
+
+          <EditorCard title="أقسام الموقع وترتيبها">
+            <ul className="space-y-2">
+              {sections.map((section, index) => (
+                <li key={section.id} className="rounded-lg border border-slate-200 bg-slate-50/60 p-3">
                   <div className="flex items-center gap-2">
                     <div className="flex flex-col">
-                      <button
-                        type="button"
-                        aria-label={`تحريك ${section.meta.label} لأعلى`}
-                        disabled={!canEdit || index === 0}
-                        onClick={() => moveSection(index, -1)}
-                        className="rounded p-0.5 text-slate-500 hover:bg-white disabled:opacity-30"
-                      >
-                        <ChevronUp className="h-3.5 w-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={`تحريك ${section.meta.label} لأسفل`}
-                        disabled={!canEdit || index === sections.length - 1}
-                        onClick={() => moveSection(index, 1)}
-                        className="rounded p-0.5 text-slate-500 hover:bg-white disabled:opacity-30"
-                      >
-                        <ChevronDown className="h-3.5 w-3.5" />
-                      </button>
+                      <button type="button" disabled={!canEdit || index === 0} onClick={() => moveSection(index, -1)} className="rounded p-0.5 text-slate-500 disabled:opacity-30"><ChevronUp className="h-3.5 w-3.5" /></button>
+                      <button type="button" disabled={!canEdit || index === sections.length - 1} onClick={() => moveSection(index, 1)} className="rounded p-0.5 text-slate-500 disabled:opacity-30"><ChevronDown className="h-3.5 w-3.5" /></button>
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-[11px] font-semibold text-slate-900">{section.meta.label}</p>
-                      <p className="truncate text-[10px] text-slate-500">{section.meta.description}</p>
+                      <p className="text-[10px] text-slate-500">{section.meta.description}</p>
                     </div>
-                    <button
-                      type="button"
-                      disabled={!canEdit}
-                      onClick={() => toggleSection(section.id)}
-                      aria-pressed={section.visible}
-                      className={`inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[10px] font-medium ${
-                        section.visible
-                          ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
-                          : 'border-slate-200 bg-white text-slate-500'
-                      }`}
-                    >
-                      {section.visible ? (
-                        <Eye className="h-3 w-3" />
-                      ) : (
-                        <EyeOff className="h-3 w-3" />
-                      )}
-                      {section.visible ? 'ظاهر' : 'مخفي'}
+                    <button type="button" disabled={!canEdit} onClick={() => toggleSection(section.id)} className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600">
+                      {section.visible ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
                     </button>
                   </div>
                   {section.meta.supportsText && (
                     <textarea
                       rows={2}
-                      readOnly={!canEdit}
+                      disabled={!canEdit}
                       value={section.text ?? ''}
                       onChange={(event) => setSectionText(section.id, event.target.value)}
-                      placeholder={
-                        section.id === 'faq'
-                          ? 'سطر لكل سؤال: السؤال ثم العلامة ؟ ثم الجواب'
-                          : 'نص تعريفي قصير عن الشركة'
-                      }
-                      className="mt-2 w-full rounded-md border border-slate-200 px-2 py-1.5 text-[11px]"
+                      className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-[11px]"
+                      placeholder={section.meta.label}
                     />
                   )}
                 </li>
               ))}
             </ul>
-          </div>
+          </EditorCard>
 
-          {validation.errors.length > 0 && (
-            <ul role="alert" className="space-y-1 rounded-lg border border-red-200 bg-red-50 p-3 text-[11px] text-red-800">
-              {validation.errors.map((error) => (
-                <li key={error}>• {error}</li>
-              ))}
-            </ul>
-          )}
-          {validation.warnings.length > 0 && (
-            <ul className="space-y-1 rounded-lg border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-900">
-              {validation.warnings.map((warning) => (
-                <li key={warning}>• {warning}</li>
-              ))}
-            </ul>
-          )}
+          <EditorCard title="قسم المميزات">
+            <ArrayEditor
+              items={config.features}
+              disabled={!canEdit}
+              addLabel="إضافة ميزة"
+              onAdd={() => updateConfig({features: [...config.features, {id: uid(), title_ar: 'ميزة جديدة', title_en: 'New feature', text_ar: '', text_en: '', icon_key: 'package', visible: true}]})}
+              render={(item: StorefrontFeature, index) => (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <input className="field" disabled={!canEdit} value={item.title_ar} onChange={(event) => updateConfig({features: config.features.map((row, i) => i === index ? {...row, title_ar: event.target.value} : row)})} placeholder="عنوان الميزة بالعربية" />
+                  <input className="field" dir="ltr" disabled={!canEdit} value={item.title_en} onChange={(event) => updateConfig({features: config.features.map((row, i) => i === index ? {...row, title_en: event.target.value} : row)})} placeholder="Feature title" />
+                  <textarea className="field" rows={2} disabled={!canEdit} value={item.text_ar} onChange={(event) => updateConfig({features: config.features.map((row, i) => i === index ? {...row, text_ar: event.target.value} : row)})} placeholder="الوصف بالعربية" />
+                  <textarea className="field" rows={2} dir="ltr" disabled={!canEdit} value={item.text_en} onChange={(event) => updateConfig({features: config.features.map((row, i) => i === index ? {...row, text_en: event.target.value} : row)})} placeholder="Feature description" />
+                  <div className="flex gap-2 sm:col-span-2">
+                    <button type="button" disabled={!canEdit} onClick={() => updateConfig({features: config.features.map((row, i) => i === index ? {...row, visible: !row.visible} : row)})} className="field flex flex-1 items-center justify-center gap-1">
+                      {item.visible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />} {item.visible ? 'ظاهر' : 'مخفي'}
+                    </button>
+                    <button type="button" disabled={!canEdit} onClick={() => updateConfig({features: config.features.filter((_, i) => i !== index)})} className="rounded-lg border border-red-200 px-3 text-red-700"><Trash2 className="h-4 w-4" /></button>
+                  </div>
+                </div>
+              )}
+            />
+          </EditorCard>
+
+          <EditorCard title="أسعار المحافظات ومدد التوصيل">
+            <ArrayEditor
+              items={config.pricing}
+              disabled={!canEdit}
+              addLabel="إضافة محافظة"
+              onAdd={() => updateConfig({pricing: [...config.pricing, {id: uid(), governorate_name_ar: 'محافظة جديدة', governorate_name_en: 'New governorate', price: 0, delivery_days: '2–3', visible: true}]})}
+              render={(item: StorefrontPricingRow, index) => (
+                <div className="grid gap-2 sm:grid-cols-[1fr_1fr_110px_100px_auto_auto]">
+                  <input className="field" disabled={!canEdit} value={item.governorate_name_ar} onChange={(event) => updateConfig({pricing: config.pricing.map((row, i) => i === index ? {...row, governorate_name_ar: event.target.value} : row)})} />
+                  <input className="field" dir="ltr" disabled={!canEdit} value={item.governorate_name_en} onChange={(event) => updateConfig({pricing: config.pricing.map((row, i) => i === index ? {...row, governorate_name_en: event.target.value} : row)})} />
+                  <input className="field" type="number" min={0} disabled={!canEdit} value={item.price} onChange={(event) => updateConfig({pricing: config.pricing.map((row, i) => i === index ? {...row, price: Number(event.target.value)} : row)})} />
+                  <input className="field" dir="ltr" disabled={!canEdit} value={item.delivery_days} onChange={(event) => updateConfig({pricing: config.pricing.map((row, i) => i === index ? {...row, delivery_days: event.target.value} : row)})} />
+                  <button type="button" disabled={!canEdit} onClick={() => updateConfig({pricing: config.pricing.map((row, i) => i === index ? {...row, visible: !row.visible} : row)})} className="rounded-lg border border-slate-200 px-2 text-[11px]">{item.visible ? 'ظاهر' : 'مخفي'}</button>
+                  <button type="button" disabled={!canEdit} onClick={() => updateConfig({pricing: config.pricing.filter((_, i) => i !== index)})} className="rounded-lg border border-red-200 px-2 text-red-700"><Trash2 className="h-4 w-4" /></button>
+                </div>
+              )}
+            />
+          </EditorCard>
+
+          <EditorCard title="CTAs وأقسام المحتوى المخصصة">
+            <CtaEditor
+              label="CTA الأساسي"
+              value={config.cta_primary}
+              tenantId={tenantId}
+              disabled={!canEdit}
+              uploading={uploading === 'cta'}
+              onChange={(cta) => updateConfig({cta_primary: cta})}
+              onUpload={(event) => void handleUpload('cta', event, (url) => updateConfig({cta_primary: {...config.cta_primary, image_path: url}}))}
+            />
+            <div className="my-5 border-t border-slate-100" />
+            <CtaEditor
+              label="CTA الثانوي"
+              value={config.cta_secondary}
+              tenantId={tenantId}
+              disabled={!canEdit}
+              uploading={uploading === 'cta'}
+              onChange={(cta) => updateConfig({cta_secondary: cta})}
+              onUpload={(event) => void handleUpload('cta', event, (url) => updateConfig({cta_secondary: {...config.cta_secondary, image_path: url}}))}
+            />
+
+            <div className="mt-6 border-t border-slate-100 pt-5">
+              <ArrayEditor
+                items={config.custom_sections}
+                disabled={!canEdit}
+                addLabel="إضافة قسم مخصص"
+                onAdd={() => updateConfig({custom_sections: [...config.custom_sections, {id: uid(), title_ar: 'قسم جديد', title_en: 'New section', text_ar: '', text_en: '', image_path: null, image_side: 'right', button_label_ar: '', button_label_en: '', button_url: '', visible: true}]})}
+                render={(item: StorefrontCustomSection, index) => (
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    <input className="field" disabled={!canEdit} value={item.title_ar} onChange={(event) => updateConfig({custom_sections: config.custom_sections.map((row, i) => i === index ? {...row, title_ar: event.target.value} : row)})} placeholder="العنوان بالعربية" />
+                    <input className="field" dir="ltr" disabled={!canEdit} value={item.title_en} onChange={(event) => updateConfig({custom_sections: config.custom_sections.map((row, i) => i === index ? {...row, title_en: event.target.value} : row)})} placeholder="Title in English" />
+                    <textarea className="field" rows={3} disabled={!canEdit} value={item.text_ar} onChange={(event) => updateConfig({custom_sections: config.custom_sections.map((row, i) => i === index ? {...row, text_ar: event.target.value} : row)})} placeholder="النص بالعربية" />
+                    <textarea className="field" rows={3} dir="ltr" disabled={!canEdit} value={item.text_en} onChange={(event) => updateConfig({custom_sections: config.custom_sections.map((row, i) => i === index ? {...row, text_en: event.target.value} : row)})} placeholder="Text in English" />
+                    <input className="field" dir="ltr" disabled={!canEdit} value={item.image_path ?? ''} onChange={(event) => updateConfig({custom_sections: config.custom_sections.map((row, i) => i === index ? {...row, image_path: event.target.value || null} : row)})} placeholder="Image URL or uploaded image" />
+                    <select className="field" disabled={!canEdit} value={item.image_side} onChange={(event) => updateConfig({custom_sections: config.custom_sections.map((row, i) => i === index ? {...row, image_side: event.target.value as 'right' | 'left'} : row)})}>
+                      <option value="right">الصورة يمين</option>
+                      <option value="left">الصورة يسار</option>
+                    </select>
+                    <input className="field" disabled={!canEdit} value={item.button_label_ar} onChange={(event) => updateConfig({custom_sections: config.custom_sections.map((row, i) => i === index ? {...row, button_label_ar: event.target.value} : row)})} placeholder="اسم الزر بالعربية" />
+                    <input className="field" dir="ltr" disabled={!canEdit} value={item.button_url} onChange={(event) => updateConfig({custom_sections: config.custom_sections.map((row, i) => i === index ? {...row, button_url: event.target.value} : row)})} placeholder="Button URL" />
+                    <div className="flex gap-2 sm:col-span-2">
+                      <button type="button" disabled={!canEdit} onClick={() => updateConfig({custom_sections: config.custom_sections.map((row, i) => i === index ? {...row, visible: !row.visible} : row)})} className="field flex-1">{item.visible ? 'ظاهر' : 'مخفي'}</button>
+                      <button type="button" disabled={!canEdit} onClick={() => updateConfig({custom_sections: config.custom_sections.filter((_, i) => i !== index)})} className="rounded-lg border border-red-200 px-3 text-red-700"><Trash2 className="h-4 w-4" /></button>
+                    </div>
+                  </div>
+                )}
+              />
+            </div>
+          </EditorCard>
+
+          <EditorCard title="التتبع والتواصل والسوشيال وفوتر">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="نص تتبع الشحنة بالعربية"><input className="field" disabled={!canEdit} value={config.tracking_placeholder_ar} onChange={(event) => updateConfig({tracking_placeholder_ar: event.target.value})} /></Field>
+              <Field label="Tracking placeholder"><input className="field" dir="ltr" disabled={!canEdit} value={config.tracking_placeholder_en} onChange={(event) => updateConfig({tracking_placeholder_en: event.target.value})} /></Field>
+              <Field label="زر التتبع بالعربية"><input className="field" disabled={!canEdit} value={config.tracking_button_ar} onChange={(event) => updateConfig({tracking_button_ar: event.target.value})} /></Field>
+              <Field label="Tracking button"><input className="field" dir="ltr" disabled={!canEdit} value={config.tracking_button_en} onChange={(event) => updateConfig({tracking_button_en: event.target.value})} /></Field>
+              <Field label="نص الفوتر بالعربية"><textarea className="field" rows={2} disabled={!canEdit} value={config.footer_text_ar} onChange={(event) => updateConfig({footer_text_ar: event.target.value})} /></Field>
+              <Field label="Footer in English"><textarea className="field" rows={2} dir="ltr" disabled={!canEdit} value={config.footer_text_en} onChange={(event) => updateConfig({footer_text_en: event.target.value})} /></Field>
+            </div>
+
+            <div className="mt-5">
+              <ArrayEditor
+                items={config.social_links}
+                disabled={!canEdit}
+                addLabel="إضافة حساب اجتماعي"
+                onAdd={() => updateConfig({social_links: [...config.social_links, {id: uid(), platform: 'facebook', url: '', visible: true}]})}
+                render={(item: StorefrontSocialLink, index) => (
+                  <div className="grid gap-2 sm:grid-cols-[160px_1fr_auto_auto]">
+                    <select className="field" disabled={!canEdit} value={item.platform} onChange={(event) => updateConfig({social_links: config.social_links.map((row, i) => i === index ? {...row, platform: event.target.value as StorefrontSocialLink['platform']} : row)})}>
+                      <option value="facebook">Facebook</option>
+                      <option value="instagram">Instagram</option>
+                      <option value="twitter">X / Twitter</option>
+                      <option value="linkedin">LinkedIn</option>
+                      <option value="youtube">YouTube</option>
+                      <option value="tiktok">TikTok</option>
+                      <option value="whatsapp">WhatsApp</option>
+                    </select>
+                    <input className="field" dir="ltr" disabled={!canEdit} value={item.url} onChange={(event) => updateConfig({social_links: config.social_links.map((row, i) => i === index ? {...row, url: event.target.value} : row)})} placeholder="https://..." />
+                    <button type="button" disabled={!canEdit} onClick={() => updateConfig({social_links: config.social_links.map((row, i) => i === index ? {...row, visible: !row.visible} : row)})} className="rounded-lg border border-slate-200 px-2 text-[11px]">{item.visible ? 'ظاهر' : 'مخفي'}</button>
+                    <button type="button" disabled={!canEdit} onClick={() => updateConfig({social_links: config.social_links.filter((_, i) => i !== index)})} className="rounded-lg border border-red-200 px-2 text-red-700"><Trash2 className="h-4 w-4" /></button>
+                  </div>
+                )}
+              />
+            </div>
+            <div className="mt-5 border-t border-slate-100 pt-5">
+              <ArrayEditor
+                items={config.contact_accounts}
+                disabled={!canEdit}
+                addLabel="إضافة رقم أو حساب تواصل"
+                onAdd={() => updateConfig({contact_accounts: [...config.contact_accounts, {id: uid(), kind: 'phone', label_ar: 'الهاتف', label_en: 'Phone', value: '', visible: true}]})}
+                render={(item, index) => (
+                  <div className="grid gap-2 sm:grid-cols-[120px_1fr_1fr_1fr_auto_auto]">
+                    <select
+                      className="field"
+                      disabled={!canEdit}
+                      value={item.kind}
+                      onChange={(event) => updateConfig({contact_accounts: config.contact_accounts.map((row, i) => i === index ? {...row, kind: event.target.value as 'phone' | 'email' | 'whatsapp'} : row)})}
+                    >
+                      <option value="phone">هاتف</option>
+                      <option value="email">بريد</option>
+                      <option value="whatsapp">واتساب</option>
+                    </select>
+                    <input className="field" disabled={!canEdit} value={item.label_ar} onChange={(event) => updateConfig({contact_accounts: config.contact_accounts.map((row, i) => i === index ? {...row, label_ar: event.target.value} : row)})} placeholder="اسم الحساب" />
+                    <input className="field" dir="ltr" disabled={!canEdit} value={item.label_en} onChange={(event) => updateConfig({contact_accounts: config.contact_accounts.map((row, i) => i === index ? {...row, label_en: event.target.value} : row)})} placeholder="Account name" />
+                    <input className="field" dir="ltr" disabled={!canEdit} value={item.value} onChange={(event) => updateConfig({contact_accounts: config.contact_accounts.map((row, i) => i === index ? {...row, value: event.target.value} : row)})} placeholder="Phone / email / WhatsApp" />
+                    <button type="button" disabled={!canEdit} onClick={() => updateConfig({contact_accounts: config.contact_accounts.map((row, i) => i === index ? {...row, visible: !row.visible} : row)})} className="rounded-lg border border-slate-200 px-2 text-[11px]">{item.visible ? 'ظاهر' : 'مخفي'}</button>
+                    <button type="button" disabled={!canEdit} onClick={() => updateConfig({contact_accounts: config.contact_accounts.filter((_, i) => i !== index)})} className="rounded-lg border border-red-200 px-2 text-red-700"><Trash2 className="h-4 w-4" /></button>
+                  </div>
+                )}
+              />
+            </div>
+          </EditorCard>
+        </div>
+
+        <aside className="space-y-4 xl:sticky xl:top-24 xl:self-start">
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+            <div className="border-b border-slate-200 bg-white px-4 py-3 text-xs font-semibold text-slate-900">معاينة سريعة</div>
+            <div style={{...cssVars, fontFamily: fontStack(draft.font_family)}} className="p-3">
+              <div
+                className="relative min-h-52 overflow-hidden rounded-lg border border-slate-200"
+                style={{
+                  backgroundColor: draft.secondary_color,
+                  backgroundImage: draft.hero_image_path ? `linear-gradient(rgba(15,23,42,${config.hero_overlay_opacity}),rgba(15,23,42,${config.hero_overlay_opacity})), url(${draft.hero_image_path})` : undefined,
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                }}
+              >
+                <div className="relative flex min-h-52 flex-col justify-center p-5 text-white">
+                  <p className="text-[10px] font-bold" style={{color: draft.accent_color}}>معاينة الموقع الرسمي</p>
+                  <h3 className="mt-2 max-w-56 text-xl font-extrabold leading-tight">
+                    {(config.default_locale === 'ar' ? config.hero_title_ar : config.hero_title_en) || tenantName}
+                  </h3>
+                  <p className="mt-2 max-w-64 text-[11px] leading-5 text-white/85">
+                    {(config.default_locale === 'ar' ? config.hero_subtitle_ar : config.hero_subtitle_en) || 'عنوان فرعي قابل للتحرير'}
+                  </p>
+                  <button type="button" className="mt-4 w-fit rounded-md px-3 py-2 text-[10px] font-bold" style={{backgroundColor: draft.primary_color, color: previewText}}>
+                    {config.tracking_button_ar}
+                  </button>
+                </div>
+              </div>
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                {config.features.filter((feature) => feature.visible).slice(0, 3).map((feature) => (
+                  <div key={feature.id} className="rounded-lg border border-slate-200 bg-white p-2">
+                    <p className="text-[9px] font-bold text-slate-900">{config.default_locale === 'ar' ? feature.title_ar : feature.title_en}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
 
           <button
             type="button"
-            onClick={() => void save()}
             disabled={!canEdit || saving || validation.errors.length > 0}
-            className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-xs font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+            onClick={() => void save()}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-3 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
           >
-            <Save className="h-3.5 w-3.5" />
-            {saving ? 'جاري الحفظ...' : 'حفظ الهوية والأقسام'}
+            <Save className="h-4 w-4" />
+            {saving ? 'جاري النشر...' : 'حفظ ونشر إعدادات الموقع'}
           </button>
-        </div>
+        </aside>
+      </div>
 
-        {/* Live preview */}
-        <div className="lg:col-span-2">
-          <div className="sticky top-4">
-            <p className="text-xs font-semibold text-slate-900">معاينة حية</p>
-            <div
-              data-tenant-surface
-              dir="rtl"
-              style={{...cssVars, fontFamily: fontStack(draft.font_family)}}
-              className={`mt-2 overflow-hidden rounded-xl border ${
-                draft.theme_mode === 'dark'
-                  ? 'border-slate-700 bg-slate-900 text-slate-100'
-                  : 'border-slate-200 bg-white text-slate-900'
-              }`}
-            >
-              <div
-                className="flex items-center justify-between px-3 py-2"
-                style={{backgroundColor: draft.primary_color, color: previewText}}
-              >
-                <span className="text-[11px] font-bold">{tenantName}</span>
-                <span
-                  className="rounded px-2 py-0.5 text-[10px]"
-                  style={{backgroundColor: 'rgba(255,255,255,0.18)'}}
-                >
-                  دخول
-                </span>
-              </div>
-              <div className="space-y-2 px-3 py-4">
-                <p className="text-sm font-bold" style={{color: draft.secondary_color}}>
-                  {draft.hero_title?.trim() || `مرحبًا بكم في ${tenantName}`}
-                </p>
-                <p className="text-[11px] leading-relaxed opacity-80">
-                  {draft.hero_subtitle?.trim() ||
-                    'بوابة التتبع العام وخدمات الشحن والتوصيل الخاصة بالشركة.'}
-                </p>
-                <div className="flex gap-2">
-                  <span
-                    className="rounded-md px-2 py-1 text-[10px] font-medium"
-                    style={{backgroundColor: draft.primary_color, color: previewText}}
-                  >
-                    تتبع الشحنة
-                  </span>
-                  <span
-                    className="rounded-md border px-2 py-1 text-[10px]"
-                    style={{borderColor: draft.accent_color, color: draft.accent_color}}
-                  >
-                    خدماتنا
-                  </span>
-                </div>
-                <ul className="mt-2 flex flex-wrap gap-1">
-                  {sections
-                    .filter((section) => section.visible)
-                    .map((section) => (
-                      <li
-                        key={section.id}
-                        className="rounded border px-1.5 py-0.5 text-[9px]"
-                        style={{borderColor: draft.accent_color, color: draft.accent_color}}
-                      >
-                        {section.meta.label}
-                      </li>
-                    ))}
-                </ul>
-              </div>
-            </div>
-            <p className="mt-2 text-[10px] text-slate-500">
-              المعاينة تقريبية؛ التطبيق النهائي يظهر على نطاق الشركة بعد الحفظ دون إعادة نشر.
-            </p>
+      <button
+        type="button"
+        disabled={!canEdit || saving || validation.errors.length > 0}
+        onClick={() => void save()}
+        className="mt-5 inline-flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-60 xl:hidden"
+      >
+        <Save className="h-4 w-4" />
+        {saving ? 'جاري النشر...' : 'حفظ ونشر إعدادات الموقع'}
+      </button>
+    </section>
+  );
+}
+
+function EditorCard({title, children}: {title: string; children: ReactNode}) {
+  return (
+    <section className="rounded-xl border border-slate-200 p-4 sm:p-5">
+      <h3 className="text-xs font-semibold text-slate-900">{title}</h3>
+      <div className="mt-4">{children}</div>
+    </section>
+  );
+}
+
+function Field({label, children}: {label: string; children: ReactNode}) {
+  return (
+    <label className="block text-[11px] font-medium text-slate-700">
+      {label}
+      <div className="mt-1.5">{children}</div>
+    </label>
+  );
+}
+
+function RangeField({
+  label,
+  value,
+  min,
+  max,
+  step,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  disabled: boolean;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <label className="block text-[11px] font-medium text-slate-700">
+      {label}: <span className="font-mono-tabular">{value}</span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        disabled={disabled}
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+        className="mt-2 w-full accent-slate-900"
+      />
+    </label>
+  );
+}
+
+function AssetField({
+  label,
+  value,
+  uploading,
+  disabled,
+  onUrl,
+  onUpload,
+}: {
+  label: string;
+  value: string | null;
+  uploading: boolean;
+  disabled: boolean;
+  onUrl: (value: string) => void;
+  onUpload: (event: ChangeEvent<HTMLInputElement>) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  return (
+    <div className="rounded-lg border border-slate-200 p-3">
+      <p className="text-[11px] font-semibold text-slate-700">{label}</p>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml" disabled={disabled || uploading} onChange={onUpload} className="hidden" />
+        <button type="button" disabled={disabled || uploading} onClick={() => inputRef.current?.click()} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-[11px] text-slate-700 disabled:opacity-60">
+          <Upload className="h-3.5 w-3.5" />
+          {uploading ? 'جاري الرفع...' : 'رفع صورة'}
+        </button>
+        <button type="button" disabled={disabled} onClick={() => onUrl('')} className="rounded-lg px-2 py-2 text-[11px] text-red-700">إزالة</button>
+      </div>
+      {value && (
+        <div className="mt-2 flex items-center gap-2">
+          <img src={value} alt="" className="h-10 w-10 rounded border border-slate-200 object-contain" />
+          <span className="max-w-48 truncate font-mono-tabular text-[9px] text-slate-500">{value}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ArrayEditor<T>({
+  items,
+  disabled,
+  addLabel,
+  onAdd,
+  render,
+}: {
+  items: readonly T[];
+  disabled: boolean;
+  addLabel: string;
+  onAdd: () => void;
+  render: (item: T, index: number) => ReactNode;
+}) {
+  return (
+    <div>
+      <div className="space-y-2">
+        {items.map((item, index) => (
+          <div key={index} className="rounded-lg border border-slate-200 bg-slate-50/50 p-3">
+            {render(item, index)}
           </div>
+        ))}
+      </div>
+      <button type="button" disabled={disabled} onClick={onAdd} className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-[11px] font-medium text-slate-700 disabled:opacity-60">
+        <Plus className="h-3.5 w-3.5" />
+        {addLabel}
+      </button>
+    </div>
+  );
+}
+
+function CtaEditor({
+  label,
+  value,
+  tenantId,
+  disabled,
+  uploading,
+  onChange,
+  onUpload,
+}: {
+  label: string;
+  value: {
+    title_ar: string;
+    title_en: string;
+    text_ar: string;
+    text_en: string;
+    button_label_ar: string;
+    button_label_en: string;
+    button_url: string;
+    image_path: string | null;
+    image_side: 'right' | 'left';
+    visible: boolean;
+  };
+  tenantId: string;
+  disabled: boolean;
+  uploading: boolean;
+  onChange: (value: StorefrontCta) => void;
+  onUpload: (event: ChangeEvent<HTMLInputElement>) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  void tenantId;
+  return (
+    <div>
+      <div className="mb-3 flex items-center justify-between">
+        <p className="text-[11px] font-semibold text-slate-800">{label}</p>
+        <button type="button" disabled={disabled} onClick={() => onChange({...value, visible: !value.visible})} className="rounded-lg border border-slate-200 px-2 py-1 text-[10px]">
+          {value.visible ? 'ظاهر' : 'مخفي'}
+        </button>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <input className="field" disabled={disabled} value={value.title_ar} onChange={(event) => onChange({...value, title_ar: event.target.value})} placeholder="العنوان بالعربية" />
+        <input className="field" dir="ltr" disabled={disabled} value={value.title_en} onChange={(event) => onChange({...value, title_en: event.target.value})} placeholder="Title in English" />
+        <textarea className="field" rows={2} disabled={disabled} value={value.text_ar} onChange={(event) => onChange({...value, text_ar: event.target.value})} placeholder="النص بالعربية" />
+        <textarea className="field" rows={2} dir="ltr" disabled={disabled} value={value.text_en} onChange={(event) => onChange({...value, text_en: event.target.value})} placeholder="Text in English" />
+        <input className="field" disabled={disabled} value={value.button_label_ar} onChange={(event) => onChange({...value, button_label_ar: event.target.value})} placeholder="اسم الزر بالعربية" />
+        <input className="field" dir="ltr" disabled={disabled} value={value.button_label_en} onChange={(event) => onChange({...value, button_label_en: event.target.value})} placeholder="Button label" />
+        <input className="field" dir="ltr" disabled={disabled} value={value.button_url} onChange={(event) => onChange({...value, button_url: event.target.value})} placeholder="https://... أو #tracking" />
+        <select className="field" disabled={disabled} value={value.image_side} onChange={(event) => onChange({...value, image_side: event.target.value as 'right' | 'left'})}>
+          <option value="right">الصورة يمين</option>
+          <option value="left">الصورة يسار</option>
+        </select>
+        <div className="flex items-center gap-2 sm:col-span-2">
+          <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp,image/svg+xml" disabled={disabled || uploading} onChange={onUpload} className="hidden" />
+          <button type="button" disabled={disabled || uploading} onClick={() => inputRef.current?.click()} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-[11px]">
+            <Upload className="h-3.5 w-3.5" /> {uploading ? 'جاري الرفع...' : 'رفع صورة CTA'}
+          </button>
+          {value.image_path && <button type="button" disabled={disabled} onClick={() => onChange({...value, image_path: null})} className="text-[11px] text-red-700">إزالة الصورة</button>}
         </div>
       </div>
-    </section>
+    </div>
   );
 }

@@ -357,6 +357,36 @@ html[dir="ltr"] .mr-auto {
   }
 }
 
+.field {
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  background: #fff !important;
+  padding: 0.55rem 0.75rem;
+  color: #334155;
+  font-size: 0.75rem;
+  outline: none;
+}
+
+.store-label {
+  display: block;
+  color: #334155;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.store-field {
+  width: 100%;
+  margin-top: 0.375rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  background: #fff !important;
+  padding: 0.65rem 0.75rem;
+  color: #1e293b;
+  font-size: 0.875rem;
+  outline: none;
+}
+
 /* Tenant storefront surface (Phase 2): scoped brand variables from tenant_branding */
 [data-tenant-surface] {
   --brand: var(--tenant-brand, #ef6a47);

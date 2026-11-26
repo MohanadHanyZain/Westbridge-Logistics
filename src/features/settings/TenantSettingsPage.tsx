@@ -11,7 +11,6 @@ import {
   updateTenantMessagingSettings,
 } from '@/features/messaging/messagingService';
 import * as tenantService from '@/features/tenants/tenantService';
-import {TenantBrandingPanel} from '@/features/tenants/TenantBrandingPanel';
 import {useTenantWorkspace} from '@/features/tenants/TenantWorkspaceContext';
 import {formatDateTime} from '@/lib/formatters';
 import {useAuth} from '@/lib/auth';
@@ -656,7 +655,6 @@ export function TenantSettingsPage() {
         </section>
       )}
 
-      <TenantBrandingPanel tenantId={tenant.id} tenantName={tenant.name} canEdit={isAdmin} />
 
       {/* Quick Links to Domain Policies */}
       <section className="rounded-xl border border-slate-200 bg-white p-5">

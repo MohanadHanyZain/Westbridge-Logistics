@@ -18,6 +18,7 @@ import type {
   TenantStatus,
 } from '@/types/tenant';
 import {LaunchReadinessPanel} from '@/features/launch/LaunchReadinessPanel';
+import {TenantBrandingPanel} from '@/features/tenants/TenantBrandingPanel';
 import {
   Activity,
   Building2,
@@ -32,11 +33,12 @@ import {
   Search,
   ShieldCheck,
   Sliders,
+  Palette,
   Trash2,
   XCircle,
 } from 'lucide-react';
 
-type PlatformTab = 'companies' | 'plans' | 'domains' | 'support' | 'launch';
+type PlatformTab = 'companies' | 'storefront' | 'plans' | 'domains' | 'support' | 'launch';
 
 function getTenantStatusLabel(status: TenantStatus): {label: string; className: string} {
   switch (status) {
@@ -73,6 +75,7 @@ export function PlatformTenantsPage() {
   const isSuperAdmin = platformAdmin?.role_key === 'platform_super_admin';
 
   const [activeTab, setActiveTab] = useState<PlatformTab>('companies');
+  const [storefrontTenantId, setStorefrontTenantId] = useState('');
   const [directory, setDirectory] = useState<readonly PlatformTenantDirectoryItem[]>([]);
   const [plans, setPlans] = useState<readonly SubscriptionPlanRecord[]>([]);
   const [domains, setDomains] = useState<readonly TenantDomainRecord[]>([]);
@@ -205,6 +208,7 @@ export function PlatformTenantsPage() {
         const firstId = directoryItems[0].tenant.id;
         setDomainTenantId((prev) => prev || firstId);
         setSupportTenantId((prev) => prev || firstId);
+        setStorefrontTenantId((prev) => prev || firstId);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'تعذر تحميل بيانات المنصة.');
@@ -635,6 +639,7 @@ export function PlatformTenantsPage() {
           {(
             [
               {id: 'companies', label: 'الشركات والاشتراكات', icon: Building2},
+              {id: 'storefront', label: 'تصميم مواقع الشركات', icon: Palette},
               {id: 'plans', label: 'الباقات والحدود', icon: Layers},
               {id: 'domains', label: 'النطاقات المخصصة والفرعية', icon: Globe},
               {id: 'support', label: 'دخول الدعم المسبب', icon: ShieldCheck},
@@ -1124,6 +1129,52 @@ export function PlatformTenantsPage() {
               </div>
             </div>
           </>
+        )}
+
+        {activeTab === 'storefront' && (
+          <section aria-label="مصمم مواقع الشركات" className="space-y-5">
+            <div className="flex flex-wrap items-end justify-between gap-3 rounded-xl border border-slate-200 bg-white p-5">
+              <div>
+                <p className="text-sm font-semibold text-slate-900">مواقع شركات الشحن العامة</p>
+                <p className="mt-1 text-xs text-slate-500">
+                  هذه الإعدادات متاحة للمدير الأعلى فقط ولا تظهر في لوحة الشركة.
+                </p>
+              </div>
+              <div className="min-w-64">
+                <label htmlFor="storefront-tenant" className="block text-xs font-medium text-slate-700">
+                  اختر الشركة
+                </label>
+                <select
+                  id="storefront-tenant"
+                  value={storefrontTenantId}
+                  onChange={(event) => setStorefrontTenantId(event.target.value)}
+                  className="mt-1.5 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs"
+                >
+                  {directory.map((item) => (
+                    <option key={item.tenant.id} value={item.tenant.id}>
+                      {item.tenant.name} — {item.tenant.slug}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {storefrontTenantId ? (() => {
+              const selected = directory.find((item) => item.tenant.id === storefrontTenantId);
+              if (!selected) return null;
+              return (
+                <TenantBrandingPanel
+                  tenantId={selected.tenant.id}
+                  tenantName={selected.tenant.name}
+                  canEdit={isSuperAdmin}
+                />
+              );
+            })() : (
+              <div className="rounded-xl border border-slate-200 bg-white p-6 text-xs text-slate-500">
+                سجّل شركة أولًا لتظهر خيارات موقعها العام.
+              </div>
+            )}
+          </section>
         )}
 
         {/* TAB 2: SUBSCRIPTION PLANS & QUOTAS */}
