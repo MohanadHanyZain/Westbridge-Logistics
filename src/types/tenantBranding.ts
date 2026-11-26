@@ -25,6 +25,10 @@ export interface TenantBrandingSection {
 
 export type StorefrontLocale = 'ar' | 'en';
 export type HeroLayout = 'background' | 'split-right' | 'split-left';
+export type CardStyle = 'flat' | 'soft' | 'outline';
+export type SurfaceRadius = 'compact' | 'standard' | 'rounded';
+export type SectionSpacing = 'compact' | 'standard' | 'wide';
+export type ContentAnimation = 'none' | 'fade' | 'rise';
 
 export interface StorefrontLink {
   readonly id: string;
@@ -86,6 +90,31 @@ export interface StorefrontCustomSection {
   readonly button_label_en: string;
   readonly button_url: string;
   readonly visible: boolean;
+  readonly layout: 'split' | 'cards' | 'banner' | 'text';
+  readonly style: 'minimal' | 'surface' | 'brand' | 'dark';
+  readonly animation: ContentAnimation;
+}
+
+export interface StorefrontTestimonial {
+  readonly id: string;
+  readonly name_ar: string;
+  readonly name_en: string;
+  readonly role_ar: string;
+  readonly role_en: string;
+  readonly quote_ar: string;
+  readonly quote_en: string;
+  readonly rating: number;
+  readonly avatar_path: string | null;
+  readonly visible: boolean;
+}
+
+export interface StorefrontFaqItem {
+  readonly id: string;
+  readonly question_ar: string;
+  readonly question_en: string;
+  readonly answer_ar: string;
+  readonly answer_en: string;
+  readonly visible: boolean;
 }
 
 export interface TenantStorefrontConfig {
@@ -93,6 +122,14 @@ export interface TenantStorefrontConfig {
   readonly features_visible: boolean;
   readonly pricing_visible: boolean;
   readonly footer_visible: boolean;
+  readonly testimonials_visible: boolean;
+  readonly faq_visible: boolean;
+  readonly card_style: CardStyle;
+  readonly surface_radius: SurfaceRadius;
+  readonly section_spacing: SectionSpacing;
+  readonly hero_height: 'medium' | 'large';
+  readonly hero_text_align: 'start' | 'center';
+  readonly content_animation: ContentAnimation;
   readonly hero_layout: HeroLayout;
   readonly hero_title_ar: string;
   readonly hero_title_en: string;
@@ -111,6 +148,8 @@ export interface TenantStorefrontConfig {
   readonly cta_secondary: StorefrontCta;
   readonly social_links: readonly StorefrontSocialLink[];
   readonly custom_sections: readonly StorefrontCustomSection[];
+  readonly testimonials: readonly StorefrontTestimonial[];
+  readonly faq_items: readonly StorefrontFaqItem[];
   readonly footer_text_ar: string;
   readonly footer_text_en: string;
   readonly header_login_label_ar: string;

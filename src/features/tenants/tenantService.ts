@@ -214,6 +214,29 @@ export async function updateTenantStatus(tenantId: string, status: TenantStatus)
   }
 }
 
+export async function updateTenantIdentity(
+  tenantId: string,
+  name: string,
+  slug: string,
+): Promise<TenantRecord> {
+  const client = getSupabaseClient();
+  if (!client) {
+    throw new Error('إعدادات الاتصال بقاعدة البيانات غير مهيأة.');
+  }
+
+  const {data, error} = await client.rpc('update_tenant_identity', {
+    p_tenant_id: tenantId,
+    p_name: name,
+    p_slug: slug,
+  });
+
+  if (error || !data) {
+    throw new Error(error?.message ?? 'تعذر تحديث اسم الشركة ومسارها.');
+  }
+
+  return data as TenantRecord;
+}
+
 export async function listSubscriptionPlans(): Promise<readonly SubscriptionPlanRecord[]> {
   const client = getSupabaseClient();
   if (!client) {

@@ -357,6 +357,109 @@ html[dir="ltr"] .mr-auto {
   }
 }
 
+.storefront-radius-compact {
+  border-radius: 0.5rem;
+}
+
+.storefront-radius-standard {
+  border-radius: 0.75rem;
+}
+
+.storefront-radius-rounded {
+  border-radius: 1.25rem;
+}
+
+.storefront-card-flat {
+  border: 0;
+  background: #fff;
+  box-shadow: none;
+}
+
+.storefront-card-soft {
+  border: 1px solid #e8edf3;
+  background: #fff;
+  box-shadow: 0 16px 36px -30px rgba(15, 23, 42, 0.45);
+}
+
+.storefront-card-outline {
+  border: 1px solid #cbd5e1;
+  background: transparent;
+  box-shadow: none;
+}
+
+.storefront-spacing-compact [data-storefront-reveal],
+.storefront-spacing-compact section {
+  scroll-margin-top: 4.5rem;
+}
+
+.storefront-spacing-compact section.py-16,
+.storefront-spacing-compact section.py-20 {
+  padding-top: 3rem;
+  padding-bottom: 3rem;
+}
+
+.storefront-spacing-wide section.py-16,
+.storefront-spacing-wide section.py-20 {
+  padding-top: 5.5rem;
+  padding-bottom: 5.5rem;
+}
+
+[data-storefront-reveal] {
+  opacity: 1;
+  transform: none;
+}
+
+.storefront-animation-rise [data-storefront-reveal]:not(.is-visible),
+.storefront-animation-fade [data-storefront-reveal]:not(.is-visible) {
+  opacity: 0;
+}
+
+.storefront-animation-rise [data-storefront-reveal]:not(.is-visible) {
+  transform: translateY(18px);
+}
+
+.storefront-animation-fade [data-storefront-reveal]:not(.is-visible) {
+  transform: none;
+}
+
+.storefront-animation-rise [data-storefront-reveal],
+.storefront-animation-fade [data-storefront-reveal] {
+  transition: opacity 650ms ease, transform 650ms cubic-bezier(.22,.61,.36,1);
+}
+
+.storefront-animation-rise [data-storefront-reveal].is-visible,
+.storefront-animation-fade [data-storefront-reveal].is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+.storefront-carousel-button {
+  display: inline-flex;
+  height: 2.5rem;
+  width: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  background: #fff;
+  color: #334155;
+}
+
+.storefront-carousel-button:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-storefront-reveal],
+  .storefront-animation-rise [data-storefront-reveal],
+  .storefront-animation-fade [data-storefront-reveal] {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}
+
 .field {
   width: 100%;
   border: 1px solid #e2e8f0;
@@ -394,4 +497,33 @@ html[dir="ltr"] .mr-auto {
   --brand-soft: var(--tenant-brand-soft, #fff1ec);
   --font-display: var(--tenant-font, "Cairo", system-ui, sans-serif);
   --font-sans: var(--tenant-font, "Cairo", system-ui, sans-serif);
+}
+
+.tenant-app-shell {
+  --tenant-brand: var(--tenant-brand, #ef6a47);
+  --tenant-brand-dark: var(--tenant-brand-dark, #cf4f31);
+  --tenant-brand-soft: var(--tenant-brand-soft, #fff1ec);
+  --tenant-accent: var(--tenant-accent, #0f766e);
+}
+
+.tenant-app-shell [aria-current="page"],
+.tenant-app-shell nav [aria-current="page"] {
+  background: var(--tenant-brand) !important;
+  color: var(--tenant-brand-contrast, #111827) !important;
+  box-shadow: 0 1px 4px color-mix(in srgb, var(--tenant-brand) 24%, transparent);
+}
+
+.tenant-app-shell .bg-slate-900,
+.tenant-app-shell .hover\:bg-slate-900:hover {
+  background-color: var(--tenant-brand) !important;
+  color: var(--tenant-brand-contrast, #111827) !important;
+}
+
+.tenant-app-shell .hover\:bg-slate-800:hover {
+  background-color: var(--tenant-brand-dark) !important;
+}
+
+.tenant-app-shell .text-slate-900,
+.tenant-app-shell .text-slate-800 {
+  --brand-heading: var(--tenant-secondary, #1f2937);
 }

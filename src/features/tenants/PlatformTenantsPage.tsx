@@ -76,6 +76,9 @@ export function PlatformTenantsPage() {
 
   const [activeTab, setActiveTab] = useState<PlatformTab>('companies');
   const [storefrontTenantId, setStorefrontTenantId] = useState('');
+  const [identityName, setIdentityName] = useState('');
+  const [identitySlug, setIdentitySlug] = useState('');
+  const [savingIdentity, setSavingIdentity] = useState(false);
   const [directory, setDirectory] = useState<readonly PlatformTenantDirectoryItem[]>([]);
   const [plans, setPlans] = useState<readonly SubscriptionPlanRecord[]>([]);
   const [domains, setDomains] = useState<readonly TenantDomainRecord[]>([]);
@@ -221,6 +224,14 @@ export function PlatformTenantsPage() {
     void loadAllPlatformData();
   }, [loadAllPlatformData]);
 
+  useEffect(() => {
+    const selected = directory.find((item) => item.tenant.id === storefrontTenantId);
+    if (selected) {
+      setIdentityName(selected.tenant.name);
+      setIdentitySlug(selected.tenant.slug);
+    }
+  }, [directory, storefrontTenantId]);
+
   const filteredDirectory = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return directory.filter((item) => {
@@ -320,6 +331,32 @@ export function PlatformTenantsPage() {
       await loadAllPlatformData();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'تعذر تغيير حالة الشركة.');
+    }
+  };
+
+  const handleSaveTenantIdentity = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!isSuperAdmin || !storefrontTenantId) return;
+    if (!isValidCompanySlug(identitySlug)) {
+      setActionFeedback({
+        type: 'error',
+        text: 'المسار النصي يجب أن يكون أحرفًا إنجليزية صغيرة وأرقامًا وشرطات فقط.',
+      });
+      return;
+    }
+    setSavingIdentity(true);
+    setActionFeedback(null);
+    try {
+      await tenantService.updateTenantIdentity(storefrontTenantId, identityName.trim(), identitySlug.trim());
+      setActionFeedback({type: 'success', text: 'تم تحديث اسم الشركة ومسارها بنجاح.'});
+      await loadAllPlatformData();
+    } catch (err) {
+      setActionFeedback({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'تعذر تحديث هوية الشركة.',
+      });
+    } finally {
+      setSavingIdentity(false);
     }
   };
 
@@ -1158,6 +1195,48 @@ export function PlatformTenantsPage() {
                 </select>
               </div>
             </div>
+
+            {storefrontTenantId && isSuperAdmin && (
+              <form
+                onSubmit={handleSaveTenantIdentity}
+                className="grid gap-4 rounded-xl border border-slate-200 bg-white p-5 md:grid-cols-[1fr_1fr_auto]"
+              >
+                <div>
+                  <label htmlFor="tenant-public-name" className="block text-xs font-medium text-slate-700">
+                    اسم الشركة
+                  </label>
+                  <input
+                    id="tenant-public-name"
+                    value={identityName}
+                    onChange={(event) => setIdentityName(event.target.value)}
+                    maxLength={120}
+                    className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="tenant-public-slug" className="block text-xs font-medium text-slate-700">
+                    المسار النصي (Slug)
+                  </label>
+                  <input
+                    id="tenant-public-slug"
+                    value={identitySlug}
+                    onChange={(event) => setIdentitySlug(event.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
+                    maxLength={48}
+                    dir="ltr"
+                    className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2 font-mono-tabular text-sm"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <button
+                    type="submit"
+                    disabled={savingIdentity || !identityName.trim() || !identitySlug.trim()}
+                    className="inline-flex h-10 items-center justify-center rounded-lg bg-slate-900 px-4 text-xs font-semibold text-white disabled:opacity-60"
+                  >
+                    {savingIdentity ? 'جاري الحفظ...' : 'حفظ هوية الشركة'}
+                  </button>
+                </div>
+              </form>
+            )}
 
             {storefrontTenantId ? (() => {
               const selected = directory.find((item) => item.tenant.id === storefrontTenantId);

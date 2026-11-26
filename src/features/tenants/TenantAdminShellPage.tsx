@@ -1,7 +1,7 @@
 import {useCallback, useEffect, useMemo, useState} from 'react';
 import {Link, Navigate, NavLink, Outlet, useLocation} from 'react-router-dom';
 import {useTenantSlug} from '@/lib/tenant/TenantRuntimeContext';
-import {BRAND_CONFIG, buildTenantBasePath} from '@/config/brand';
+import {buildTenantBasePath} from '@/config/brand';
 import {getMyTenantPermissions} from '@/features/security/securityService';
 import {TenantWorkspaceProvider} from '@/features/tenants/TenantWorkspaceContext';
 import {useAuth} from '@/lib/auth';
@@ -10,6 +10,13 @@ import {AccountSubjectType} from '@/types/common';
 import {translateUi, useLocale} from '@/lib/i18n';
 import type {MyTenantPermissionsBundle} from '@/types/security';
 import {getUnreadNotificationsCount, subscribeToMessagingUpdates} from '@/features/messaging/messagingService';
+import {
+  brandCssVars,
+  fontStack,
+  getTenantBranding,
+  normalizePublicBranding,
+} from '@/features/tenants/brandingService';
+import type {PublicTenantBranding} from '@/types/tenantBranding';
 import {
   Activity,
   AlertTriangle,
@@ -76,14 +83,23 @@ export function TenantAdminShellPage() {
   const [theme, setTheme] = useState<'light' | 'dark'>(
     () => (typeof localStorage !== 'undefined' && localStorage.getItem('shipflow_theme') === 'dark' ? 'dark' : 'light'),
   );
+  const [tenantBranding, setTenantBranding] = useState<PublicTenantBranding | null>(null);
   const locale = useLocale();
   const t = (text: string) => translateUi(text, locale);
+  const activeMembership = memberships.find(
+    (m) => m.tenants?.slug === companySlug.trim().toLowerCase() && m.is_active,
+  );
   const [permBundle, setPermBundle] = useState<MyTenantPermissionsBundle>({
     client_id: null,
     branch_ids: [],
     permissions: [],
   });
-  const [permissionsLoading, setPermissionsLoading] = useState(true);
+  const [permissionsLoading, setPermissionsLoading] = useState(
+    () =>
+      Boolean(activeMembership) &&
+      activeMembership?.role_key !== 'company_owner' &&
+      activeMembership?.role_key !== 'company_admin',
+  );
   const [permissionsError, setPermissionsError] = useState<string | null>(null);
   const [unreadNotifCount, setUnreadNotifCount] = useState(0);
 
@@ -108,10 +124,25 @@ export function TenantAdminShellPage() {
     return () => window.removeEventListener('shipflow-theme-change', syncTheme);
   }, []);
 
-  const activeMembership = memberships.find(
-    (m) => m.tenants?.slug === companySlug.trim().toLowerCase() && m.is_active,
-  );
   const tenantId = activeMembership?.tenants?.id ?? null;
+
+  useEffect(() => {
+    if (!tenantId) {
+      setTenantBranding(null);
+      return;
+    }
+    let cancelled = false;
+    void getTenantBranding(tenantId)
+      .then((branding) => {
+        if (!cancelled) setTenantBranding(normalizePublicBranding(branding));
+      })
+      .catch(() => {
+        if (!cancelled) setTenantBranding(normalizePublicBranding(null));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tenantId]);
 
   useEffect(() => {
     if (!tenantId) {
@@ -119,7 +150,10 @@ export function TenantAdminShellPage() {
       return;
     }
     let cancelled = false;
-    setPermissionsLoading(true);
+    const isPlatformOwner =
+      activeMembership?.role_key === 'company_owner' ||
+      activeMembership?.role_key === 'company_admin';
+    setPermissionsLoading(!isPlatformOwner);
     setPermissionsError(null);
     void (async () => {
       try {
@@ -361,8 +395,18 @@ export function TenantAdminShellPage() {
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="border-b border-slate-200 px-5 py-4">
-          <Link to={buildTenantBasePath(tenant.slug)} className="block text-base font-bold text-slate-900">
-            {tenant.name}
+          <Link to={buildTenantBasePath(tenant.slug)} className="flex items-center gap-2.5 text-base font-bold text-slate-900">
+            {tenantBranding?.logo_path ? (
+              <img src={tenantBranding.logo_path} alt={tenant.name} className="h-8 max-w-20 w-auto object-contain" />
+            ) : (
+              <span
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-xs font-black"
+                style={{backgroundColor: tenantBranding?.primary_color ?? '#ef6a47', color: 'var(--tenant-brand-contrast, #111827)'}}
+              >
+                {tenant.name.slice(0, 2).toUpperCase()}
+              </span>
+            )}
+            <span className="truncate">{tenant.name}</span>
           </Link>
         </div>
 
@@ -820,7 +864,14 @@ export function TenantAdminShellPage() {
 
   return (
     <TenantWorkspaceProvider value={workspaceValue}>
-      <div data-app-theme={theme} className="tenant-app-shell flex min-h-screen bg-slate-50 text-slate-900">
+      <div
+        data-app-theme={theme}
+        style={{
+          ...(tenantBranding ? brandCssVars(tenantBranding) : {}),
+          fontFamily: tenantBranding ? fontStack(tenantBranding.font_family) : undefined,
+        }}
+        className="tenant-app-shell flex min-h-screen bg-slate-50 text-slate-900"
+      >
         {/* Desktop Sidebar */}
         <aside className="sticky top-0 hidden h-screen w-64 shrink-0 border-l border-slate-200 bg-white lg:block print:hidden">
           {renderSidebarContent()}
@@ -852,9 +903,22 @@ export function TenantAdminShellPage() {
                 >
                   {sidebarOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
                 </button>
-                <span className="text-base font-extrabold tracking-tight text-slate-900 whitespace-nowrap">
-                  {BRAND_CONFIG.appName}
-                </span>
+                <Link
+                  to={basePath}
+                  className="flex items-center gap-2 text-base font-extrabold tracking-tight text-slate-900 whitespace-nowrap"
+                >
+                  {tenantBranding?.logo_path ? (
+                    <img src={tenantBranding.logo_path} alt="" className="h-7 max-w-16 w-auto object-contain" />
+                  ) : (
+                    <span
+                      className="flex h-7 w-7 items-center justify-center rounded-lg text-[10px] font-black"
+                      style={{backgroundColor: tenantBranding?.primary_color ?? '#ef6a47', color: 'var(--tenant-brand-contrast, #111827)'}}
+                    >
+                      {tenant.name.slice(0, 2).toUpperCase()}
+                    </span>
+                  )}
+                  <span className="hidden max-w-44 truncate sm:inline">{tenant.name}</span>
+                </Link>
               </div>
 
               <div className="ml-auto flex items-center gap-2">

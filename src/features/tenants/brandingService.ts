@@ -34,6 +34,14 @@ export const DEFAULT_STOREFRONT_CONFIG: TenantStorefrontConfig = {
   features_visible: true,
   pricing_visible: true,
   footer_visible: true,
+  testimonials_visible: true,
+  faq_visible: true,
+  card_style: 'soft',
+  surface_radius: 'standard',
+  section_spacing: 'standard',
+  hero_height: 'large',
+  hero_text_align: 'start',
+  content_animation: 'rise',
   hero_layout: 'background',
   hero_title_ar: '',
   hero_title_en: '',
@@ -82,6 +90,30 @@ export const DEFAULT_STOREFRONT_CONFIG: TenantStorefrontConfig = {
   },
   social_links: [],
   custom_sections: [],
+  testimonials: [
+    {
+      id: 'testimonial-1',
+      name_ar: 'عميل موثوق',
+      name_en: 'Trusted customer',
+      role_ar: 'تاجر إلكتروني',
+      role_en: 'Online merchant',
+      quote_ar: 'التزام واضح في مواعيد الاستلام والتوصيل، والمتابعة سهلة عبر رقم الشحنة.',
+      quote_en: 'Clear pickup and delivery commitments, with easy follow-up through the shipment number.',
+      rating: 5,
+      avatar_path: null,
+      visible: true,
+    },
+  ],
+  faq_items: [
+    {
+      id: 'faq-1',
+      question_ar: 'كيف يمكنني تتبع شحنتي؟',
+      question_en: 'How can I track my shipment?',
+      answer_ar: 'أدخل رقم الشحنة أو البوليصة في قسم التتبع للحصول على آخر حالة متاحة.',
+      answer_en: 'Enter the shipment or waybill number in the tracking section to view the latest status.',
+      visible: true,
+    },
+  ],
   footer_text_ar: '',
   footer_text_en: '',
   header_login_label_ar: 'تسجيل الدخول',
@@ -136,9 +168,9 @@ export const STOREFRONT_SECTION_CATALOG: readonly StorefrontSectionMeta[] = [
   },
   {
     id: 'stats',
-    label: 'أرقام سريعة',
-    description: 'عدد الخدمات والمحافظات والمناطق المغطاة.',
-    defaultVisible: true,
+    label: 'أرقام سريعة — غير مستخدمة',
+    description: 'القالب الحالي لا يعرض هذا القسم نهائيًا.',
+    defaultVisible: false,
     supportsText: false,
   },
   {
@@ -242,6 +274,24 @@ export function normalizeStorefrontConfig(
     ...d,
     ...input,
     default_locale: input.default_locale === 'en' ? 'en' : 'ar',
+    card_style:
+      input.card_style === 'flat' || input.card_style === 'outline'
+        ? input.card_style
+        : 'soft',
+    surface_radius:
+      input.surface_radius === 'compact' || input.surface_radius === 'rounded'
+        ? input.surface_radius
+        : 'standard',
+    section_spacing:
+      input.section_spacing === 'compact' || input.section_spacing === 'wide'
+        ? input.section_spacing
+        : 'standard',
+    hero_height: input.hero_height === 'medium' ? 'medium' : 'large',
+    hero_text_align: input.hero_text_align === 'center' ? 'center' : 'start',
+    content_animation:
+      input.content_animation === 'none' || input.content_animation === 'fade'
+        ? input.content_animation
+        : 'rise',
     hero_layout:
       input.hero_layout === 'split-right' || input.hero_layout === 'split-left'
         ? input.hero_layout
@@ -252,7 +302,16 @@ export function normalizeStorefrontConfig(
     cta_primary: input.cta_primary ? {...d.cta_primary, ...input.cta_primary} : d.cta_primary,
     cta_secondary: input.cta_secondary ? {...d.cta_secondary, ...input.cta_secondary} : d.cta_secondary,
     social_links: Array.isArray(input.social_links) ? input.social_links : d.social_links,
-    custom_sections: Array.isArray(input.custom_sections) ? input.custom_sections : d.custom_sections,
+    custom_sections: Array.isArray(input.custom_sections)
+      ? input.custom_sections.map((section) => ({
+          ...section,
+          layout: section.layout ?? 'split',
+          style: section.style ?? 'minimal',
+          animation: section.animation ?? 'rise',
+        }))
+      : d.custom_sections,
+    testimonials: Array.isArray(input.testimonials) ? input.testimonials : d.testimonials,
+    faq_items: Array.isArray(input.faq_items) ? input.faq_items : d.faq_items,
     contact_accounts: Array.isArray(input.contact_accounts) ? input.contact_accounts : d.contact_accounts,
   };
 }

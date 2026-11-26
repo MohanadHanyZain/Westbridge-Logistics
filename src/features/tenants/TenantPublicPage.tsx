@@ -24,7 +24,6 @@ import type {
   StorefrontSocialLink,
   StorefrontLocale,
   StorefrontPricingRow,
-  StorefrontStats,
 } from '@/types/tenantBranding';
 import {
   CheckCircle2,
@@ -39,7 +38,13 @@ import {
   PackageCheck,
   PackageSearch,
   Phone,
+  ChevronLeft,
+  ChevronRight,
+  MessageCircle,
+  Music2,
   ShieldCheck,
+  Star,
+  Twitter,
   Truck,
   Wallet,
   Youtube,
@@ -60,6 +65,9 @@ function socialIcon(platform: StorefrontSocialLink['platform']) {
   if (platform === 'instagram') return Instagram;
   if (platform === 'linkedin') return Linkedin;
   if (platform === 'youtube') return Youtube;
+  if (platform === 'twitter') return Twitter;
+  if (platform === 'tiktok') return Music2;
+  if (platform === 'whatsapp') return MessageCircle;
   return Globe;
 }
 
@@ -70,13 +78,13 @@ export function TenantPublicPage() {
   const [services, setServices] = useState<readonly PublicStorefrontService[]>([]);
   const [governorates, setGovernorates] = useState<readonly PublicStorefrontGov[]>([]);
   const [regions, setRegions] = useState<readonly PublicStorefrontRegion[]>([]);
-  const [stats, setStats] = useState<StorefrontStats | null>(null);
   const [branding, setBranding] = useState<PublicTenantBranding>(() => normalizePublicBranding(null));
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
   const [locale, setLocale] = useState<StorefrontLocale>('ar');
   const [trackingCode, setTrackingCode] = useState('');
   const [trackingNotice, setTrackingNotice] = useState<string | null>(null);
+  const [testimonialOffset, setTestimonialOffset] = useState(0);
 
   const [companyName, setCompanyName] = useState('');
   const [contactName, setContactName] = useState('');
@@ -99,27 +107,42 @@ export function TenantPublicPage() {
     setLoading(true);
     void (async () => {
       try {
-        const payload = await tenantService.fetchPublicTenantStorefront(companySlug);
+        let payload: Awaited<ReturnType<typeof tenantService.fetchPublicTenantStorefront>> = null;
+        try {
+          payload = await tenantService.fetchPublicTenantStorefront(companySlug);
+        } catch {
+          payload = null;
+        }
         if (!active) return;
-        if (!payload?.tenant) {
-          setTenant(null);
+        if (payload?.tenant) {
+          setTenant(payload.tenant);
+          setServices(payload.services ?? []);
+          setGovernorates(payload.governorates ?? []);
+          setRegions(payload.regions ?? []);
+          const normalized = normalizePublicBranding(payload.branding ?? null);
+          setBranding(normalized);
+          const saved = localStorage.getItem(`storefront_locale_${companySlug}`);
+          setLocale(saved === 'en' ? 'en' : saved === 'ar' ? 'ar' : normalized.storefront_config.default_locale);
+          if ((payload.governorates ?? []).length > 0) {
+            const firstGov = payload.governorates[0];
+            setGovernorateId(firstGov.id);
+            const firstRegion = (payload.regions ?? []).find((region) => region.governorate_id === firstGov.id);
+            setRegionId(firstRegion?.id ?? '');
+          }
           return;
         }
-        setTenant(payload.tenant);
-        setServices(payload.services ?? []);
-        setGovernorates(payload.governorates ?? []);
-        setRegions(payload.regions ?? []);
-        setStats(payload.stats ?? null);
-        const normalized = normalizePublicBranding(payload.branding ?? null);
+        const basic = typeof tenantService.fetchPublicTenantBySlug === 'function'
+          ? await tenantService.fetchPublicTenantBySlug(companySlug)
+          : null;
+        if (!active) return;
+        setTenant(basic);
+        setServices([]);
+        setGovernorates([]);
+        setRegions([]);
+        const normalized = normalizePublicBranding(null);
         setBranding(normalized);
         const saved = localStorage.getItem(`storefront_locale_${companySlug}`);
         setLocale(saved === 'en' ? 'en' : saved === 'ar' ? 'ar' : normalized.storefront_config.default_locale);
-        if ((payload.governorates ?? []).length > 0) {
-          const firstGov = payload.governorates[0];
-          setGovernorateId(firstGov.id);
-          const firstRegion = (payload.regions ?? []).find((region) => region.governorate_id === firstGov.id);
-          setRegionId(firstRegion?.id ?? '');
-        }
       } catch {
         if (active) setTenant(null);
       } finally {
@@ -136,6 +159,28 @@ export function TenantPublicPage() {
     document.documentElement.lang = locale;
   }, [locale]);
 
+  useEffect(() => {
+    if (branding.storefront_config.content_animation === 'none') return;
+    const nodes = Array.from(document.querySelectorAll<HTMLElement>('[data-storefront-reveal]'));
+    if (!('IntersectionObserver' in window) || nodes.length === 0) {
+      nodes.forEach((node) => node.classList.add('is-visible'));
+      return;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      {threshold: 0.12},
+    );
+    nodes.forEach((node) => observer.observe(node));
+    return () => observer.disconnect();
+  }, [branding, locale]);
+
   const filteredRegions = useMemo(
     () => governorateId ? regions.filter((region) => region.governorate_id === governorateId) : regions,
     [regions, governorateId],
@@ -144,8 +189,6 @@ export function TenantPublicPage() {
   const basePath = buildTenantBasePath(companySlug);
   const config = branding.storefront_config;
   const sectionList = useMemo(() => resolveSections(branding), [branding]);
-  const orderOf = (id: StorefrontSectionId) =>
-    sectionList.find((section) => section.id === id)?.order ?? 99;
   const isVisible = (id: StorefrontSectionId) =>
     sectionList.some((section) => section.id === id && section.visible);
   const sectionText = (id: StorefrontSectionId) =>
@@ -309,11 +352,14 @@ export function TenantPublicPage() {
         )}
       </header>
 
-      <main className="flex flex-col">
+      <main
+        className={`flex flex-col storefront-spacing-${config.section_spacing} storefront-animation-${config.content_animation}`}
+      >
         {isVisible('hero') && (
           <section
             id="hero"
-            style={{order: orderOf('hero')}}
+            data-storefront-reveal
+            style={{order: 10}}
             className={config.hero_layout === 'background'
               ? 'relative isolate overflow-hidden'
               : 'border-b border-slate-100 bg-slate-50'}
@@ -323,6 +369,7 @@ export function TenantPublicPage() {
                 className="relative min-h-[520px]"
                 style={{
                   backgroundColor: config.hero_overlay_color,
+                  minHeight: config.hero_height === 'large' ? 520 : 420,
                   backgroundImage: branding.hero_image_path
                     ? `linear-gradient(rgba(11,18,32,${config.hero_overlay_opacity}),rgba(11,18,32,${config.hero_overlay_opacity})), url(${branding.hero_image_path})`
                     : undefined,
@@ -330,8 +377,11 @@ export function TenantPublicPage() {
                   backgroundPosition: 'center',
                 }}
               >
-                <div className="mx-auto flex min-h-[520px] max-w-7xl items-center px-4 py-16 text-white sm:px-6">
-                  <div className="max-w-2xl">
+                <div
+                  className={`mx-auto flex max-w-7xl items-center px-4 py-16 text-white sm:px-6 ${config.hero_text_align === 'center' ? 'justify-center' : ''}`}
+                  style={{minHeight: config.hero_height === 'large' ? 520 : 420}}
+                >
+                  <div className={config.hero_text_align === 'center' ? 'mx-auto max-w-2xl text-center' : 'max-w-2xl'}>
                     <p className="text-xs font-bold" style={{color: branding.accent_color}}>
                       {tenant.name}
                     </p>
@@ -375,7 +425,7 @@ export function TenantPublicPage() {
         )}
 
         {config.features_visible && config.features.some((feature) => feature.visible) && (
-          <section id="features" className="border-b border-slate-100 bg-white py-16 sm:py-20">
+          <section id="features" data-storefront-reveal style={{order: 40}} className="border-b border-slate-100 bg-white py-16 sm:py-20">
             <div className="mx-auto max-w-7xl px-4 sm:px-6">
               <p className="text-xs font-bold" style={{color: branding.primary_color}}>
                 {text('لماذا نحن', 'Why choose us')}
@@ -387,7 +437,10 @@ export function TenantPublicPage() {
                 {config.features.filter((feature) => feature.visible).map((feature) => {
                   const Icon = featureIcon(feature);
                   return (
-                    <article key={feature.id} className="rounded-xl border border-slate-200 p-5">
+                    <article
+                      key={feature.id}
+                      className={`storefront-card-${config.card_style} storefront-radius-${config.surface_radius} p-5`}
+                    >
                       <span className="flex h-10 w-10 items-center justify-center rounded-lg" style={{backgroundColor: branding.primary_color, color: 'var(--tenant-brand-contrast)'}}>
                         <Icon className="h-5 w-5" />
                       </span>
@@ -401,25 +454,123 @@ export function TenantPublicPage() {
           </section>
         )}
 
-        {isVisible('stats') && stats && (
-          <section id="stats" style={{order: orderOf('stats')}} className="border-b border-slate-100 bg-slate-50 py-10">
-            <div className="mx-auto grid max-w-7xl grid-cols-1 gap-3 px-4 sm:grid-cols-3 sm:px-6">
-              {[
-                [stats.services_count, text('خدمة شحن', 'Shipping services')],
-                [stats.governorates_count, text('محافظة مغطاة', 'Covered governorates')],
-                [stats.regions_count, text('منطقة خدمة', 'Service regions')],
-              ].map(([value, label]) => (
-                <div key={String(label)} className="rounded-xl border border-slate-200 bg-white p-5 text-center">
-                  <p className="text-3xl font-extrabold" style={{color: branding.primary_color}}>{String(value)}</p>
-                  <p className="mt-1 text-xs font-semibold text-slate-500">{String(label)}</p>
+        {config.testimonials_visible && config.testimonials.some((testimonial) => testimonial.visible) && (
+          <section
+            id="testimonials"
+            data-storefront-reveal
+            style={{order: 50}}
+            className="border-b border-slate-100 bg-slate-50 py-16 sm:py-20"
+          >
+            <div className="mx-auto max-w-7xl px-4 sm:px-6">
+              <div className="flex items-end justify-between gap-4">
+                <div>
+                  <p className="text-xs font-bold" style={{color: branding.primary_color}}>
+                    {text('آراء العملاء', 'Customer reviews')}
+                  </p>
+                  <h2 className="mt-2 text-3xl font-extrabold" style={{color: branding.secondary_color}}>
+                    {text('قصص ثقة وتجارب عملاء', 'Trust and customer experiences')}
+                  </h2>
                 </div>
-              ))}
+                <div className="flex shrink-0 gap-2">
+                  <button
+                    type="button"
+                    aria-label={text('آراء سابقة', 'Previous testimonials')}
+                    onClick={() => setTestimonialOffset((current) => Math.max(0, current - 3))}
+                    className="storefront-carousel-button"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={text('آراء التالية', 'Next testimonials')}
+                    onClick={() => setTestimonialOffset((current) =>
+                      Math.min(
+                        Math.max(0, config.testimonials.filter((item) => item.visible).length - 3),
+                        current + 3,
+                      ),
+                    )}
+                    className="storefront-carousel-button"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+              <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {config.testimonials
+                  .filter((testimonial) => testimonial.visible)
+                  .slice(testimonialOffset, testimonialOffset + 3)
+                  .map((testimonial) => (
+                    <article
+                      key={testimonial.id}
+                      className={`storefront-card-${config.card_style} storefront-radius-${config.surface_radius} bg-white p-5`}
+                    >
+                      <div className="flex gap-1" aria-label={`${testimonial.rating} / 5`}>
+                        {Array.from({length: 5}).map((_, index) => (
+                          <Star
+                            key={index}
+                            className={`h-4 w-4 ${index < testimonial.rating ? 'fill-current' : ''}`}
+                            style={{color: branding.accent_color}}
+                          />
+                        ))}
+                      </div>
+                      <blockquote className="mt-4 text-sm leading-7 text-slate-700">
+                        “{text(testimonial.quote_ar, testimonial.quote_en)}”
+                      </blockquote>
+                      <div className="mt-5 flex items-center gap-3">
+                        {testimonial.avatar_path ? (
+                          <img src={testimonial.avatar_path} alt="" className="h-10 w-10 rounded-full object-cover" />
+                        ) : (
+                          <span
+                            className="flex h-10 w-10 items-center justify-center rounded-full text-xs font-black"
+                            style={{backgroundColor: branding.primary_color, color: 'var(--tenant-brand-contrast)'}}
+                          >
+                            {(locale === 'ar' ? testimonial.name_ar : testimonial.name_en).slice(0, 1)}
+                          </span>
+                        )}
+                        <div>
+                          <p className="text-xs font-bold text-slate-900">{text(testimonial.name_ar, testimonial.name_en)}</p>
+                          <p className="mt-0.5 text-[11px] text-slate-500">{text(testimonial.role_ar, testimonial.role_en)}</p>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {config.faq_visible && config.faq_items.some((item) => item.visible) && (
+          <section
+            id="faq"
+            data-storefront-reveal
+            style={{order: 60}}
+            className="border-b border-slate-100 bg-white py-16 sm:py-20"
+          >
+            <div className="mx-auto max-w-4xl px-4 sm:px-6">
+              <p className="text-xs font-bold" style={{color: branding.primary_color}}>
+                {text('الأسئلة الشائعة', 'Frequently asked questions')}
+              </p>
+              <h2 className="mt-2 text-3xl font-extrabold" style={{color: branding.secondary_color}}>
+                {text('إجابات مختصرة قبل أن تبدأ', 'Quick answers before you start')}
+              </h2>
+              <div className="mt-7 divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200">
+                {config.faq_items.filter((item) => item.visible).map((item) => (
+                  <details key={item.id} className="group px-5 py-4 open:bg-slate-50">
+                    <summary className="cursor-pointer list-none text-sm font-bold text-slate-900">
+                      {text(item.question_ar, item.question_en)}
+                    </summary>
+                    <p className="mt-3 text-sm leading-7 text-slate-600">
+                      {text(item.answer_ar, item.answer_en)}
+                    </p>
+                  </details>
+                ))}
+              </div>
             </div>
           </section>
         )}
 
         {config.cta_primary.visible && (
-          <section id="cta-primary" className="bg-white py-12 sm:py-16">
+          <section id="cta-primary" data-storefront-reveal style={{order: 70}} className="bg-white py-12 sm:py-16">
             <div className="mx-auto max-w-7xl px-4 sm:px-6">
               <div className="grid items-center gap-8 rounded-2xl border border-slate-200 bg-slate-50 p-6 sm:p-8 lg:grid-cols-2">
                 <div className={config.cta_primary.image_side === 'left' ? 'lg:order-2' : ''}>
@@ -446,7 +597,7 @@ export function TenantPublicPage() {
         )}
 
         {config.pricing_visible && (
-          <section id="services-pricing" className="border-y border-slate-100 bg-slate-50 py-16 sm:py-20">
+          <section id="services-pricing" data-storefront-reveal style={{order: 35}} className="border-y border-slate-100 bg-slate-50 py-16 sm:py-20">
             <div className="mx-auto max-w-7xl px-4 sm:px-6">
               <p className="text-xs font-bold" style={{color: branding.primary_color}}>{text('الخدمات والأسعار', 'Services & pricing')}</p>
               <h2 className="mt-2 text-3xl font-extrabold" style={{color: branding.secondary_color}}>{text('أسعار الشحن حسب المحافظة', 'Shipping rates by governorate')}</h2>
@@ -475,7 +626,7 @@ export function TenantPublicPage() {
         )}
 
         {config.cta_secondary.visible && (
-          <section id="cta-secondary" className="bg-white py-12 sm:py-16">
+          <section id="cta-secondary" data-storefront-reveal style={{order: 76}} className="bg-white py-12 sm:py-16">
             <div className="mx-auto max-w-7xl px-4 sm:px-6">
               <div className="grid items-center gap-8 rounded-2xl px-6 py-10 sm:px-10" style={{backgroundColor: branding.primary_color, color: 'var(--tenant-brand-contrast)'}}>
                 <div className={config.cta_secondary.image_path ? 'grid gap-8 lg:grid-cols-2 lg:items-center' : ''}>
@@ -496,7 +647,7 @@ export function TenantPublicPage() {
         )}
 
         {isVisible('tracking') && (
-          <section id="tracking" style={{order: orderOf('tracking')}} className="border-y border-slate-100 bg-slate-50 py-14 sm:py-16">
+          <section id="tracking" data-storefront-reveal style={{order: 20}} className="border-y border-slate-100 bg-slate-50 py-14 sm:py-16">
             <div className="mx-auto max-w-4xl px-4 text-center sm:px-6">
               <h2 className="text-3xl font-extrabold" style={{color: branding.secondary_color}}>{text('تتبع الشحنة', 'Track shipment')}</h2>
               <p className="mt-2 text-sm text-slate-600">{text('أدخل رقم الشحنة أو البوليصة لعرض آخر حالة.', 'Enter your shipment or waybill number to view the latest status.')}</p>
@@ -521,7 +672,7 @@ export function TenantPublicPage() {
         )}
 
         {isVisible('services') && services.length > 0 && (
-          <section id="services" style={{order: orderOf('services')}} className="bg-white py-14">
+          <section id="services" data-storefront-reveal style={{order: 30}} className="bg-white py-14">
             <div className="mx-auto max-w-7xl px-4 sm:px-6">
               <h2 className="text-2xl font-extrabold" style={{color: branding.secondary_color}}>{text('خدمات الشحن', 'Shipping services')}</h2>
               <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -537,7 +688,7 @@ export function TenantPublicPage() {
         )}
 
         {isVisible('coverage') && governorates.length > 0 && (
-          <section id="coverage" style={{order: orderOf('coverage')}} className="bg-slate-50 py-14">
+          <section id="coverage" data-storefront-reveal style={{order: 32}} className="bg-slate-50 py-14">
             <div className="mx-auto max-w-7xl px-4 sm:px-6">
               <h2 className="text-2xl font-extrabold" style={{color: branding.secondary_color}}>{text('نطاق التغطية', 'Coverage area')}</h2>
               <div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
@@ -553,7 +704,7 @@ export function TenantPublicPage() {
         )}
 
         {isVisible('registration') && tenant.allow_client_self_registration && (
-          <section id="merchant-registration" style={{order: orderOf('registration')}} className="bg-white py-16 sm:py-20">
+          <section id="merchant-registration" data-storefront-reveal style={{order: 80}} className="bg-white py-16 sm:py-20">
             <div className="mx-auto max-w-5xl px-4 sm:px-6">
               <h2 className="text-3xl font-extrabold" style={{color: branding.secondary_color}}>{text('تسجيل التاجر', 'Merchant registration')}</h2>
               {regResult && (
@@ -620,7 +771,7 @@ export function TenantPublicPage() {
         )}
 
         {isVisible('about') && sectionText('about') && (
-          <section id="about" style={{order: orderOf('about')}} className="bg-slate-50 py-14">
+          <section id="about" data-storefront-reveal style={{order: 65}} className="bg-slate-50 py-14">
             <div className="mx-auto max-w-5xl px-4 sm:px-6">
               <h2 className="text-2xl font-extrabold" style={{color: branding.secondary_color}}>{text('عن الشركة', 'About us')}</h2>
               <p className="mt-4 whitespace-pre-line text-sm leading-8 text-slate-600">{sectionText('about')}</p>
@@ -628,8 +779,8 @@ export function TenantPublicPage() {
           </section>
         )}
 
-        {isVisible('faq') && sectionText('faq') && (
-          <section id="faq" style={{order: orderOf('faq')}} className="bg-white py-14">
+        {isVisible('faq') && sectionText('faq') && !config.faq_items.some((item) => item.visible) && (
+          <section id="faq" data-storefront-reveal style={{order: 60}} className="bg-white py-14">
             <div className="mx-auto max-w-5xl px-4 sm:px-6">
               <h2 className="text-2xl font-extrabold" style={{color: branding.secondary_color}}>{text('الأسئلة الشائعة', 'Frequently asked questions')}</h2>
               <div className="mt-5 divide-y divide-slate-200 rounded-xl border border-slate-200">
@@ -644,9 +795,61 @@ export function TenantPublicPage() {
         )}
 
         {config.custom_sections.filter((section) => section.visible).map((section) => (
-          <section key={section.id} className="border-b border-slate-100 bg-white py-14 sm:py-16">
-            <div className="mx-auto grid max-w-7xl items-center gap-8 px-4 sm:px-6 lg:grid-cols-2">
-              <div className={section.image_side === 'left' ? 'lg:order-2' : ''}>
+          <section
+            key={section.id}
+            data-storefront-reveal
+            style={{order: 65}}
+            className={
+              section.style === 'dark'
+                ? 'bg-slate-950 py-14 text-white sm:py-16'
+                : section.style === 'brand'
+                  ? 'py-14 sm:py-16'
+                  : section.style === 'surface'
+                    ? 'border-y border-slate-100 bg-slate-50 py-14 sm:py-16'
+                    : 'border-b border-slate-100 bg-white py-14 sm:py-16'
+            }
+          >
+            {section.layout === 'banner' ? (
+              <div
+                className="mx-auto max-w-7xl px-4 sm:px-6"
+                style={section.style === 'brand'
+                  ? {backgroundColor: branding.primary_color, color: 'var(--tenant-brand-contrast)', padding: '2.5rem', borderRadius: '1.25rem'}
+                  : undefined}
+              >
+                <h2 className="text-3xl font-extrabold">{text(section.title_ar, section.title_en)}</h2>
+                <p className="mt-4 max-w-2xl text-sm leading-8 opacity-90">{text(section.text_ar, section.text_en)}</p>
+                {section.button_url && (
+                  <a href={section.button_url} className="mt-5 inline-flex rounded-lg bg-white px-5 py-3 text-sm font-bold" style={{color: branding.primary_color}}>
+                    {text(section.button_label_ar, section.button_label_en)}
+                  </a>
+                )}
+              </div>
+            ) : section.layout === 'text' ? (
+              <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
+                <h2 className="text-3xl font-extrabold" style={{color: section.style === 'dark' ? '#fff' : branding.secondary_color}}>{text(section.title_ar, section.title_en)}</h2>
+                <p className="mt-4 whitespace-pre-line text-sm leading-8 opacity-80">{text(section.text_ar, section.text_en)}</p>
+              </div>
+            ) : section.layout === 'cards' ? (
+              <div className="mx-auto max-w-7xl px-4 sm:px-6">
+                <div className="max-w-2xl">
+                  <h2 className="text-3xl font-extrabold" style={{color: section.style === 'dark' ? '#fff' : branding.secondary_color}}>{text(section.title_ar, section.title_en)}</h2>
+                  <p className="mt-3 text-sm leading-7 opacity-80">{text(section.text_ar, section.text_en)}</p>
+                </div>
+                <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {text(section.text_ar, section.text_en)
+                    .split('\n')
+                    .filter((line) => line.trim())
+                    .map((line) => (
+                      <article key={line} className="rounded-xl border border-slate-200 bg-white p-5 text-slate-900 shadow-[0_12px_35px_-30px_rgba(15,23,42,.5)]">
+                        <span className="mb-3 block h-1 w-10 rounded-full" style={{backgroundColor: branding.primary_color}} />
+                        <p className="text-sm font-semibold leading-7">{line}</p>
+                      </article>
+                    ))}
+                </div>
+              </div>
+            ) : (
+              <div className="mx-auto grid max-w-7xl items-center gap-8 px-4 sm:px-6 lg:grid-cols-2">
+              <div className={section.layout === 'split' && section.image_side === 'left' ? 'lg:order-2' : ''}>
                 <h2 className="text-3xl font-extrabold" style={{color: branding.secondary_color}}>{text(section.title_ar, section.title_en)}</h2>
                 <p className="mt-4 whitespace-pre-line text-sm leading-8 text-slate-600">{text(section.text_ar, section.text_en)}</p>
                 {section.button_url && (
@@ -658,12 +861,13 @@ export function TenantPublicPage() {
               {section.image_path && (
                 <img src={section.image_path} alt="" className={`h-72 w-full rounded-xl object-cover ${section.image_side === 'left' ? 'lg:order-1' : ''}`} />
               )}
-            </div>
+              </div>
+            )}
           </section>
         ))}
 
         {isVisible('contact') && (
-          <section id="contact" style={{order: orderOf('contact')}} className="bg-slate-50 py-10">
+          <section id="contact" data-storefront-reveal style={{order: 85}} className="bg-slate-50 py-10">
             <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-center gap-5 px-4 text-sm text-slate-600 sm:px-6">
               {config.contact_accounts.filter((account) => account.visible).map((account) => (
                 <span key={account.id} className="inline-flex items-center gap-2">

@@ -30,11 +30,13 @@ import type {
   PublicTenantBranding,
   StorefrontCta,
   StorefrontCustomSection,
+  StorefrontFaqItem,
   StorefrontFeature,
   StorefrontLink,
   StorefrontPricingRow,
   StorefrontSectionId,
   StorefrontSocialLink,
+  StorefrontTestimonial,
   TenantBrandingFont,
   TenantThemeMode,
 } from '@/types/tenantBranding';
@@ -246,6 +248,8 @@ export function TenantBrandingPanel({tenantId, tenantName, canEdit}: TenantBrand
                 ['features_visible', 'قسم المميزات'],
                 ['pricing_visible', 'قسم الأسعار'],
                 ['footer_visible', 'الفوتر'],
+                ['testimonials_visible', 'آراء العملاء'],
+                ['faq_visible', 'الأسئلة الشائعة'],
               ] as const).map(([key, label]) => (
                 <label key={key} className="inline-flex items-center gap-2">
                   <input
@@ -257,6 +261,78 @@ export function TenantBrandingPanel({tenantId, tenantName, canEdit}: TenantBrand
                   {label}
                 </label>
               ))}
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <Field label="شكل الكروت">
+                <select
+                  value={config.card_style}
+                  disabled={!canEdit}
+                  onChange={(event) => updateConfig({card_style: event.target.value as 'flat' | 'soft' | 'outline'})}
+                  className="field"
+                >
+                  <option value="flat">مسطح رسمي</option>
+                  <option value="soft">ناعـم وظل خفيف</option>
+                  <option value="outline">حدود واضحة</option>
+                </select>
+              </Field>
+              <Field label="نصف قطر الزوايا">
+                <select
+                  value={config.surface_radius}
+                  disabled={!canEdit}
+                  onChange={(event) => updateConfig({surface_radius: event.target.value as 'compact' | 'standard' | 'rounded'})}
+                  className="field"
+                >
+                  <option value="compact">حاد ومكثف</option>
+                  <option value="standard">قياسي</option>
+                  <option value="rounded">مستدير رسمي</option>
+                </select>
+              </Field>
+              <Field label="مسافات الأقسام">
+                <select
+                  value={config.section_spacing}
+                  disabled={!canEdit}
+                  onChange={(event) => updateConfig({section_spacing: event.target.value as 'compact' | 'standard' | 'wide'})}
+                  className="field"
+                >
+                  <option value="compact">مضغوط</option>
+                  <option value="standard">متوازن</option>
+                  <option value="wide">واسع</option>
+                </select>
+              </Field>
+              <Field label="ارتفاع الهيرو">
+                <select
+                  value={config.hero_height}
+                  disabled={!canEdit}
+                  onChange={(event) => updateConfig({hero_height: event.target.value as 'medium' | 'large'})}
+                  className="field"
+                >
+                  <option value="medium">متوسط</option>
+                  <option value="large">كبير</option>
+                </select>
+              </Field>
+              <Field label="محاذاة نص الهيرو">
+                <select
+                  value={config.hero_text_align}
+                  disabled={!canEdit}
+                  onChange={(event) => updateConfig({hero_text_align: event.target.value as 'start' | 'center'})}
+                  className="field"
+                >
+                  <option value="start">على جهة المحتوى</option>
+                  <option value="center">بالمنتصف</option>
+                </select>
+              </Field>
+              <Field label="الأنيميشن">
+                <select
+                  value={config.content_animation}
+                  disabled={!canEdit}
+                  onChange={(event) => updateConfig({content_animation: event.target.value as 'none' | 'fade' | 'rise'})}
+                  className="field"
+                >
+                  <option value="none">بدون حركة</option>
+                  <option value="fade">ظهور هادئ</option>
+                  <option value="rise">تحرك خفيف للأعلى</option>
+                </select>
+              </Field>
             </div>
           </EditorCard>
 
@@ -483,6 +559,82 @@ export function TenantBrandingPanel({tenantId, tenantName, canEdit}: TenantBrand
             />
           </EditorCard>
 
+          <EditorCard title="آراء العملاء — عجلة عرض كل 3 آراء">
+            <ArrayEditor
+              items={config.testimonials}
+              disabled={!canEdit}
+              addLabel="إضافة رأي عميل"
+              onAdd={() => updateConfig({
+                testimonials: [...config.testimonials, {
+                  id: uid(),
+                  name_ar: 'عميل جديد',
+                  name_en: 'New customer',
+                  role_ar: '',
+                  role_en: '',
+                  quote_ar: '',
+                  quote_en: '',
+                  rating: 5,
+                  avatar_path: null,
+                  visible: true,
+                }],
+              })}
+              render={(item: StorefrontTestimonial, index) => (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <input className="field" disabled={!canEdit} value={item.name_ar} onChange={(event) => updateConfig({testimonials: config.testimonials.map((row, i) => i === index ? {...row, name_ar: event.target.value} : row)})} placeholder="اسم العميل بالعربية" />
+                  <input className="field" dir="ltr" disabled={!canEdit} value={item.name_en} onChange={(event) => updateConfig({testimonials: config.testimonials.map((row, i) => i === index ? {...row, name_en: event.target.value} : row)})} placeholder="Customer name" />
+                  <input className="field" disabled={!canEdit} value={item.role_ar} onChange={(event) => updateConfig({testimonials: config.testimonials.map((row, i) => i === index ? {...row, role_ar: event.target.value} : row)})} placeholder="الصفة بالعربية" />
+                  <input className="field" dir="ltr" disabled={!canEdit} value={item.role_en} onChange={(event) => updateConfig({testimonials: config.testimonials.map((row, i) => i === index ? {...row, role_en: event.target.value} : row)})} placeholder="Customer role" />
+                  <textarea className="field" rows={3} disabled={!canEdit} value={item.quote_ar} onChange={(event) => updateConfig({testimonials: config.testimonials.map((row, i) => i === index ? {...row, quote_ar: event.target.value} : row)})} placeholder="الرأي بالعربية" />
+                  <textarea className="field" rows={3} dir="ltr" disabled={!canEdit} value={item.quote_en} onChange={(event) => updateConfig({testimonials: config.testimonials.map((row, i) => i === index ? {...row, quote_en: event.target.value} : row)})} placeholder="Customer review" />
+                  <input className="field" type="number" min={1} max={5} disabled={!canEdit} value={item.rating} onChange={(event) => updateConfig({testimonials: config.testimonials.map((row, i) => i === index ? {...row, rating: Math.min(5, Math.max(1, Number(event.target.value)))} : row)})} placeholder="التقييم 1–5" />
+                  <input className="field" dir="ltr" disabled={!canEdit} value={item.avatar_path ?? ''} onChange={(event) => updateConfig({testimonials: config.testimonials.map((row, i) => i === index ? {...row, avatar_path: event.target.value || null} : row)})} placeholder="Avatar image URL" />
+                  <div className="flex gap-2 sm:col-span-2">
+                    <button type="button" disabled={!canEdit} onClick={() => updateConfig({testimonials: config.testimonials.map((row, i) => i === index ? {...row, visible: !row.visible} : row)})} className="field flex-1">
+                      {item.visible ? 'ظاهر' : 'مخفي'}
+                    </button>
+                    <button type="button" disabled={!canEdit} onClick={() => updateConfig({testimonials: config.testimonials.filter((_, i) => i !== index)})} className="rounded-lg border border-red-200 px-3 text-red-700">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            />
+          </EditorCard>
+
+          <EditorCard title="الأسئلة الشائعة">
+            <ArrayEditor
+              items={config.faq_items}
+              disabled={!canEdit}
+              addLabel="إضافة سؤال"
+              onAdd={() => updateConfig({
+                faq_items: [...config.faq_items, {
+                  id: uid(),
+                  question_ar: 'سؤال جديد؟',
+                  question_en: 'New question?',
+                  answer_ar: '',
+                  answer_en: '',
+                  visible: true,
+                }],
+              })}
+              render={(item: StorefrontFaqItem, index) => (
+                <div className="grid gap-2 sm:grid-cols-2">
+                  <input className="field" disabled={!canEdit} value={item.question_ar} onChange={(event) => updateConfig({faq_items: config.faq_items.map((row, i) => i === index ? {...row, question_ar: event.target.value} : row)})} placeholder="السؤال بالعربية" />
+                  <input className="field" dir="ltr" disabled={!canEdit} value={item.question_en} onChange={(event) => updateConfig({faq_items: config.faq_items.map((row, i) => i === index ? {...row, question_en: event.target.value} : row)})} placeholder="Question in English" />
+                  <textarea className="field" rows={3} disabled={!canEdit} value={item.answer_ar} onChange={(event) => updateConfig({faq_items: config.faq_items.map((row, i) => i === index ? {...row, answer_ar: event.target.value} : row)})} placeholder="الإجابة بالعربية" />
+                  <textarea className="field" rows={3} dir="ltr" disabled={!canEdit} value={item.answer_en} onChange={(event) => updateConfig({faq_items: config.faq_items.map((row, i) => i === index ? {...row, answer_en: event.target.value} : row)})} placeholder="Answer in English" />
+                  <div className="flex gap-2 sm:col-span-2">
+                    <button type="button" disabled={!canEdit} onClick={() => updateConfig({faq_items: config.faq_items.map((row, i) => i === index ? {...row, visible: !row.visible} : row)})} className="field flex-1">
+                      {item.visible ? 'ظاهر' : 'مخفي'}
+                    </button>
+                    <button type="button" disabled={!canEdit} onClick={() => updateConfig({faq_items: config.faq_items.filter((_, i) => i !== index)})} className="rounded-lg border border-red-200 px-3 text-red-700">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            />
+          </EditorCard>
+
           <EditorCard title="أسعار المحافظات ومدد التوصيل">
             <ArrayEditor
               items={config.pricing}
@@ -528,7 +680,7 @@ export function TenantBrandingPanel({tenantId, tenantName, canEdit}: TenantBrand
                 items={config.custom_sections}
                 disabled={!canEdit}
                 addLabel="إضافة قسم مخصص"
-                onAdd={() => updateConfig({custom_sections: [...config.custom_sections, {id: uid(), title_ar: 'قسم جديد', title_en: 'New section', text_ar: '', text_en: '', image_path: null, image_side: 'right', button_label_ar: '', button_label_en: '', button_url: '', visible: true}]})}
+                onAdd={() => updateConfig({custom_sections: [...config.custom_sections, {id: uid(), title_ar: 'قسم جديد', title_en: 'New section', text_ar: '', text_en: '', image_path: null, image_side: 'right', button_label_ar: '', button_label_en: '', button_url: '', visible: true, layout: 'split', style: 'minimal', animation: 'rise'}]})}
                 render={(item: StorefrontCustomSection, index) => (
                   <div className="grid gap-2 sm:grid-cols-2">
                     <input className="field" disabled={!canEdit} value={item.title_ar} onChange={(event) => updateConfig({custom_sections: config.custom_sections.map((row, i) => i === index ? {...row, title_ar: event.target.value} : row)})} placeholder="العنوان بالعربية" />
@@ -539,6 +691,23 @@ export function TenantBrandingPanel({tenantId, tenantName, canEdit}: TenantBrand
                     <select className="field" disabled={!canEdit} value={item.image_side} onChange={(event) => updateConfig({custom_sections: config.custom_sections.map((row, i) => i === index ? {...row, image_side: event.target.value as 'right' | 'left'} : row)})}>
                       <option value="right">الصورة يمين</option>
                       <option value="left">الصورة يسار</option>
+                    </select>
+                    <select className="field" disabled={!canEdit} value={item.layout ?? 'split'} onChange={(event) => updateConfig({custom_sections: config.custom_sections.map((row, i) => i === index ? {...row, layout: event.target.value as 'split' | 'cards' | 'banner' | 'text'} : row)})}>
+                      <option value="split">صورة ونص</option>
+                      <option value="cards">بطاقات من النص</option>
+                      <option value="banner">لافتة عريضة</option>
+                      <option value="text">نص مركزي</option>
+                    </select>
+                    <select className="field" disabled={!canEdit} value={item.style ?? 'minimal'} onChange={(event) => updateConfig({custom_sections: config.custom_sections.map((row, i) => i === index ? {...row, style: event.target.value as 'minimal' | 'surface' | 'brand' | 'dark'} : row)})}>
+                      <option value="minimal">بسيط رسمي</option>
+                      <option value="surface">خلفية سطحية</option>
+                      <option value="brand">لون الهوية</option>
+                      <option value="dark">داكن</option>
+                    </select>
+                    <select className="field" disabled={!canEdit} value={item.animation ?? 'rise'} onChange={(event) => updateConfig({custom_sections: config.custom_sections.map((row, i) => i === index ? {...row, animation: event.target.value as 'none' | 'fade' | 'rise'} : row)})}>
+                      <option value="none">بدون أنيميشن</option>
+                      <option value="fade">ظهور هادئ</option>
+                      <option value="rise">ظهور وتصاعد</option>
                     </select>
                     <input className="field" disabled={!canEdit} value={item.button_label_ar} onChange={(event) => updateConfig({custom_sections: config.custom_sections.map((row, i) => i === index ? {...row, button_label_ar: event.target.value} : row)})} placeholder="اسم الزر بالعربية" />
                     <input className="field" dir="ltr" disabled={!canEdit} value={item.button_url} onChange={(event) => updateConfig({custom_sections: config.custom_sections.map((row, i) => i === index ? {...row, button_url: event.target.value} : row)})} placeholder="Button URL" />
