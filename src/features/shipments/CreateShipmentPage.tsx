@@ -1,3 +1,4 @@
+import {LoadingState} from '@/components/ui/LoadingState';
 import {useCallback, useEffect, useMemo, useRef, useState, type FormEvent} from 'react';
 import {Link, useNavigate} from 'react-router-dom';
 import {buildTenantBasePath} from '@/config/brand';
@@ -494,7 +495,7 @@ export function CreateShipmentPage() {
   if (loadingRefs) {
     return (
       <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-600">
-        {t('جاري تحميل بيانات العملاء والفروع وقوائم الأسعار...')}
+        <LoadingState className="py-4" label={t('جارٍ تحميل بيانات العملاء والفروع وقوائم الأسعار')} />
       </div>
     );
   }

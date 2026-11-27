@@ -1,3 +1,4 @@
+import {LoadingState} from '@/components/ui/LoadingState';
 import {useCallback, useEffect, useMemo, useState, type FormEvent} from 'react';
 import {Link, useNavigate} from 'react-router-dom';
 import {buildTenantBasePath} from '@/config/brand';
@@ -963,7 +964,7 @@ export function BranchTransfersPage() {
                 {loading ? (
                   <tr>
                     <td colSpan={7} className="px-4 py-10 text-center text-slate-500">
-                      جاري تحميل قوائم النقل...
+                      <LoadingState label="جارٍ تحميل قوائم النقل" />
                     </td>
                   </tr>
                 ) : manifests.length === 0 ? (

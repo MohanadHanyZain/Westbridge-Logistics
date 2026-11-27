@@ -1,3 +1,4 @@
+import {LoadingState} from '@/components/ui/LoadingState';
 import {useCallback, useEffect, useState, type FormEvent} from 'react';
 import {
   createChartAccount,
@@ -232,7 +233,7 @@ export function AccountingRefsPage() {
 
       {loading ? (
         <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
-          جاري تحميل التعريفات...
+          <LoadingState className="py-4" label="جارٍ تحميل التعريفات" />
         </div>
       ) : (
         <>

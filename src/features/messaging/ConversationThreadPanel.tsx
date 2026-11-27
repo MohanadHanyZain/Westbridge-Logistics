@@ -1,3 +1,4 @@
+import {LoadingState} from '@/components/ui/LoadingState';
 import {useCallback, useEffect, useState, type FormEvent} from 'react';
 import {AttachmentPreviewList, AttachmentUploader} from '@/components/ui/AttachmentUploader';
 import {
@@ -167,7 +168,7 @@ export function ConversationThreadPanel({
       {/* Messages Timeline */}
       <div className="max-h-[420px] min-h-[220px] space-y-3 overflow-y-auto p-4">
         {loading ? (
-          <p className="py-10 text-center text-xs text-slate-500">جاري تحميل المحادثة...</p>
+          <p className="py-10 text-center text-xs text-slate-500"><LoadingState className="py-10" label="جارٍ تحميل المحادثة" /></p>
         ) : messages.length === 0 ? (
           <p className="py-10 text-center text-xs text-slate-500">
             لا توجد رسائل حتى الآن. ابدأ المحادثة من النموذج أدناه.

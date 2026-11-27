@@ -1,3 +1,4 @@
+import {LoadingState} from '@/components/ui/LoadingState';
 import {useCallback, useEffect, useMemo, useState, type FormEvent} from 'react';
 import {listClients} from '@/features/clients/clientsService';
 import {
@@ -391,7 +392,7 @@ export function FinanceCashboxesPage() {
               {loading ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
-                    جارٍ تحميل سجل الحركات...
+                    <LoadingState label="جارٍ تحميل سجل الحركات" />
                   </td>
                 </tr>
               ) : transactions.length === 0 ? (

@@ -1,3 +1,4 @@
+import {LoadingState} from '@/components/ui/LoadingState';
 import {useCallback, useEffect, useMemo, useState, type FormEvent} from 'react';
 import {Link} from 'react-router-dom';
 import {buildTenantBasePath} from '@/config/brand';
@@ -606,7 +607,7 @@ export function CourierMovementsPage() {
       {/* Detailed Table */}
       {loading ? (
         <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-xs text-slate-500">
-          جاري تحميل بيانات التحركات...
+          <LoadingState className="py-4" label="جارٍ تحميل بيانات التحركات" />
         </div>
       ) : mode === 'live' ? (
         <section className="overflow-x-auto rounded-xl border border-slate-200 bg-white">

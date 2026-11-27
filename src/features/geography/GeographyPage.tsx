@@ -1,3 +1,4 @@
+import {LoadingState} from '@/components/ui/LoadingState';
 import {useCallback, useEffect, useMemo, useState, type FormEvent} from 'react';
 import {
   generateNextCode,
@@ -359,7 +360,7 @@ export function GeographyPage() {
 
           <div className="max-h-[34rem] overflow-y-auto rounded-xl border border-slate-200 bg-white divide-y divide-slate-100">
             {loading ? (
-              <p className="p-4 text-center text-xs text-slate-500">{t('جاري التحميل...')}</p>
+              <p className="p-4 text-center text-xs text-slate-500"><LoadingState label={t('جارٍ التحميل')} /></p>
             ) : filteredGovernorates.length === 0 ? (
               <p className="p-4 text-center text-xs text-slate-500">{t('لا توجد محافظات مطابقة.')}</p>
             ) : (

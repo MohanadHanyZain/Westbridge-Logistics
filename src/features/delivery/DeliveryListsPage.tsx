@@ -1,3 +1,4 @@
+import {LoadingState} from '@/components/ui/LoadingState';
 import {useCallback, useEffect, useMemo, useState, type FormEvent} from 'react';
 import {Link} from 'react-router-dom';
 import {buildTenantBasePath} from '@/config/brand';
@@ -695,7 +696,7 @@ export function DeliveryListsPage({listType = 'delivery'}: DeliveryListsPageProp
                 {loading ? (
                   <tr>
                     <td colSpan={7} className="px-6 py-8 text-center text-slate-500">
-                      جاري تحميل القوائم...
+                      <LoadingState label="جارٍ تحميل القوائم" />
                     </td>
                   </tr>
                 ) : lists.length === 0 ? (

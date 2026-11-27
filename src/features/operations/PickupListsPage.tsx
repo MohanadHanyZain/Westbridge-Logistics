@@ -1,3 +1,4 @@
+import {LoadingState} from '@/components/ui/LoadingState';
 import {useCallback, useEffect, useMemo, useState, type FormEvent} from 'react';
 import {Link} from 'react-router-dom';
 import {buildTenantBasePath} from '@/config/brand';
@@ -1096,7 +1097,7 @@ export function PickupListsPage() {
             {loading ? (
               <tr>
                 <td colSpan={8} className="px-4 py-10 text-center text-slate-500">
-                  جاري تحميل قوائم الالتقاط...
+                  <LoadingState label="جارٍ تحميل قوائم الالتقاط" />
                 </td>
               </tr>
             ) : pickupLists.length === 0 ? (

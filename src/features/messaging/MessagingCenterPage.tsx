@@ -1,3 +1,4 @@
+import {LoadingState} from '@/components/ui/LoadingState';
 import {useCallback, useEffect, useState, type FormEvent} from 'react';
 import {Link} from 'react-router-dom';
 import {listClients} from '@/features/clients/clientsService';
@@ -410,7 +411,7 @@ export function MessagingCenterPage({initialTab = 'messages'}: MessagingCenterPa
             <div className="lg:col-span-4">
               <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white">
                 {loadingConvs ? (
-                  <p className="p-6 text-center text-xs text-slate-500">جاري تحميل المحادثات...</p>
+                  <p className="p-6 text-center text-xs text-slate-500"><LoadingState className="p-6" label="جارٍ تحميل المحادثات" /></p>
                 ) : conversations.length === 0 ? (
                   <p className="p-6 text-center text-xs text-slate-500">
                     لا توجد محادثات مطابقة حاليًا.
@@ -523,7 +524,7 @@ export function MessagingCenterPage({initialTab = 'messages'}: MessagingCenterPa
 
           <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white">
             {loadingNotifs ? (
-              <p className="p-8 text-center text-xs text-slate-500">جاري تحميل الإشعارات...</p>
+              <p className="p-8 text-center text-xs text-slate-500"><LoadingState className="p-8" label="جارٍ تحميل الإشعارات" /></p>
             ) : notifications.length === 0 ? (
               <p className="p-8 text-center text-xs text-slate-500">
                 لا توجد إشعارات مطابقة في الوقت الحالي.

@@ -1,3 +1,4 @@
+import {LoadingState} from '@/components/ui/LoadingState';
 import {useEffect, useMemo, useState, type FormEvent} from 'react';
 import type {BranchRecord} from '@/types/definitions';
 import type {ShipmentListItem} from '@/types/shipments';
@@ -224,7 +225,7 @@ export function MultiSelectShipmentsModal({
 
         <div className="flex-1 overflow-y-auto px-6 py-3">
           {loading ? (
-            <p className="py-10 text-center text-xs text-slate-500">جاري تحميل الشحنات المتاحة...</p>
+            <p className="py-10 text-center text-xs text-slate-500"><LoadingState className="py-10" label="جارٍ تحميل الشحنات المتاحة" /></p>
           ) : availableShipments.length === 0 ? (
             <p className="py-10 text-center text-xs text-slate-500">
               لا توجد شحنات مؤهلة متاحة حاليًا للإضافة لهذه القائمة.

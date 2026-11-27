@@ -1,3 +1,4 @@
+import {LoadingState} from '@/components/ui/LoadingState';
 import {useEffect, useMemo, useState, type FormEvent} from 'react';
 import {Link, useNavigate} from 'react-router-dom';
 import {useTenantSlug} from '@/lib/tenant/TenantRuntimeContext';
@@ -251,7 +252,7 @@ export function TenantPublicPage() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 px-6 text-sm text-slate-600">
-        {text('جاري تحميل موقع الشركة...', 'Loading company website...')}
+        <LoadingState label={text('جارٍ تحميل موقع الشركة', 'Loading company website')} />
       </div>
     );
   }

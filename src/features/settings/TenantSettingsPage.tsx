@@ -1,3 +1,4 @@
+import {LoadingState} from '@/components/ui/LoadingState';
 import {useCallback, useEffect, useState, type FormEvent} from 'react';
 import {Link, useNavigate} from 'react-router-dom';
 import {buildTenantBasePath} from '@/config/brand';
@@ -12,8 +13,8 @@ import {
 } from '@/features/messaging/messagingService';
 import * as tenantService from '@/features/tenants/tenantService';
 import {useTenantWorkspace} from '@/features/tenants/TenantWorkspaceContext';
-import {formatDateTime} from '@/lib/formatters';
-import {useAuth} from '@/lib/auth';
+import {formatDateTime, isValidUsername} from '@/lib/formatters';
+import {updateMyCredentials, useAuth} from '@/lib/auth';
 import {translateUi, useLocale} from '@/lib/i18n';
 import {AccountSubjectType} from '@/types/common';
 import type {TenantSubscriptionOverview} from '@/types/tenant';
@@ -35,7 +36,7 @@ import {
 
 export function TenantSettingsPage() {
   const {tenant, isAdmin, membership} = useTenantWorkspace();
-  const {signOut} = useAuth();
+  const {signOut, refreshContext} = useAuth();
   const navigate = useNavigate();
   const locale = useLocale();
   const t = (text: string) => translateUi(text, locale);
@@ -70,6 +71,13 @@ export function TenantSettingsPage() {
   const [requireGpsOnDelivery, setRequireGpsOnDelivery] = useState(false);
 
   const [subOverview, setSubOverview] = useState<TenantSubscriptionOverview | null>(null);
+
+  const [accountUsername, setAccountUsername] = useState(membership.username);
+  const [accountPassword, setAccountPassword] = useState('');
+  const [savingCredentials, setSavingCredentials] = useState(false);
+  const [credentialsFeedback, setCredentialsFeedback] = useState<{type: 'error' | 'success'; text: string} | null>(
+    null,
+  );
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -183,6 +191,41 @@ export function TenantSettingsPage() {
     }
   };
 
+  const handleCredentialsSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setCredentialsFeedback(null);
+    if (accountUsername && !isValidUsername(accountUsername)) {
+      setCredentialsFeedback({type: 'error', text: 'صيغة اسم المستخدم غير صالحة (3–32 حرفًا إنجليزيًا/رقميًا).'});
+      return;
+    }
+    if (accountPassword && accountPassword.length < 8) {
+      setCredentialsFeedback({type: 'error', text: 'كلمة المرور يجب أن لا تقل عن 8 أحرف.'});
+      return;
+    }
+    if (accountUsername === membership.username && !accountPassword) {
+      setCredentialsFeedback({type: 'error', text: 'لم يتم إدخال أي تغيير على بيانات الدخول.'});
+      return;
+    }
+    setSavingCredentials(true);
+    try {
+      await updateMyCredentials({
+        tenantId: tenant.id,
+        newUsername: accountUsername !== membership.username ? accountUsername : undefined,
+        newPassword: accountPassword || undefined,
+      });
+      setAccountPassword('');
+      await refreshContext();
+      setCredentialsFeedback({type: 'success', text: 'تم تحديث بيانات الدخول بنجاح.'});
+    } catch (err) {
+      setCredentialsFeedback({
+        type: 'error',
+        text: err instanceof Error ? err.message : 'تعذر تحديث بيانات الدخول.',
+      });
+    } finally {
+      setSavingCredentials(false);
+    }
+  };
+
   const handleSignOut = async () => {
     try {
       await signOut();
@@ -273,6 +316,72 @@ export function TenantSettingsPage() {
         </div>
       </section>
 
+      <section className="surface-card rounded-2xl p-5 sm:p-6">
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="h-5 w-5 text-[var(--tenant-brand)]" />
+          <h2 className="text-base font-extrabold text-slate-900">{t('بيانات الدخول')}</h2>
+        </div>
+        <p className="mt-1 text-xs text-slate-500">
+          {t('اسم المستخدم وكلمة المرور الخاصة بحسابك في هذه الشركة.')}
+        </p>
+        {membership.must_change_password && (
+          <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+            يُرجى تعيين كلمة مرور شخصية جديدة لاستكمال تفعيل حسابك.
+          </p>
+        )}
+        <form onSubmit={handleCredentialsSubmit} className="mt-5 grid gap-4 md:grid-cols-2">
+          <div>
+            <label htmlFor="settings-username" className="mb-1.5 block text-xs font-semibold text-slate-700">
+              {t('اسم المستخدم')}
+            </label>
+            <input
+              id="settings-username"
+              type="text"
+              dir="ltr"
+              autoComplete="username"
+              value={accountUsername}
+              onChange={(e) => setAccountUsername(e.target.value.toLowerCase())}
+              className="w-full font-mono-tabular text-sm"
+            />
+          </div>
+          <div>
+            <label htmlFor="settings-password" className="mb-1.5 block text-xs font-semibold text-slate-700">
+              {t('كلمة المرور الجديدة')}
+            </label>
+            <input
+              id="settings-password"
+              type="password"
+              dir="ltr"
+              autoComplete="new-password"
+              placeholder="اتركه فارغًا إن لم ترغب بالتغيير"
+              value={accountPassword}
+              onChange={(e) => setAccountPassword(e.target.value)}
+              className="w-full text-sm"
+            />
+          </div>
+          <div className="md:col-span-2">
+            <button
+              type="submit"
+              disabled={savingCredentials}
+              className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-xs font-semibold text-white transition-colors hover:bg-slate-800 disabled:opacity-60"
+            >
+              <Save className="h-3.5 w-3.5" />
+              {savingCredentials ? 'جارٍ الحفظ' : 'حفظ بيانات الدخول'}
+            </button>
+          </div>
+        </form>
+        {credentialsFeedback && (
+          <p
+            role="status"
+            className={`mt-3 text-xs font-semibold ${
+              credentialsFeedback.type === 'error' ? 'text-red-700' : 'text-emerald-700'
+            }`}
+          >
+            {credentialsFeedback.text}
+          </p>
+        )}
+      </section>
+
       {!isClientAccount && !isCourierAccount && (
       <>
       {!isAdmin && (
@@ -297,7 +406,7 @@ export function TenantSettingsPage() {
 
       {loading ? (
         <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-xs text-slate-500">
-          جاري تحميل إعدادات الشركة...
+          <LoadingState className="py-4" label="جارٍ تحميل إعدادات الشركة" />
         </div>
       ) : (
         <form onSubmit={handleSave} className="grid grid-cols-1 gap-6 lg:grid-cols-2">

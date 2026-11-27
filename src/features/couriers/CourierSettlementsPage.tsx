@@ -1,3 +1,4 @@
+import {LoadingState} from '@/components/ui/LoadingState';
 import {useCallback, useEffect, useMemo, useState, type FormEvent} from 'react';
 import {Link} from 'react-router-dom';
 import {FilterBar} from '@/components/ui/FilterBar';
@@ -307,7 +308,7 @@ export function CourierSettlementsPage() {
           <h2 className="text-sm font-semibold text-slate-900">ملخص عهد وعمولات المناديب</h2>
           <div className="divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white">
             {loading ? (
-              <p className="p-4 text-xs text-slate-500">جارٍ تحميل بيانات المناديب...</p>
+              <p className="p-4 text-xs text-slate-500"><LoadingState className="p-4" label="جارٍ تحميل بيانات المناديب" /></p>
             ) : mergedRows.length === 0 ? (
               <p className="p-4 text-xs text-slate-500">لا يوجد مناديب مسجلون بعد.</p>
             ) : (

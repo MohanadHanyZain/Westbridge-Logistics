@@ -1,3 +1,4 @@
+import {LoadingState} from '@/components/ui/LoadingState';
 import {useCallback, useEffect, useMemo, useState, type FormEvent} from 'react';
 import {
   deleteRouteStop,
@@ -254,7 +255,7 @@ export function CourierRoutesPage() {
   };
 
   if (loading) {
-    return <p className="py-10 text-center text-sm text-slate-500">جاري تحميل خطوط السير والسيارات والسائقين...</p>;
+    return <p className="py-10 text-center text-sm text-slate-500"><LoadingState className="py-10" label="جارٍ تحميل خطوط السير والسيارات والسائقين" /></p>;
   }
 
   return (

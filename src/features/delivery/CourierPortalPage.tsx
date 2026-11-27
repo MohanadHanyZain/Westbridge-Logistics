@@ -1,3 +1,4 @@
+import {LoadingState} from '@/components/ui/LoadingState';
 import {useCallback, useEffect, useMemo, useState, type FormEvent} from 'react';
 import {Link, Navigate} from 'react-router-dom';
 import {buildTenantBasePath} from '@/config/brand';
@@ -401,7 +402,7 @@ export function CourierPortalPage() {
         <div className="space-y-3">
           {loading ? (
             <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-xs text-slate-500">
-              جاري تحميل مهام المندوب...
+              <LoadingState label="جارٍ تحميل مهام المندوب" />
             </div>
           ) : !feed || feed.shipments.length === 0 ? (
             <div className="rounded-xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">

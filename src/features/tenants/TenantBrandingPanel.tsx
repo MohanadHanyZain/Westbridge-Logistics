@@ -1,3 +1,4 @@
+import {LoadingState} from '@/components/ui/LoadingState';
 import {useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type ReactNode} from 'react';
 import {
   AlertTriangle,
@@ -151,7 +152,7 @@ export function TenantBrandingPanel({tenantId, tenantName, canEdit}: TenantBrand
   if (loading) {
     return (
       <section className="rounded-xl border border-slate-200 bg-white p-6 text-xs text-slate-500">
-        جاري تحميل مصمم الموقع...
+        <LoadingState label="جارٍ تحميل مصمم الموقع" />
       </section>
     );
   }

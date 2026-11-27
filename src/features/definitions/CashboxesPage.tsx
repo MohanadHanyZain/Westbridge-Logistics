@@ -1,3 +1,4 @@
+import {LoadingState} from '@/components/ui/LoadingState';
 import {useCallback, useEffect, useMemo, useState, type FormEvent} from 'react';
 import {
   addCashboxCustodian,
@@ -299,7 +300,7 @@ export function CashboxesPage() {
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-slate-500">جاري التحميل...</td>
+                  <td colSpan={5} className="px-4 py-8 text-center text-sm text-slate-500"><LoadingState label="جارٍ التحميل" /></td>
                 </tr>
               ) : (
                 cashboxes.map((box) => {

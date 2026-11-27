@@ -1,3 +1,4 @@
+import {LoadingState} from '@/components/ui/LoadingState';
 import {useCallback, useEffect, useMemo, useState, type FormEvent} from 'react';
 import {Link, useParams} from 'react-router-dom';
 import {buildTenantBasePath} from '@/config/brand';
@@ -350,7 +351,7 @@ export function ShipmentDetailPage() {
   if (loading) {
     return (
       <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-600">
-        جاري تحميل ملف الشحنة...
+        <LoadingState className="py-4" label="جارٍ تحميل ملف الشحنة" />
       </div>
     );
   }

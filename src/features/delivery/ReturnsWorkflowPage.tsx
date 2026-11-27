@@ -1,3 +1,4 @@
+import {LoadingState} from '@/components/ui/LoadingState';
 import {useCallback, useEffect, useMemo, useState, type FormEvent} from 'react';
 import {Link} from 'react-router-dom';
 import {buildTenantBasePath} from '@/config/brand';
@@ -469,7 +470,7 @@ export function ReturnsWorkflowPage() {
               {loading ? (
                 <tr>
                   <td colSpan={7} className="px-6 py-8 text-center text-slate-500">
-                    جاري تحميل قوائم المرتجعات...
+                    <LoadingState label="جارٍ تحميل قوائم المرتجعات" />
                   </td>
                 </tr>
               ) : manifests.length === 0 ? (

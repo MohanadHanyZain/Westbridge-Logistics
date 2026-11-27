@@ -1,11 +1,12 @@
-import {useCallback, useEffect, useState, type FormEvent} from 'react';
+import {LoadingState} from '@/components/ui/LoadingState';
+import {useCallback, useEffect, useState} from 'react';
 import {Link} from 'react-router-dom';
 import {buildTenantBasePath} from '@/config/brand';
 import {getClientPortalSummary} from '@/features/clients/clientPortalService';
 import {listShipments} from '@/features/shipments/shipmentsService';
 import {useTenantWorkspace} from '@/features/tenants/TenantWorkspaceContext';
-import {updateMyCredentials, useAuth} from '@/lib/auth';
-import {formatDateTime, isValidUsername} from '@/lib/formatters';
+import {useAuth} from '@/lib/auth';
+import {formatDateTime} from '@/lib/formatters';
 import type {ClientPortalPeriod, ClientPortalSummary} from '@/types/clientPortal';
 import {SHIPMENT_STATUS_LABELS, type ShipmentListItem} from '@/types/shipments';
 import {
@@ -16,7 +17,6 @@ import {
   PackageCheck,
   PackagePlus,
   RotateCcw,
-  ShieldCheck,
   Truck,
   Wallet,
 } from 'lucide-react';
@@ -30,7 +30,7 @@ const PERIOD_OPTIONS: ReadonlyArray<{readonly key: ClientPortalPeriod; readonly 
 
 export function ClientPortalDashboardPage() {
   const {tenant, membership, boundClientId, can} = useTenantWorkspace();
-  const {profile, refreshContext} = useAuth();
+  const {profile} = useAuth();
   const basePath = `${buildTenantBasePath(tenant.slug)}/app`;
 
   const [period, setPeriod] = useState<ClientPortalPeriod>('all');
@@ -39,12 +39,6 @@ export function ClientPortalDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-
-  // Credentials update
-  const [newUsername, setNewUsername] = useState(membership.username);
-  const [newPassword, setNewPassword] = useState('');
-  const [savingCreds, setSavingCreds] = useState(false);
-  const [credsFeedback, setCredsFeedback] = useState<{type: 'error' | 'success'; text: string} | null>(null);
 
   const targetClientId = boundClientId;
 
@@ -83,37 +77,6 @@ export function ClientPortalDashboardPage() {
       setTimeout(() => setCopiedId((c) => (c === id ? null : c)), 1500);
     } catch {
       // Ignore clipboard failures in headless test environments
-    }
-  };
-
-  const handleCredentialsSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setCredsFeedback(null);
-    if (newUsername && !isValidUsername(newUsername)) {
-      setCredsFeedback({type: 'error', text: 'صيغة اسم المستخدم غير صالحة (3–32 حرفًا إنجليزيًا/رقميًا).'});
-      return;
-    }
-    if (newPassword && newPassword.length < 8) {
-      setCredsFeedback({type: 'error', text: 'كلمة المرور يجب أن لا تقل عن 8 أحرف.'});
-      return;
-    }
-    setSavingCreds(true);
-    try {
-      await updateMyCredentials({
-        tenantId: tenant.id,
-        newUsername: newUsername !== membership.username ? newUsername : undefined,
-        newPassword: newPassword || undefined,
-      });
-      setNewPassword('');
-      await refreshContext();
-      setCredsFeedback({type: 'success', text: 'تم تحديث بيانات الحساب بنجاح.'});
-    } catch (err) {
-      setCredsFeedback({
-        type: 'error',
-        text: err instanceof Error ? err.message : 'تعذر تحديث بيانات الدخول.',
-      });
-    } finally {
-      setSavingCreds(false);
     }
   };
 
@@ -194,10 +157,10 @@ export function ClientPortalDashboardPage() {
       {/* Operational & Financial KPIs */}
       <section aria-label="مؤشرات أداء التاجر">
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 transition-colors hover:border-[var(--tenant-brand)]">
             <div className="flex items-center justify-between text-xs text-slate-500">
               <span>إجمالي الشحنات</span>
-              <Package className="h-4 w-4 text-slate-400" />
+              <Package strokeWidth={1.9} className="h-5 w-5 text-slate-500" />
             </div>
             <p className="mt-2 font-mono-tabular text-2xl font-bold text-slate-900">
               {loading ? '—' : summary?.total_shipments ?? 0}
@@ -207,10 +170,10 @@ export function ClientPortalDashboardPage() {
             </p>
           </div>
 
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 transition-colors hover:border-[var(--tenant-brand)]">
             <div className="flex items-center justify-between text-xs text-slate-500">
               <span>شحنات مسلمة</span>
-              <PackageCheck className="h-4 w-4 text-emerald-600" />
+              <PackageCheck strokeWidth={1.9} className="h-5 w-5 text-emerald-500" />
             </div>
             <p className="mt-2 font-mono-tabular text-2xl font-bold text-emerald-700">
               {loading ? '—' : summary?.delivered_count ?? 0}
@@ -220,10 +183,10 @@ export function ClientPortalDashboardPage() {
             </p>
           </div>
 
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 transition-colors hover:border-[var(--tenant-brand)]">
             <div className="flex items-center justify-between text-xs text-slate-500">
               <span>صافي جاهز للتسوية</span>
-              <Wallet className="h-4 w-4 text-slate-500" />
+              <Wallet strokeWidth={1.9} className="h-5 w-5 text-sky-500" />
             </div>
             <p className="mt-2 font-mono-tabular text-2xl font-bold text-slate-900">
               {loading ? '—' : `${Number(summary?.ready_net_settlement_amount ?? 0).toFixed(2)} ${tenant.default_currency}`}
@@ -233,10 +196,10 @@ export function ClientPortalDashboardPage() {
             </p>
           </div>
 
-          <div className="rounded-xl border border-slate-200 bg-white p-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 transition-colors hover:border-[var(--tenant-brand)]">
             <div className="flex items-center justify-between text-xs text-slate-500">
               <span>COD قيد التوريد</span>
-              <RotateCcw className="h-4 w-4 text-amber-600" />
+              <RotateCcw strokeWidth={1.9} className="h-5 w-5 text-amber-500" />
             </div>
             <p className="mt-2 font-mono-tabular text-2xl font-bold text-amber-700">
               {loading ? '—' : `${Number(summary?.in_flight_cod_amount ?? 0).toFixed(2)} ${tenant.default_currency}`}
@@ -299,7 +262,7 @@ export function ClientPortalDashboardPage() {
               {recentShipments.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
-                    {loading ? 'جاري تحميل الشحنات...' : 'لا توجد شحنات مسجلة لهذا التاجر بعد.'}
+                    {loading ? <LoadingState label="جارٍ تحميل الشحنات" /> : 'لا توجد شحنات مسجلة لهذا التاجر بعد.'}
                   </td>
                 </tr>
               ) : (
@@ -352,68 +315,6 @@ export function ClientPortalDashboardPage() {
         </div>
       </section>
 
-      {/* Account Credentials Update */}
-      {membership.account_subject_type === 'client' && (
-        <section className="rounded-xl border border-slate-200 bg-white p-6">
-          <div className="flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4 text-slate-700" />
-            <h2 className="text-base font-semibold text-slate-900">تحديث بيانات الدخول</h2>
-          </div>
-          {membership.must_change_password && (
-            <p className="mt-2 text-xs font-medium text-amber-700">
-              يُرجى تعيين كلمة مرور شخصية جديدة لاستكمال تفعيل حسابك.
-            </p>
-          )}
-          <form onSubmit={handleCredentialsSubmit} className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <label htmlFor="portal-username" className="block text-xs font-medium text-slate-700">
-                اسم المستخدم
-              </label>
-              <input
-                id="portal-username"
-                type="text"
-                dir="ltr"
-                value={newUsername}
-                onChange={(e) => setNewUsername(e.target.value.toLowerCase())}
-                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 font-mono-tabular text-sm"
-              />
-            </div>
-            <div>
-              <label htmlFor="portal-password" className="block text-xs font-medium text-slate-700">
-                كلمة المرور الجديدة (8 أحرف على الأقل)
-              </label>
-              <input
-                id="portal-password"
-                type="password"
-                dir="ltr"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                placeholder="اتركه فارغًا إن لم ترغب بالتغيير"
-                className="mt-1 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm"
-              />
-            </div>
-            <div className="md:col-span-2">
-              <button
-                type="submit"
-                disabled={savingCreds}
-                className="rounded-lg bg-slate-900 px-5 py-2 text-xs font-medium text-white hover:bg-slate-800 disabled:opacity-60"
-              >
-                {savingCreds ? 'جاري الحفظ...' : 'حفظ التعديلات'}
-              </button>
-            </div>
-          </form>
-          {credsFeedback && (
-            <p
-              role="status"
-              className={`mt-3 text-xs font-medium ${
-                credsFeedback.type === 'error' ? 'text-red-700' : 'text-emerald-700'
-              }`}
-            >
-              {credsFeedback.text}
-            </p>
-          )}
-        </section>
-      )}
     </div>
   );
 }

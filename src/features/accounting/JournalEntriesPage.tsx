@@ -1,3 +1,4 @@
+import {LoadingState} from '@/components/ui/LoadingState';
 import {useCallback, useEffect, useMemo, useState, type FormEvent} from 'react';
 import {FilterBar} from '@/components/ui/FilterBar';
 import {
@@ -330,7 +331,7 @@ export function JournalEntriesPage() {
             {loading ? (
               <tr>
                 <td colSpan={7} className="px-4 py-6 text-center text-slate-500">
-                  جارٍ تحميل القيود...
+                  <LoadingState label="جارٍ تحميل القيود" />
                 </td>
               </tr>
             ) : filtered.length === 0 ? (

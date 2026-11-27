@@ -1,3 +1,4 @@
+import {LoadingState} from '@/components/ui/LoadingState';
 import {useCallback, useEffect, useMemo, useState, type FormEvent} from 'react';
 import {Link} from 'react-router-dom';
 import {BRAND_CONFIG, buildTenantBasePath} from '@/config/brand';
@@ -1072,7 +1073,7 @@ export function PlatformTenantsPage() {
                     {loading ? (
                       <tr>
                         <td colSpan={8} className="px-4 py-8 text-center text-sm text-slate-500">
-                          جاري تحميل بيانات الشركات...
+                          <LoadingState label="جارٍ تحميل بيانات الشركات" />
                         </td>
                       </tr>
                     ) : filteredDirectory.length === 0 ? (

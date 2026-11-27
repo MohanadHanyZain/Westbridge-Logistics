@@ -10,14 +10,14 @@ import {translateUi, useLocale} from '@/lib/i18n';
 import type {ShipmentDashboardCounts} from '@/types/shipments';
 import {AlertCircle, ArrowLeft, Package, PackageCheck, Truck} from 'lucide-react';
 import {Skeleton} from '@/components/ui/Skeleton';
+import {DistributionDonut, type DonutSlice} from '@/components/ui/DistributionDonut';
 
-const cardStyles = [
-  {icon: 'text-orange-600', surface: 'bg-orange-50/80 border-orange-100'},
-  {icon: 'text-sky-600', surface: 'bg-sky-50/80 border-sky-100'},
-  {icon: 'text-violet-600', surface: 'bg-violet-50/80 border-violet-100'},
-  {icon: 'text-emerald-600', surface: 'bg-emerald-50/80 border-emerald-100'},
-  {icon: 'text-rose-600', surface: 'bg-rose-50/80 border-rose-100'},
-] as const;
+const SLICE_COLORS = {
+  warehouse: '#0ea5e9',
+  outForDelivery: '#8b5cf6',
+  delivered: '#10b981',
+  returns: '#f43f5e',
+} as const;
 
 export function TenantOverviewPage() {
   const {membership} = useTenantWorkspace();
@@ -81,23 +81,63 @@ function StaffTenantOverviewInner() {
     };
   }, [tenant.id, period]);
 
+  const format = (value: number) => value.toLocaleString(locale === 'ar' ? 'ar-EG' : 'en-US');
+
   const cards = [
-    {label: 'إجمالي الشحنات', value: shipmentCounts?.totalCount ?? (dashboardError ? null : 0), to: `${basePath}/shipments`, icon: Package},
-    {label: 'في المخزون', value: shipmentCounts?.inWarehouseCount ?? (dashboardError ? null : 0), to: `${basePath}/shipments/warehouse`, icon: PackageCheck},
-    {label: 'قيد التوصيل', value: shipmentCounts?.outForDeliveryCount ?? (dashboardError ? null : 0), to: `${basePath}/shipments/out-for-delivery`, icon: Truck},
-    {label: 'تم التسليم', value: shipmentCounts?.deliveredCount ?? (dashboardError ? null : 0), to: `${basePath}/shipments`, icon: PackageCheck},
-    {label: 'المرتجعات', value: shipmentCounts?.returnsCount ?? (dashboardError ? null : 0), to: `${basePath}/shipments/returns`, icon: AlertCircle},
+    {
+      label: 'إجمالي الشحنات',
+      value: shipmentCounts?.totalCount ?? (dashboardError ? null : 0),
+      to: `${basePath}/shipments`,
+      icon: Package,
+      tone: 'text-[var(--tenant-brand)]',
+    },
+    {
+      label: 'في المخزون',
+      value: shipmentCounts?.inWarehouseCount ?? (dashboardError ? null : 0),
+      to: `${basePath}/shipments/warehouse`,
+      icon: PackageCheck,
+      tone: 'text-sky-500',
+    },
+    {
+      label: 'قيد التوصيل',
+      value: shipmentCounts?.outForDeliveryCount ?? (dashboardError ? null : 0),
+      to: `${basePath}/shipments/out-for-delivery`,
+      icon: Truck,
+      tone: 'text-violet-500',
+    },
+    {
+      label: 'تم التسليم',
+      value: shipmentCounts?.deliveredCount ?? (dashboardError ? null : 0),
+      to: `${basePath}/shipments`,
+      icon: PackageCheck,
+      tone: 'text-emerald-500',
+    },
+    {
+      label: 'المرتجعات',
+      value: shipmentCounts?.returnsCount ?? (dashboardError ? null : 0),
+      to: `${basePath}/shipments/returns`,
+      icon: AlertCircle,
+      tone: 'text-rose-500',
+    },
   ];
 
-  const chartValues = cards.map((card) => card.value ?? 0);
-  const maxChartValue = Math.max(1, ...chartValues);
-  const chartColors = ['bg-orange-400', 'bg-sky-400', 'bg-violet-400', 'bg-emerald-400', 'bg-rose-400'];
+  const slices: DonutSlice[] = [
+    {key: 'warehouse', label: t('في المخزون'), value: shipmentCounts?.inWarehouseCount ?? 0, color: SLICE_COLORS.warehouse},
+    {
+      key: 'outForDelivery',
+      label: t('قيد التوصيل'),
+      value: shipmentCounts?.outForDeliveryCount ?? 0,
+      color: SLICE_COLORS.outForDelivery,
+    },
+    {key: 'delivered', label: t('تم التسليم'), value: shipmentCounts?.deliveredCount ?? 0, color: SLICE_COLORS.delivered},
+    {key: 'returns', label: t('المرتجعات'), value: shipmentCounts?.returnsCount ?? 0, color: SLICE_COLORS.returns},
+  ];
 
   return (
     <div className="space-y-5">
       <section className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs font-medium text-slate-500">{t('لوحة الإدارة')}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('لوحة الإدارة')}</p>
           <h1 className="mt-1 text-xl font-extrabold text-slate-900 sm:text-2xl">{t('نظرة عامة على العمليات')}</h1>
         </div>
         <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1" role="group" aria-label={t('نطاق المؤشرات الزمني')}>
@@ -110,10 +150,10 @@ function StaffTenantOverviewInner() {
               key={id}
               type="button"
               onClick={() => setPeriod(id)}
-              className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${
+              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors ${
                 period === id
-                  ? 'brand-gradient text-white shadow-sm'
-                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                  ? 'bg-[var(--tenant-brand)] text-white shadow-sm'
+                  : 'text-slate-500 hover:text-[var(--tenant-brand)]'
               }`}
             >
               {t(label)}
@@ -129,32 +169,32 @@ function StaffTenantOverviewInner() {
       )}
 
       <section aria-label="مؤشرات حركة الشحنات" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        {cards.map((card, index) => {
+        {cards.map((card) => {
           const Icon = card.icon;
-          const style = cardStyles[index];
           return (
             <Link
               key={card.label}
               to={card.to}
-              className={`group min-h-28 rounded-2xl border p-4 ${style.surface} hover:-translate-y-0.5 hover:shadow-sm`}
+              className="group rounded-xl border border-slate-200 bg-white p-4 transition-all duration-200 hover:border-[var(--tenant-brand)] hover:shadow-sm"
             >
               {loading ? (
                 <div className="space-y-3">
-                  <Skeleton className="h-9 w-9 rounded-xl" />
+                  <Skeleton className="h-5 w-5 rounded-md" />
                   <Skeleton className="h-3 w-20" />
                   <Skeleton className="h-6 w-16" />
                 </div>
               ) : (
                 <>
                   <div className="flex items-start justify-between">
-                    <span className={`flex h-9 w-9 items-center justify-center rounded-xl bg-white/80 shadow-sm ${style.icon}`}>
-                      <Icon className="h-5 w-5" />
-                    </span>
-                    <ArrowLeft className="h-4 w-4 text-slate-300 transition-transform group-hover:-translate-x-1" />
+                    <Icon strokeWidth={1.9} className={`h-5 w-5 ${card.tone}`} />
+                    <ArrowLeft
+                      strokeWidth={2}
+                      className="h-3.5 w-3.5 text-slate-300 opacity-0 transition-all duration-200 group-hover:-translate-x-0.5 group-hover:text-[var(--tenant-brand)] group-hover:opacity-100"
+                    />
                   </div>
-                  <p className="mt-3 text-xs font-medium text-slate-500">{t(card.label)}</p>
-                  <p className="mt-1 font-mono-tabular text-2xl font-extrabold text-slate-900">
-                    {card.value === null ? '—' : card.value.toLocaleString(locale === 'ar' ? 'ar-EG' : 'en-US')}
+                  <p className="mt-3 text-xs font-semibold text-slate-500">{t(card.label)}</p>
+                  <p className="mt-0.5 font-mono-tabular text-2xl font-extrabold tracking-tight text-slate-900">
+                    {card.value === null ? '—' : format(card.value)}
                   </p>
                 </>
               )}
@@ -163,42 +203,31 @@ function StaffTenantOverviewInner() {
         })}
       </section>
 
-      <section className="surface-card rounded-2xl p-4 sm:p-5" aria-label="رسم حركة الشحنات">
-        <div className="flex items-center justify-between">
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5" aria-label="توزيع حالات الشحنات">
+        <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-sm font-bold text-slate-900">{t('حركة الشحنات')}</p>
-            <p className="mt-1 text-xs text-slate-500">{t('توزيع مؤشرات العمليات للفترة المحددة')}</p>
+            <p className="text-sm font-bold text-slate-900">{t('مؤشرات حركة الشحنات')}</p>
+            <p className="mt-1 text-xs text-slate-500">{t('توزيع حالات الشحنات ونسبها من الإجمالي للفترة المحددة')}</p>
           </div>
-          <Link to={`${basePath}/reports`} className="text-xs font-bold text-[#d95537] hover:text-[#b94329]">
+          <Link to={`${basePath}/reports`} className="shrink-0 text-xs font-bold text-[var(--tenant-brand)] hover:underline">
             {t('عرض التقرير')}
           </Link>
         </div>
 
-        {loading ? (
-          <div className="mt-6 flex h-52 items-end gap-3">
-            {[45, 72, 58, 84, 38].map((height, index) => (
-              <Skeleton key={index} className="flex-1 rounded-t-xl" style={{height: `${height}%`}} />
-            ))}
-          </div>
-        ) : (
-          <div className="mt-6 flex h-52 items-end gap-2 sm:gap-4" dir="ltr">
-            {cards.map((card, index) => {
-              const height = dashboardError ? 0 : Math.max(8, (chartValues[index] / maxChartValue) * 100);
-              return (
-                <div key={card.label} className="flex h-full min-w-0 flex-1 flex-col justify-end text-center">
-                  <div
-                    className={`mx-auto w-full max-w-14 rounded-t-xl transition-all duration-500 ${chartColors[index]}`}
-                    style={{height: `${height}%`}}
-                    title={`${t(card.label)}: ${card.value ?? '—'}`}
-                  />
-                  <p className="mt-2 truncate text-[10px] font-medium text-slate-500 sm:text-xs" dir={locale === 'ar' ? 'rtl' : 'ltr'}>
-                    {t(card.label)}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        )}
+        <div className="mt-4">
+          {loading ? (
+            <div className="flex h-64 items-center justify-center">
+              <div className="h-40 w-40 animate-pulse rounded-full border-[26px] border-slate-100" />
+            </div>
+          ) : (
+            <DistributionDonut
+              slices={slices}
+              total={shipmentCounts?.totalCount ?? 0}
+              centerLabel={t('إجمالي الشحنات')}
+              formatValue={format}
+            />
+          )}
+        </div>
       </section>
     </div>
   );

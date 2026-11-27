@@ -5,8 +5,42 @@ import {BRAND_CONFIG, buildTenantBasePath} from '@/config/brand';
 import {useAuth} from '@/lib/auth';
 import {getSupabaseClient} from '@/lib/supabase/client';
 import {fetchPublicTenantBySlug} from '@/features/tenants/tenantService';
+import {
+  brandCssVars,
+  fontStack,
+  getTenantBranding,
+  normalizePublicBranding,
+} from '@/features/tenants/brandingService';
 import type {PublicTenantInfo} from '@/types/tenant';
-import {KeyRound, LogIn} from 'lucide-react';
+import type {PublicTenantBranding} from '@/types/tenantBranding';
+import {FloatingField} from '@/components/ui/FloatingField';
+import {BrandSpinner, PageLoader} from '@/components/ui/LoadingState';
+import {KeyRound} from 'lucide-react';
+
+const AUTH_CARD_CLASS =
+  'w-full max-w-[400px] rounded-2xl border border-slate-200/80 bg-white p-7 shadow-[0_18px_50px_-32px_rgba(15,23,42,0.45)]';
+
+function AuthBrandMark({
+  logoPath,
+  name,
+  fallbackColor,
+}: {
+  readonly logoPath: string | null;
+  readonly name: string;
+  readonly fallbackColor: string;
+}) {
+  if (logoPath) {
+    return <img src={logoPath} alt={name} className="h-12 w-auto max-w-[160px] object-contain" />;
+  }
+  return (
+    <span
+      className="flex h-12 w-12 items-center justify-center rounded-xl text-sm font-black"
+      style={{backgroundColor: fallbackColor, color: '#ffffff'}}
+    >
+      {name.slice(0, 2).toUpperCase()}
+    </span>
+  );
+}
 
 export function PlatformLoginPage() {
   const navigate = useNavigate();
@@ -39,61 +73,44 @@ export function PlatformLoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-6 py-12">
-      <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-          <Link to="/" className="text-base font-bold text-slate-900">
-            {BRAND_CONFIG.appName}
-          </Link>
-          <span className="text-xs text-slate-500">دخول إدارة النظام</span>
+    <div className="flex min-h-screen items-center justify-center bg-[#f2f4f7] px-5 py-10">
+      <div className={AUTH_CARD_CLASS}>
+        <div className="flex flex-col items-center text-center">
+          <AuthBrandMark logoPath={null} name={BRAND_CONFIG.appName} fallbackColor="#ef6a47" />
+          <p className="mt-4 text-sm font-extrabold text-slate-900">{BRAND_CONFIG.appName}</p>
+          <h1 className="mt-1 text-lg font-extrabold text-slate-900">تسجيل دخول إدارة المنصة</h1>
         </div>
 
-        <h1 className="mt-5 text-lg font-bold text-slate-900">تسجيل دخول إدارة المنصة</h1>
-        <p className="mt-1 text-xs text-slate-600">
-          استخدم اسم المستخدم وكلمة المرور الخاصة بحسابك.
-        </p>
-
         {!isConfigured && (
-          <p role="alert" className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+          <p role="alert" className="mt-5 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
             لم يتم تهيئة متغيرات اتصال Supabase في البيئة بعد.
           </p>
         )}
 
-        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
-          <div>
-            <label htmlFor="platform-username" className="block text-xs font-medium text-slate-700">
-              اسم المستخدم (Username)
-            </label>
-            <input
-              id="platform-username"
-              type="text"
-              required
-              dir="ltr"
-              autoComplete="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2 font-mono-tabular text-sm focus:border-slate-400 focus:outline-none"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="platform-password" className="block text-xs font-medium text-slate-700">
-              كلمة المرور
-            </label>
-            <input
-              id="platform-password"
-              type="password"
-              required
-              dir="ltr"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-            />
-          </div>
+        <form onSubmit={handleSubmit} className="mt-6 space-y-3.5">
+          <FloatingField
+            id="platform-username"
+            label="اسم المستخدم"
+            type="text"
+            required
+            dir="ltr"
+            autoComplete="username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+          />
+          <FloatingField
+            id="platform-password"
+            label="كلمة المرور"
+            type="password"
+            required
+            dir="ltr"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
 
           {error && (
-            <p role="alert" className="text-xs font-medium text-red-700">
+            <p role="alert" className="text-xs font-semibold text-red-700">
               {error}
             </p>
           )}
@@ -101,10 +118,10 @@ export function PlatformLoginPage() {
           <button
             type="submit"
             disabled={submitting || !isConfigured}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#ef6a47] px-4 py-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#d95537] disabled:opacity-60"
           >
-            <LogIn className="h-4 w-4" />
-            {submitting ? 'جاري التحقق...' : 'دخول للمنصة'}
+            {submitting ? <BrandSpinner size="sm" className="app-spinner-on-brand" /> : null}
+            {submitting ? 'جارٍ التحقق' : 'دخول'}
           </button>
         </form>
       </div>
@@ -117,6 +134,7 @@ export function TenantLoginPage() {
   const navigate = useNavigate();
   const {signIn, memberships, loading, isConfigured} = useAuth();
   const [tenant, setTenant] = useState<PublicTenantInfo | null>(null);
+  const [branding, setBranding] = useState<PublicTenantBranding | null>(null);
   const [tenantLoading, setTenantLoading] = useState(true);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -146,6 +164,21 @@ export function TenantLoginPage() {
     };
   }, [cleanSlug]);
 
+  useEffect(() => {
+    if (!tenant) return;
+    let active = true;
+    void getTenantBranding(tenant.id)
+      .then((data) => {
+        if (active) setBranding(normalizePublicBranding(data));
+      })
+      .catch(() => {
+        if (active) setBranding(normalizePublicBranding(null));
+      });
+    return () => {
+      active = false;
+    };
+  }, [tenant]);
+
   const hasMembershipForTenant = memberships.some(
     (m) => m.tenants?.slug === cleanSlug && m.is_active,
   );
@@ -174,24 +207,18 @@ export function TenantLoginPage() {
   };
 
   if (tenantLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-6 text-sm text-slate-600">
-        جاري التحقق من بوابة الشركة...
-      </div>
-    );
+    return <PageLoader label="جارٍ التحقق من بوابة الشركة" />;
   }
 
   if (!tenant) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 px-6">
-        <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 text-right">
+      <div className="flex min-h-screen items-center justify-center bg-[#f2f4f7] px-5">
+        <div className={`${AUTH_CARD_CLASS} text-center`}>
           <h1 className="text-lg font-bold text-slate-900">الشركة غير موجودة أو موقوفة</h1>
-          <p className="mt-2 text-sm text-slate-600">
-            تأكد من صحة رابط شركة الشحن قبل تسجيل الدخول.
-          </p>
+          <p className="mt-2 text-sm text-slate-600">تأكد من صحة رابط شركة الشحن قبل تسجيل الدخول.</p>
           <Link
             to="/"
-            className="mt-4 inline-block rounded-lg bg-slate-900 px-4 py-2 text-xs font-medium text-white"
+            className="mt-5 inline-block rounded-xl bg-slate-900 px-4 py-2.5 text-xs font-semibold text-white"
           >
             العودة للرئيسية
           </Link>
@@ -200,56 +227,54 @@ export function TenantLoginPage() {
     );
   }
 
+  const activeBranding = branding ?? normalizePublicBranding(null);
+  const brandVars = brandCssVars(activeBranding);
+  const brandColor = activeBranding.primary_color;
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-6 py-12">
-      <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-          <Link to={basePath} className="text-base font-bold text-slate-900">
-            {tenant.name}
-          </Link>
-          <span className="font-mono-tabular text-xs text-slate-500">{tenant.slug}</span>
+    <div
+      style={{
+        ...brandVars,
+        fontFamily: fontStack(activeBranding.font_family),
+        backgroundColor: 'color-mix(in srgb, var(--tenant-brand) 6%, #f2f4f7)',
+      }}
+      className="flex min-h-screen items-center justify-center px-5 py-10"
+    >
+      <div className={AUTH_CARD_CLASS}>
+        <div className="flex flex-col items-center text-center">
+          <AuthBrandMark
+            logoPath={activeBranding.logo_path ?? tenant.brand_logo_path}
+            name={tenant.name}
+            fallbackColor={brandColor}
+          />
+          <p className="mt-4 text-sm font-extrabold text-slate-900">{tenant.name}</p>
+          <h1 className="mt-1 text-lg font-extrabold text-slate-900">تسجيل الدخول إلى النظام</h1>
         </div>
 
-        <h1 className="mt-5 text-lg font-bold text-slate-900">تسجيل الدخول إلى النظام</h1>
-        <p className="mt-1 text-xs text-slate-600">
-          أدخل اسم المستخدم وكلمة المرور المخصصين لحسابك في {tenant.name}.
-        </p>
-
-        <form onSubmit={handleSubmit} className="mt-5 space-y-4">
-          <div>
-            <label htmlFor="tenant-username" className="block text-xs font-medium text-slate-700">
-              اسم المستخدم (Username)
-            </label>
-            <input
-              id="tenant-username"
-              type="text"
-              required
-              dir="ltr"
-              autoComplete="username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2 font-mono-tabular text-sm focus:border-slate-400 focus:outline-none"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="tenant-password" className="block text-xs font-medium text-slate-700">
-              كلمة المرور
-            </label>
-            <input
-              id="tenant-password"
-              type="password"
-              required
-              dir="ltr"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-            />
-          </div>
+        <form onSubmit={handleSubmit} className="mt-6 space-y-3.5">
+          <FloatingField
+            id="tenant-username"
+            label="اسم المستخدم"
+            type="text"
+            required
+            dir="ltr"
+            autoComplete="username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+          />
+          <FloatingField
+            id="tenant-password"
+            label="كلمة المرور"
+            type="password"
+            required
+            dir="ltr"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
 
           {error && (
-            <p role="alert" className="text-xs font-medium text-red-700">
+            <p role="alert" className="text-xs font-semibold text-red-700">
               {error}
             </p>
           )}
@@ -257,12 +282,17 @@ export function TenantLoginPage() {
           <button
             type="submit"
             disabled={submitting || !isConfigured}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-white shadow-sm transition-opacity hover:opacity-90 disabled:opacity-60"
+            style={{backgroundColor: brandColor}}
           >
-            <LogIn className="h-4 w-4" />
-            {submitting ? 'جاري تسجيل الدخول...' : 'دخول'}
+            {submitting ? <BrandSpinner size="sm" className="app-spinner-on-brand" /> : null}
+            {submitting ? 'جارٍ الدخول' : 'دخول'}
           </button>
         </form>
+
+        <p className="mt-5 text-center text-[11px] font-medium text-slate-400">
+          بوابة {tenant.name}
+        </p>
       </div>
     </div>
   );
@@ -314,58 +344,53 @@ export function SetPasswordPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-6 py-12">
-      <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6">
-        <div className="flex items-center gap-2 border-b border-slate-100 pb-4">
-          <KeyRound className="h-4 w-4 text-slate-700" />
-          <h1 className="text-base font-bold text-slate-900">تفعيل الحساب وتعيين كلمة المرور</h1>
+    <div className="flex min-h-screen items-center justify-center bg-[#f2f4f7] px-5 py-10">
+      <div className={AUTH_CARD_CLASS}>
+        <div className="flex flex-col items-center text-center">
+          <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#fff1ec] text-[#ef6a47]">
+            <KeyRound strokeWidth={1.9} className="h-6 w-6" />
+          </span>
+          <h1 className="mt-4 text-lg font-extrabold text-slate-900">تعيين كلمة المرور</h1>
+          <p className="mt-0.5 text-xs font-semibold text-slate-500">تفعيل الحساب</p>
         </div>
 
         {loading ? (
-          <p className="mt-4 text-sm text-slate-600">جاري التحقق من رابط التفعيل...</p>
+          <div className="mt-6 flex items-center justify-center gap-3">
+            <BrandSpinner size="sm" />
+            <span className="text-xs font-semibold text-slate-500">جارٍ التحقق من رابط التفعيل…</span>
+          </div>
         ) : !session ? (
-          <div className="mt-4 space-y-3 text-sm text-slate-600">
+          <div className="mt-6 space-y-3 text-center text-sm text-slate-600">
             <p>يرجى فتح هذه الصفحة عبر رابط الدعوة أو الاستعادة المرسل إلى بريدك الإلكتروني.</p>
-            <Link to="/" className="inline-block text-xs font-medium text-slate-900 underline">
+            <Link to="/" className="inline-block text-xs font-semibold text-slate-900 underline">
               العودة للرئيسية
             </Link>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="mt-5 space-y-4">
-            <div>
-              <label htmlFor="new-pass" className="block text-xs font-medium text-slate-700">
-                كلمة المرور الجديدة
-              </label>
-              <input
-                id="new-pass"
-                type="password"
-                required
-                dir="ltr"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="confirm-pass" className="block text-xs font-medium text-slate-700">
-                تأكيد كلمة المرور
-              </label>
-              <input
-                id="confirm-pass"
-                type="password"
-                required
-                dir="ltr"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                className="mt-1.5 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-slate-400 focus:outline-none"
-              />
-            </div>
+          <form onSubmit={handleSubmit} className="mt-6 space-y-3.5">
+            <FloatingField
+              id="new-pass"
+              label="كلمة المرور الجديدة"
+              type="password"
+              required
+              dir="ltr"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <FloatingField
+              id="confirm-pass"
+              label="تأكيد كلمة المرور"
+              type="password"
+              required
+              dir="ltr"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+            />
 
             {feedback && (
               <p
                 role="status"
-                className={`text-xs font-medium ${
+                className={`text-xs font-semibold ${
                   feedback.type === 'error' ? 'text-red-700' : 'text-emerald-700'
                 }`}
               >
@@ -376,9 +401,10 @@ export function SetPasswordPage() {
             <button
               type="submit"
               disabled={saving}
-              className="w-full rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-60"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#ef6a47] px-4 py-3 text-sm font-bold text-white shadow-sm transition-colors hover:bg-[#d95537] disabled:opacity-60"
             >
-              {saving ? 'جاري الحفظ...' : 'حفظ كلمة المرور'}
+              {saving ? <BrandSpinner size="sm" className="app-spinner-on-brand" /> : null}
+              {saving ? 'جارٍ الحفظ' : 'حفظ كلمة المرور'}
             </button>
           </form>
         )}
@@ -391,11 +417,7 @@ export function RequirePlatformAdmin({children}: {children: ReactNode}) {
   const {platformAdmin, loading} = useAuth();
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 text-sm text-slate-600">
-        جاري التحقق من صلاحيات المنصة...
-      </div>
-    );
+    return <PageLoader label="جارٍ التحقق من صلاحيات المنصة" />;
   }
 
   if (!platformAdmin || !platformAdmin.is_active) {
@@ -411,11 +433,7 @@ export function RequireTenantMember({children}: {children: ReactNode}) {
   const cleanSlug = companySlug.trim().toLowerCase();
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-50 text-sm text-slate-600">
-        جاري التحقق من عضوية الشركة...
-      </div>
-    );
+    return <PageLoader label="جارٍ التحقق من عضوية الشركة" />;
   }
 
   const isMember = memberships.some(

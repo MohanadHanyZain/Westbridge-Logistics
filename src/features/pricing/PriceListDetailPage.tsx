@@ -1,3 +1,4 @@
+import {LoadingState} from '@/components/ui/LoadingState';
 import {useCallback, useEffect, useMemo, useState, type FormEvent} from 'react';
 import {Link, useParams} from 'react-router-dom';
 import {buildTenantBasePath} from '@/config/brand';
@@ -239,7 +240,7 @@ export function PriceListDetailPage() {
   };
 
   if (loading) {
-    return <p className="py-10 text-center text-sm text-slate-500">جاري تحميل مصفوفة الأسعار...</p>;
+    return <p className="py-10 text-center text-sm text-slate-500"><LoadingState className="py-10" label="جارٍ تحميل مصفوفة الأسعار" /></p>;
   }
 
   if (!priceList) {

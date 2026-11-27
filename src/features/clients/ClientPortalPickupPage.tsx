@@ -1,3 +1,4 @@
+import {LoadingState} from '@/components/ui/LoadingState';
 import {useCallback, useEffect, useMemo, useState, type FormEvent} from 'react';
 import {
   cancelClientPickupRequest,
@@ -492,7 +493,7 @@ export function ClientPortalPickupPage() {
                 {requests.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
-                      {loading ? 'جاري تحميل طلبات الالتقاط...' : 'لا توجد طلبات التقاط مسجلة حتى الآن.'}
+                      {loading ? <LoadingState label="جارٍ تحميل طلبات الالتقاط" /> : 'لا توجد طلبات التقاط مسجلة حتى الآن.'}
                     </td>
                   </tr>
                 ) : (

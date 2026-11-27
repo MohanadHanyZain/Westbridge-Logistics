@@ -1,3 +1,4 @@
+import {LoadingState} from '@/components/ui/LoadingState';
 import {useCallback, useEffect, useMemo, useState, type FormEvent} from 'react';
 import {listBranches} from '@/features/definitions/definitionsService';
 import {
@@ -220,7 +221,7 @@ export function CourierCollectionsPage() {
           <h2 className="text-sm font-semibold text-slate-900">عهد النقدية لدى المناديب</h2>
           <div className="divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white">
             {loading ? (
-              <p className="p-4 text-xs text-slate-500">جارٍ التحميل...</p>
+              <p className="p-4 text-xs text-slate-500"><LoadingState label="جارٍ التحميل" /></p>
             ) : overview.length === 0 ? (
               <p className="p-4 text-xs text-slate-500">لا يوجد مناديب مسجلون.</p>
             ) : (

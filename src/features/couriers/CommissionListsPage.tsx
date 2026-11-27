@@ -1,3 +1,4 @@
+import {LoadingState} from '@/components/ui/LoadingState';
 import {useCallback, useEffect, useMemo, useState, type FormEvent} from 'react';
 import {
   calculateCourierCommission,
@@ -242,7 +243,7 @@ export function CommissionListsPage() {
   };
 
   if (loading) {
-    return <p className="py-10 text-center text-sm text-slate-500">جاري تحميل قوائم عمولات المناديب...</p>;
+    return <p className="py-10 text-center text-sm text-slate-500"><LoadingState className="py-10" label="جارٍ تحميل قوائم عمولات المناديب" /></p>;
   }
 
   return (

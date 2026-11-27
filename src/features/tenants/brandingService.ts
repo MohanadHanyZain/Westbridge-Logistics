@@ -236,8 +236,9 @@ export function sectionMeta(id: StorefrontSectionId): StorefrontSectionMeta {
   );
 }
 
-export function fontStack(font: TenantBrandingFont): string {
-  return BRANDING_FONTS.find((option) => option.value === font)?.stack ?? BRANDING_FONTS[0].stack;
+export function fontStack(_font: TenantBrandingFont): string {
+  // Product standard: Cairo is the only typeface used anywhere in the system.
+  return '"Cairo", system-ui, -apple-system, "Segoe UI", sans-serif';
 }
 
 function normalizeSections(

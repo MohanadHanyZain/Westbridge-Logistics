@@ -1,3 +1,4 @@
+import {LoadingState} from '@/components/ui/LoadingState';
 import {useCallback, useEffect, useMemo, useState} from 'react';
 import {getClientAccountStatement} from '@/features/clients/clientPortalService';
 import {listClients} from '@/features/clients/clientsService';
@@ -186,7 +187,7 @@ export function ClientPortalFinancePage() {
               {unsettled.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-slate-500">
-                    {loading ? 'جاري تحميل الشحنات قيد التسوية...' : 'لا توجد شحنات مستحقة للتسوية حاليًا.'}
+                    {loading ? <LoadingState label="جارٍ تحميل الشحنات قيد التسوية" /> : 'لا توجد شحنات مستحقة للتسوية حاليًا.'}
                   </td>
                 </tr>
               ) : (
@@ -291,7 +292,7 @@ export function ClientPortalFinancePage() {
                 {!statement || statement.entries.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-4 py-8 text-center text-slate-500">
-                      {loading ? 'جاري تحميل كشف الحساب...' : 'لا توجد حركات مالية معتمدة خلال الفترة المحددة.'}
+                      {loading ? <LoadingState label="جارٍ تحميل كشف الحساب" /> : 'لا توجد حركات مالية معتمدة خلال الفترة المحددة.'}
                     </td>
                   </tr>
                 ) : (
